@@ -2756,6 +2756,76 @@ async function openExpenseDetails(expenseId) {
 
 
 
+async function confirmCloseGroup() {
+  closeModal();
+
+  const currentGroup = state.currentGroup?.group;
+
+  if (!currentGroup) {
+    toast("No group is currently open.");
+    return;
+  }
+
+  if (String(currentGroup.status).toUpperCase() !== "ACTIVE") {
+    toast("This group is already closed.");
+    return;
+  }
+
+  const settlements = state.currentGroup.settlements || [];
+  const outstandingAmount = settlements.reduce(
+    (sum, settlement) => sum + Number(settlement.amount || 0),
+    0
+  );
+
+  if (outstandingAmount > 0.009) {
+    toast(
+      `This group still has ${formatMoney(outstandingAmount)} outstanding.`
+    );
+    return;
+  }
+
+  setLoading(true, "Closing group...");
+
+  try {
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    if (String(currentGroup.createdBy) !== String(user.id)) {
+      throw new Error("Only the group creator can close this group.");
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from("groups")
+      .update({ status: "CLOSED" })
+      .eq("id", currentGroup.groupId)
+      .eq("created_by", user.id);
+
+    if (updateError) {
+      throw new Error(
+        updateError.message || "Unable to close the group."
+      );
+    }
+
+    currentGroup.status = "CLOSED";
+
+    toast("Group closed and moved to History.");
+
+    state.groupsLoadedAt = 0;
+    await loadGroups();
+  } catch (error) {
+    console.error("CLOSE GROUP ERROR:", error);
+    toast(error.message || "Unable to close the group.");
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function closeCurrentGroup() {
 
   const currentGroup =
@@ -2788,20 +2858,42 @@ async function closeCurrentGroup() {
     return;
   }
 
-  const confirmed =
-    window.confirm(
-      `Close "${currentGroup.groupName}"?\n\n` +
-      "Everyone is settled. This group will be moved to History and will no longer accept new expenses."
-    );
+  openModal(`
+    <div class="close-group-confirmation">
+      <div class="close-group-confirmation-icon">✓</div>
 
-  if (!confirmed) {
-    return;
-  }
+      <h2>Close this group?</h2>
 
-  setLoading(
-    true,
-    "Closing group..."
-  );
+      <p class="close-group-confirmation-group">
+        ${escapeHtml(currentGroup.groupName)}
+      </p>
+
+      <p class="close-group-confirmation-text">
+        Everyone is settled. This group will be moved to History
+        and will no longer accept new expenses or payments.
+      </p>
+
+      <div class="close-group-confirmation-actions">
+        <button
+          type="button"
+          class="close-group-cancel-button"
+          onclick="closeModal()"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="close-group-confirm-button"
+          onclick="confirmCloseGroup()"
+        >
+          Close group
+        </button>
+      </div>
+    </div>
+  `);
+
+  return;
 
   try {
 
