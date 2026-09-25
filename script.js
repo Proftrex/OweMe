@@ -125,6 +125,20 @@ async function getBalancesFromSupabase(groupId) {
 
   if (expenseError) throw expenseError;
 
+  const { data: payments, error: paymentError } =
+    await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        payer_user_id,
+        recipient_user_id,
+        amount_paid,
+        status
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "CONFIRMED");
+
+  if (paymentError) throw paymentError;
+
   const balances = {};
 
   (members || []).forEach(member => {
@@ -159,6 +173,29 @@ async function getBalancesFromSupabase(groupId) {
       Math.round(
         (item.totalPaid - item.totalShare) * 100
       ) / 100;
+  });
+
+  /* Apply confirmed settlement payments */
+  (payments || []).forEach(payment => {
+    const amountPaid =
+      Number(payment.amount_paid || 0);
+
+    if (amountPaid <= 0) return;
+
+    if (balances[payment.payer_user_id]) {
+      balances[payment.payer_user_id].balance +=
+        amountPaid;
+    }
+
+    if (balances[payment.recipient_user_id]) {
+      balances[payment.recipient_user_id].balance -=
+        amountPaid;
+    }
+  });
+
+  Object.values(balances).forEach(item => {
+    item.balance =
+      Math.round(item.balance * 100) / 100;
   });
 
   return {
@@ -2279,7 +2316,7 @@ async function openGroup(groupId) {
 
 
     const currentUserBalance =
-      balances.find(
+      adjustedBalances.find(
         balance =>
           balance.userId === user.id
       );
@@ -4360,7 +4397,7 @@ async function openPayableDetails(settlementId) {
             return `
               <div
                 class="balance-detail-row"
-                style="align-items:flex-start;"
+                style="align-items:flex-start;margin-bottom:12px;"
               >
 
                 <div style="flex:1;">
@@ -5190,6 +5227,9 @@ async function reviewPayment(paymentSubmissionId) {
                     display:flex;
                     align-items:center;
                     justify-content:space-between;
+                    display:flex;
+                    flex-direction:column;
+                    align-items:flex-start;
                     gap:12px;
                     padding:12px;
                     border:1px solid #e5e7eb;
@@ -5478,12 +5518,12 @@ function openRejectPayment(paymentSubmissionId) {
         </button>
 
         <button
-          type="button"
-          class="primary-button"
-          onclick="processRejectPayment('${escapeHtml(paymentSubmissionId)}')"
-        >
-          Reject Payment
-        </button>
+  type="button"
+  class="primary-button reject-payment-button"
+  onclick="processRejectPayment('${escapeHtml(paymentSubmissionId)}')"
+>
+  Reject Payment
+</button>
 
       </div>
 

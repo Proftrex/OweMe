@@ -2139,3 +2139,51 @@ button[onclick^="deletePaymentDetails"] {
   border-radius: 16px;
 }
 
+
+/* Space between shared expense cards */
+.shared-expense-card {
+  margin-bottom: 12px !important;
+}
+
+.shared-expense-card:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Add breathing room between detail rows */
+.balance-detail-row {
+  margin-bottom: 12px !important;
+}
+
+.balance-detail-row:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Space between receivable cards */
+.balance-detail-list .balance-detail-row {
+  margin-bottom: 12px !important;
+}
+
+.balance-detail-list .balance-detail-row:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Reject payment button */
+button[onclick*="rejectPayment"],
+button[onclick*="rejectPaymentSubmission"] {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border-color: transparent !important;
+}
+
+
+button[onclick*="openRejectPayment"] {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border-color: transparent !important;
+}
+
+.reject-payment-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border-color: transparent !important;
+}
