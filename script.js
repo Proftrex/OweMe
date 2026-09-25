@@ -8060,7 +8060,21 @@ async function viewPaymentQr(paymentDetailId) {
       throw new Error("Unable to open the QR code.");
     }
 
-    window.open(signedUrl, "_blank", "noopener,noreferrer");
+    openModal(`
+      <div class="payment-qr-modal">
+        <h2>${escapeHtml(detail.paymentOption)} QR Code</h2>
+
+        <p class="muted">
+          ${escapeHtml(detail.accountName || "")}
+        </p>
+
+        <img
+          src="${escapeHtml(signedUrl)}"
+          alt="Payment QR Code"
+          class="payment-qr-image"
+        >
+      </div>
+    `);
   } catch (error) {
     console.error("VIEW PAYMENT QR ERROR:", error);
     toast(error.message || "Unable to open the QR code.");
