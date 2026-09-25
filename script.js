@@ -1418,6 +1418,9 @@ async function loadGroupsData(force = false) {
           0,
 
         myBalance:
+          0,
+
+        amountSpent:
           0
 
       }));
@@ -1491,10 +1494,16 @@ async function loadGroupsData(force = false) {
 
     let totalPaid = 0;
     let totalShare = 0;
+    let amountSpent = 0;
 
 
     (expenseRows || [])
       .forEach(expense => {
+
+        amountSpent +=
+          Number(
+            expense.amount || 0
+          );
 
         if (
           expense.paid_by_user_id ===
@@ -1529,11 +1538,81 @@ async function loadGroupsData(force = false) {
       });
 
 
+    group.amountSpent =
+      Number(
+        amountSpent.toFixed(2)
+      );
+
+
+    const {
+      data: paymentRows,
+      error: paymentError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        payer_user_id,
+        recipient_user_id,
+        amount_paid,
+        status
+      `)
+      .eq("group_id", group.groupId)
+      .eq("status", "CONFIRMED");
+
+
+    if (paymentError) {
+
+      console.error(
+        "LOAD GROUP PAYMENTS ERROR:",
+        paymentError
+      );
+
+    }
+
+
+    let paymentAdjustment = 0;
+
+
+    (paymentRows || [])
+      .forEach(payment => {
+
+        const amountPaid =
+          Number(
+            payment.amount_paid || 0
+          );
+
+        if (amountPaid <= 0) {
+          return;
+        }
+
+        if (
+          payment.payer_user_id ===
+          user.id
+        ) {
+
+          paymentAdjustment +=
+            amountPaid;
+
+        }
+
+        if (
+          payment.recipient_user_id ===
+          user.id
+        ) {
+
+          paymentAdjustment -=
+            amountPaid;
+
+        }
+
+      });
+
+
     group.myBalance =
       Number(
         (
           totalPaid -
-          totalShare
+          totalShare +
+          paymentAdjustment
         ).toFixed(2)
       );
 
@@ -1564,9 +1643,23 @@ function renderGroupCard(group) {
       data-group-id="${escapeHtml(group.groupId)}"
     >
 
-      <div>
+      <div style="flex:1;">
         <h3>${escapeHtml(group.groupName)}</h3>
-        <p>${Number(group.memberCount || 0)} members</p>
+
+        <p>
+          ${Number(group.memberCount || 0)}
+          members
+        </p>
+
+        <p style="margin-top:8px;">
+          <strong>Amount Spent:</strong>
+          ${formatMoney(group.amountSpent || 0)}
+        </p>
+
+        <p style="margin-top:4px;">
+          <strong>For Settlement:</strong>
+          ${formatMoney(Math.abs(group.myBalance || 0))}
+        </p>
       </div>
 
       <div class="arrow">›</div>
@@ -5069,6 +5162,278 @@ function renderPendingPayment(payment) {
 
     </div>
   `;
+}
+
+
+async function openPaymentTransaction(paymentSubmissionId) {
+  try {
+    setLoading(true, "Loading payment details...");
+
+    const { data: payment, error } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        group_id,
+        payment_option,
+        amount_due,
+        amount_paid,
+        proof_file_url,
+        notes,
+        status,
+        submitted_at,
+        confirmed_at,
+        rejected_at,
+        rejection_reason,
+        payer_user_id,
+        recipient_user_id
+      `)
+      .eq("id", paymentSubmissionId)
+      .single();
+
+    if (error) throw error;
+    if (!payment) throw new Error("Payment transaction not found.");
+
+    const {
+      data: groupMembers,
+      error: memberError
+    } = await supabaseClient.rpc(
+      "get_group_members",
+      {
+        lookup_group_id: payment.group_id
+      }
+    );
+
+    if (memberError) throw memberError;
+
+    const payerProfile =
+      (groupMembers || []).find(
+        member =>
+          String(member.user_id) ===
+          String(payment.payer_user_id)
+      );
+
+    const recipientProfile =
+      (groupMembers || []).find(
+        member =>
+          String(member.user_id) ===
+          String(payment.recipient_user_id)
+      );
+
+    const payerName =
+      payerProfile?.username
+        ? `@${payerProfile.username}`
+        : payerProfile?.display_name || "Unknown";
+
+    const recipientName =
+      recipientProfile?.username
+        ? `@${recipientProfile.username}`
+        : recipientProfile?.display_name || "Unknown";
+
+    let proofHtml = "";
+
+    if (payment.proof_file_url) {
+      const proofUrl =
+        await getPaymentQrUrl(payment.proof_file_url);
+
+      if (proofUrl) {
+        proofHtml = `
+          <div style="margin-top:18px;">
+            <div class="muted" style="margin-bottom:8px;">
+              Payment Proof
+            </div>
+
+            <a
+              href="${escapeHtml(proofUrl)}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="secondary-button"
+              style="
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                text-decoration:none;
+              "
+            >
+              View Proof
+            </a>
+          </div>
+        `;
+      }
+    }
+
+    let statusHtml = "";
+
+    if (String(payment.status).toUpperCase() === "CONFIRMED") {
+      statusHtml = `
+        <span class="status-confirmed">
+          Confirmed
+        </span>
+      `;
+    } else if (String(payment.status).toUpperCase() === "REJECTED") {
+      statusHtml = `
+        <span class="status-rejected">
+          Rejected
+        </span>
+      `;
+    } else if (String(payment.status).toUpperCase() === "SUBMITTED") {
+      statusHtml = `
+        <span class="status-pending">
+          Pending
+        </span>
+      `;
+    } else {
+      statusHtml = escapeHtml(payment.status || "Unknown");
+    }
+
+    openModal(`
+      <div class="modal-confirmation">
+
+        <h2>Payment Details</h2>
+
+        <div
+          class="card"
+          style="
+            margin-top:16px;
+            padding:20px;
+          "
+        >
+
+          <div class="muted">
+            From
+          </div>
+
+          <div
+            style="
+              font-size:18px;
+              font-weight:700;
+              margin-top:4px;
+            "
+          >
+            ${escapeHtml(payerName)}
+          </div>
+
+          <div
+            class="muted"
+            style="margin-top:16px;"
+          >
+            To
+          </div>
+
+          <div
+            style="
+              font-size:18px;
+              font-weight:700;
+              margin-top:4px;
+            "
+          >
+            ${escapeHtml(recipientName)}
+          </div>
+
+          <div
+            class="muted"
+            style="margin-top:16px;"
+          >
+            Payment Method
+          </div>
+
+          <div
+            style="
+              font-size:17px;
+              font-weight:700;
+              margin-top:4px;
+            "
+          >
+            ${escapeHtml(payment.payment_option || "—")}
+          </div>
+
+          <div
+            class="muted"
+            style="margin-top:16px;"
+          >
+            Amount Paid
+          </div>
+
+          <div
+            style="
+              font-size:28px;
+              font-weight:700;
+              margin-top:4px;
+            "
+          >
+            ${formatMoney(Number(payment.amount_paid || 0))}
+          </div>
+
+          <div
+            class="muted"
+            style="margin-top:16px;"
+          >
+            Status
+          </div>
+
+          <div style="margin-top:6px;">
+            ${statusHtml}
+          </div>
+
+          ${
+            payment.notes
+              ? `
+                <div
+                  class="muted"
+                  style="margin-top:16px;"
+                >
+                  Notes
+                </div>
+
+                <div style="margin-top:4px;">
+                  ${escapeHtml(payment.notes)}
+                </div>
+              `
+              : ""
+          }
+
+          ${
+            payment.rejection_reason
+              ? `
+                <div
+                  class="muted"
+                  style="margin-top:16px;"
+                >
+                  Rejection Reason
+                </div>
+
+                <div
+                  style="
+                    margin-top:4px;
+                    color:var(--red);
+                  "
+                >
+                  ${escapeHtml(payment.rejection_reason)}
+                </div>
+              `
+              : ""
+          }
+
+          ${proofHtml}
+
+        </div>
+
+      </div>
+    `);
+
+  } catch (error) {
+    console.error(
+      "OPEN PAYMENT TRANSACTION ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load payment details."
+    );
+
+  } finally {
+    setLoading(false);
+  }
 }
 
 

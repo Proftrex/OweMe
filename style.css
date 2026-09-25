@@ -2187,3 +2187,11 @@ button[onclick*="openRejectPayment"] {
   color: var(--red) !important;
   border-color: transparent !important;
 }
+.balance-positive {
+  color: var(--green) !important;
+}
+
+.balance-negative {
+  color: var(--red) !important;
+}
+
