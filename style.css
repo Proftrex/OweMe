@@ -1789,3 +1789,326 @@ input + button {
 .loading-overlay.hidden {
   display: none;
 }
+
+/* =========================
+   COMPACT ACTION BUTTONS
+========================= */
+
+#content button.primary-button,
+#content .primary-button,
+#content .add-expense-button,
+#content .action-button,
+#content .secondary-button,
+#content .success-button,
+#content .danger-button,
+#content .small-button,
+#content .table-action,
+#content .close-group-button,
+#content .close-group-confirm-button {
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Main action buttons */
+#content .primary-button,
+#content .add-expense-button {
+  min-width: 180px;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+/* Smaller action buttons */
+#content .action-button,
+#content .secondary-button,
+#content .success-button,
+#content .danger-button,
+#content .close-group-button,
+#content .close-group-confirm-button {
+  min-width: 140px;
+}
+
+/* Keep buttons from stretching inside action rows */
+#content .action-row > button,
+#content .button-row > button {
+  width: fit-content;
+}
+
+/* Auth buttons remain full-width */
+.auth-card .primary-button,
+.auth-card button.primary-button {
+  width: 100%;
+}
+
+
+/* Center compact action buttons */
+#content .primary-button,
+#content .add-expense-button,
+#content .action-button,
+#content .secondary-button,
+#content .success-button,
+#content .danger-button,
+#content .small-button,
+#content .table-action,
+#content .close-group-button,
+#content .close-group-confirm-button {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#content .action-row,
+#content .button-row {
+  justify-content: center;
+}
+
+
+/* =========================
+   COMPACT MODAL ACTIONS
+========================= */
+
+.modal .primary-button,
+.modal .add-expense-button,
+.modal .secondary-button,
+.modal .success-button,
+.modal .danger-button,
+.modal .close-group-confirm-button,
+.modal .close-group-cancel-button {
+  width: fit-content !important;
+  min-width: 180px;
+  max-width: 100%;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.modal .secondary-button,
+.modal .close-group-cancel-button {
+  min-width: 140px;
+}
+
+.modal .action-row,
+.modal .button-row {
+  justify-content: center;
+}
+
+
+/* Center Add Expense modal action */
+#addExpenseForm > .primary-button {
+  display: block;
+  width: fit-content !important;
+  min-width: 180px;
+  margin: 18px auto 0 !important;
+}
+
+
+/* Keep Create Group helper text and button on separate rows */
+#createGroupForm .field-help {
+  display: block;
+  width: 100%;
+  clear: both;
+  margin-bottom: 16px;
+}
+
+#createGroupForm > .primary-button {
+  display: block;
+  width: fit-content !important;
+  min-width: 180px;
+  margin: 0 auto !important;
+  clear: both;
+}
+
+
+/* Add spacing before Send Invitation */
+#addMemberForm button[type="submit"] {
+  margin-top: 16px !important;
+}
+
+
+/* More breathing room before Send Invitation */
+#addMemberForm button[type="submit"] {
+  display: block;
+  margin-top: 28px !important;
+}
+
+
+/* Add breathing room before Send Invitation */
+#inviteMemberForm > button.primary-button {
+  display: block;
+  margin-top: 28px !important;
+}
+
+
+/* Payment detail action buttons */
+.payment-detail-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.payment-detail-actions button {
+  width: fit-content !important;
+  min-width: 110px;
+  flex: 0 0 auto;
+}
+
+
+/* Stack payment detail actions vertically */
+.payment-detail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.payment-detail-actions button {
+  width: fit-content !important;
+  min-width: 110px;
+  flex: none;
+}
+
+
+/* Payment detail delete button */
+.payment-detail-actions button[onclick*="delete"],
+.payment-detail-actions .danger-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+}
+
+
+/* Payment detail actions */
+.payment-detail-actions,
+.payment-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.payment-detail-actions button,
+.payment-actions button {
+  width: fit-content !important;
+  min-width: 110px;
+}
+
+/* Delete payment detail */
+button[onclick^="deletePaymentDetails"] {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+}
+
+
+/* Payment details: information first, actions underneath */
+#paymentDetailsList > div > div {
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+#paymentDetailsList > div > div > div:last-child {
+  width: 100% !important;
+  margin-top: 16px !important;
+}
+
+#paymentDetailsList > div > div > div:last-child > div {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+#paymentDetailsList button[onclick^="editPaymentDetails"],
+#paymentDetailsList button[onclick^="deletePaymentDetails"] {
+  width: fit-content !important;
+  min-width: 110px;
+}
+
+#paymentDetailsList button[onclick^="deletePaymentDetails"] {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+}
+
+
+/* Center payment detail actions */
+#paymentDetailsList > div > div > div:last-child {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#paymentDetailsList > div > div > div:last-child > div {
+  justify-content: center !important;
+}
+
+
+/* Center Edit/Delete buttons as a group */
+#paymentDetailsList button[onclick^="editPaymentDetails"],
+#paymentDetailsList button[onclick^="deletePaymentDetails"] {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+#paymentDetailsList > div > div > div:last-child {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+#paymentDetailsList > div > div > div:last-child > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+
+/* Decline invitation */
+.action-button.red-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+}
+
+
+/* Payment detail action buttons — equal compact widths */
+#paymentDetailsList button[onclick^="viewPaymentQr"],
+#paymentDetailsList button[onclick^="editPaymentDetails"],
+#paymentDetailsList button[onclick^="deletePaymentDetails"] {
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+  flex: 0 0 110px !important;
+  margin: 0 !important;
+  padding: 11px 16px !important;
+}
+
+#paymentDetailsList > div > div > div:last-child {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#paymentDetailsList > div > div > div:last-child > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: nowrap !important;
+}
+
+@media (max-width: 500px) {
+  #paymentDetailsList button[onclick^="viewPaymentQr"],
+  #paymentDetailsList button[onclick^="editPaymentDetails"],
+  #paymentDetailsList button[onclick^="deletePaymentDetails"] {
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+    flex-basis: 90px !important;
+    padding: 10px 8px !important;
+  }
+
+  #paymentDetailsList > div > div > div:last-child > div {
+    gap: 8px !important;
+  }
+}
+

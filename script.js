@@ -7986,6 +7986,20 @@ async function renderSavedPaymentDetails() {
                   "
                 >
 
+                  ${
+                    detail.qrFileUrl
+                      ? `
+                        <button
+                          type="button"
+                          class="secondary-button"
+                          onclick="viewPaymentQr('${detail.paymentDetailId}')"
+                        >
+                          View
+                        </button>
+                      `
+                      : ""
+                  }
+
                   <button
                     type="button"
                     class="secondary-button"
@@ -7996,7 +8010,7 @@ async function renderSavedPaymentDetails() {
 
                   <button
                     type="button"
-                    class="secondary-button"
+                    class="danger-button"
                     onclick="deletePaymentDetails('${detail.paymentDetailId}')"
                   >
                     Delete
@@ -8025,6 +8039,36 @@ async function renderSavedPaymentDetails() {
   }
 
 }
+
+async function viewPaymentQr(paymentDetailId) {
+  try {
+    setLoading(true, "Opening QR code...");
+
+    const details = await loadPaymentDetails();
+
+    const detail = details.find(
+      item => String(item.paymentDetailId) === String(paymentDetailId)
+    );
+
+    if (!detail || !detail.qrFileUrl) {
+      throw new Error("No QR code was uploaded for this payment method.");
+    }
+
+    const signedUrl = await getPaymentQrUrl(detail.qrFileUrl);
+
+    if (!signedUrl) {
+      throw new Error("Unable to open the QR code.");
+    }
+
+    window.open(signedUrl, "_blank", "noopener,noreferrer");
+  } catch (error) {
+    console.error("VIEW PAYMENT QR ERROR:", error);
+    toast(error.message || "Unable to open the QR code.");
+  } finally {
+    setLoading(false);
+  }
+}
+
 
 async function editPaymentDetails(paymentDetailId) {
 
