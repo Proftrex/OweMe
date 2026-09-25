@@ -1,4 +1,20 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbx_OV6mn4u-WEy0njXi1mw1gmpaylDGx9gVu1pMN-xKRHD90GzOql-fAFxSGwWoKzCZ/exec";
+const SUPABASE_URL = "https://khrawdzhvfdfrvbhbhge.supabase.co";
+
+const SUPABASE_KEY = "sb_publishable_diLxiZhI5gM-L_WrCh2Hfg_er9qLNtB";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+);
+
+console.log("Supabase connected:", !!supabaseClient);
 
 const state = {
   user: null,
@@ -14,11 +30,13 @@ const $ = (selector) => document.querySelector(selector);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
-  bindEvents(); 
+  bindEvents();
 
-  const token = localStorage.getItem("splitly_session");
+  const {
+    data: { session }
+  } = await supabaseClient.auth.getSession();
 
-  if (!token) {
+  if (!session) {
     showAuth();
     return;
   }
@@ -26,185 +44,344 @@ async function init() {
   setLoading(true, "Loading, please wait...");
 
   try {
-    const [userResult, groupsResult] =
-      await Promise.all([
-        api("getUser", {}, "GET"),
-        api("getGroups", {}, "GET")
-      ]);
+    const {
+      data: profile,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
 
-    state.user = userResult.user;
+    if (profileError) {
+      throw new Error(
+        "Your account is signed in, but your OweMe profile could not be loaded."
+      );
+    }
+
+    state.user = {
+      userId: profile.id,
+      username: profile.username,
+      email: session.user.email,
+      displayName: profile.display_name,
+      status: profile.status,
+      createdAt: profile.created_at
+    };
 
     showApp();
-    await loadHome(groupsResult.groups || []);
+
+    await loadHome();
 
   } catch (error) {
 
+    console.error("SUPABASE SESSION RESTORE ERROR:", error);
+
+    state.user = null;
+    state.groups = [];
+    state.currentGroup = null;
+
+    showAuth();
+
     toast(
       error.message ||
-      "Your session could not be restored."
+      "Unable to load your account."
     );
 
-    localStorage.removeItem("splitly_session");
-    showAuth();
   } finally {
     setLoading(false);
   }
 }
 
-
 /* =========================================================
    API
    ========================================================= */
 
-async function api(action, data = {}, method = "POST") {
 
-  const startedAt = performance.now();
+async function getBalancesFromSupabase(groupId) {
+  const { data: members, error: memberError } =
+    await supabaseClient
+      .from("group_members")
+      .select("user_id, role, status")
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE");
 
-  const token =
-    localStorage.getItem("splitly_session") || "";
+  if (memberError) throw memberError;
 
-  let url =
-    `${API_URL}?action=${encodeURIComponent(action)}`;
+  const { data: expenses, error: expenseError } =
+    await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        paid_by_user_id,
+        amount,
+        expense_participants (
+          user_id,
+          share_amount
+        )
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE");
 
-  const options = {
-    method: method,
-    redirect: "follow"
-  };
+  if (expenseError) throw expenseError;
 
-  console.log("OweMe API REQUEST:", {
-    action: action,
-    method: method,
-    url: url,
-    hasToken: !!token,
-    dataKeys: Object.keys(data || {})
+  const balances = {};
+
+  (members || []).forEach(member => {
+    balances[member.user_id] = {
+      userId: member.user_id,
+      totalPaid: 0,
+      totalShare: 0,
+      balance: 0
+    };
   });
 
-  if (method === "GET") {
+  (expenses || []).forEach(expense => {
+    const payer = balances[expense.paid_by_user_id];
 
-    if (token) {
-      url +=
-        `&token=${encodeURIComponent(token)}`;
+    if (payer) {
+      payer.totalPaid += Number(expense.amount || 0);
     }
 
-    Object.entries(data).forEach(
-      ([key, value]) => {
+    (expense.expense_participants || []).forEach(participant => {
+      const member = balances[participant.user_id];
 
-        if (
-          value !== undefined &&
-          value !== null
-        ) {
-          url +=
-            `&${encodeURIComponent(key)}` +
-            `=${encodeURIComponent(value)}`;
-        }
+      if (member) {
+        member.totalShare += Number(
+          participant.share_amount || 0
+        );
+      }
+    });
+  });
+
+  Object.values(balances).forEach(item => {
+    item.balance =
+      Math.round(
+        (item.totalPaid - item.totalShare) * 100
+      ) / 100;
+  });
+
+  return {
+    success: true,
+    data: {
+      balances: Object.values(balances)
+    }
+  };
+}
+
+
+async function getSettlementsFromSupabase(groupId) {
+
+  const balanceResult =
+    await getBalancesFromSupabase(groupId);
+
+  const balances =
+    balanceResult.data.balances || [];
+
+  const membersResult =
+    await supabaseClient.rpc(
+      "get_group_members",
+      {
+        lookup_group_id: groupId
       }
     );
+
+  if (membersResult.error) {
+    throw new Error(
+      membersResult.error.message ||
+      "Unable to load group members."
+    );
   }
 
-  if (method === "POST") {
+  const members =
+    membersResult.data || [];
 
-    options.headers = {
-      "Content-Type":
-        "text/plain;charset=utf-8"
+  const memberMap = {};
+
+  members.forEach(member => {
+
+    memberMap[String(member.user_id)] = {
+      username:
+        member.username || "",
+
+      displayName:
+        member.display_name || ""
     };
 
-    options.body =
-      JSON.stringify({
-        ...data,
-        token: token
-      });
-  }
+  });
 
-  let response;
+  const debtors = balances
+    .filter(item => Number(item.balance) < -0.005)
+    .map(item => ({
+      userId: item.userId,
+      amount: Math.abs(Number(item.balance))
+    }));
 
-  try {
+  const creditors = balances
+    .filter(item => Number(item.balance) > 0.005)
+    .map(item => ({
+      userId: item.userId,
+      amount: Number(item.balance)
+    }));
 
-    response =
-      await fetch(
-        url,
-        options
+  const settlements = [];
+
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+
+  while (
+    debtorIndex < debtors.length &&
+    creditorIndex < creditors.length
+  ) {
+
+    const debtor =
+      debtors[debtorIndex];
+
+    const creditor =
+      creditors[creditorIndex];
+
+    const amount =
+      Math.round(
+        Math.min(
+          debtor.amount,
+          creditor.amount
+        ) * 100
+      ) / 100;
+
+    if (amount <= 0) {
+      break;
+    }
+
+    const {
+      data: settlementId,
+      error: settlementError
+    } = await supabaseClient.rpc(
+      "ensure_settlement",
+      {
+        p_group_id: groupId,
+        p_from_user_id: debtor.userId,
+        p_to_user_id: creditor.userId,
+        p_amount: amount
+      }
+    );
+
+    if (settlementError) {
+      console.error(
+        "ENSURE SETTLEMENT ERROR:",
+        settlementError
       );
 
-  } catch (error) {
+      throw new Error(
+        settlementError.message ||
+        "Unable to create settlement."
+      );
+    }
 
-    console.error(
-      "OweMe API CONNECTION ERROR:",
-      error
-    );
+    settlements.push({
 
-    throw new Error(
-      "Unable to connect to OweMe."
-    );
-  }
+      settlementId,
 
-  const responseTime =
-    performance.now() - startedAt;
+      groupId,
 
-  console.log(
-    `OweMe API RESPONSE: ${action} — ${response.status} — ${responseTime.toFixed(0)}ms`
-  );
+      fromUserId:
+        debtor.userId,
 
-  console.log(
-    "OweMe API RESPONSE URL:",
-    response.url
-  );
+      fromUsername:
+        memberMap[String(debtor.userId)]?.username || "",
 
-  if (!response.ok) {
+      fromDisplayName:
+        memberMap[String(debtor.userId)]?.displayName || "",
 
-    throw new Error(
-      `${action}: server error (${response.status}). Check the Apps Script web app deployment.`
-    );
-  }
+      toUserId:
+        creditor.userId,
 
-  const rawText =
-    await response.text();
+      toUsername:
+        memberMap[String(creditor.userId)]?.username || "",
 
-  console.log(
-    "OweMe API RAW RESPONSE:",
-    rawText
-  );
+      toDisplayName:
+        memberMap[String(creditor.userId)]?.displayName || "",
 
-  let json;
+      amount,
 
-  try {
+      status:
+        "UNPAID"
 
-    json =
-      JSON.parse(rawText);
+    });
 
-  } catch (error) {
+    debtor.amount =
+      Math.round(
+        (debtor.amount - amount) * 100
+      ) / 100;
 
-    console.error(
-      "OweMe API JSON PARSE ERROR:",
-      error
-    );
+    creditor.amount =
+      Math.round(
+        (creditor.amount - amount) * 100
+      ) / 100;
 
-    throw new Error(
-      "The server returned an invalid response."
-    );
-  }
+    if (debtor.amount <= 0.005) {
+      debtorIndex++;
+    }
 
-  console.log(
-    "OweMe API JSON:",
-    json
-  );
+    if (creditor.amount <= 0.005) {
+      creditorIndex++;
+    }
 
-  if (!json.success) {
-
-    throw new Error(
-      `${action}: ${json.message ||
-      "Something went wrong."
-      }`
-    );
   }
 
   return {
-    ...json,
-    data:
-      json.data !== undefined
-        ? json.data
-        : json
+    success: true,
+
+    settlements,
+
+    data: {
+      settlements
+    }
+  };
+
+}
+
+async function getPendingPaymentsFromSupabase(groupId) {
+  const { data, error } =
+    await supabaseClient
+      .from("payment_submissions")
+      .select("*")
+      .eq("group_id", groupId)
+      .eq("status", "SUBMITTED")
+      .eq(
+        "recipient_user_id",
+        state.user.userId
+      )
+      .order("submitted_at", {
+        ascending: false
+      });
+
+  if (error) throw error;
+
+  const payments =
+    (data || []).map(payment => ({
+      paymentSubmissionId: payment.id,
+      settlementId: payment.settlement_id,
+      groupId: payment.group_id,
+      payerUserId: payment.payer_user_id,
+      recipientUserId: payment.recipient_user_id,
+      paymentOption: payment.payment_option,
+      paymentDetailId: payment.payment_detail_id,
+      amountDue: Number(payment.amount_due || 0),
+      amountPaid: Number(payment.amount_paid || 0),
+      proofFileUrl: payment.proof_file_url,
+      notes: payment.notes,
+      status: payment.status,
+      submittedAt: payment.submitted_at
+    }));
+
+  return {
+    success: true,
+    payments,
+    data: {
+      payments
+    }
   };
 }
+
 
 function bindEvents() {
 
@@ -305,56 +482,120 @@ async function handleLogin(event) {
 
   try {
 
-    const result =
-      await api("login", {
-        identifier,
-        username: identifier,
-        email: identifier,
-        password
-      });
+    if (!identifier) {
+      throw new Error("Please enter your email or username.");
+    }
 
-    if (!result || !result.success) {
+    if (!password) {
+      throw new Error("Please enter your password.");
+    }
+
+    /*
+     * Allow login using either email or username.
+     * A leading @ is ignored for username login.
+     */
+
+    const loginIdentifier =
+      identifier.startsWith("@")
+        ? identifier.slice(1)
+        : identifier;
+
+    let email = loginIdentifier;
+
+    if (!loginIdentifier.includes("@")) {
+
+      const usernameNormalized =
+        loginIdentifier.toLowerCase();
+
+      const {
+        data: profile,
+        error: profileLookupError
+      } = await supabaseClient.rpc(
+        "find_profile_by_username",
+        {
+          lookup_username: usernameNormalized
+        }
+      );
+
+      if (profileLookupError) {
+        throw profileLookupError;
+      }
+
+      if (!profile) {
+        throw new Error(
+          "No account was found with that username."
+        );
+      }
+
+      const {
+        data: authEmail,
+        error: authEmailError
+      } = await supabaseClient.rpc(
+        "get_login_email_by_username",
+        {
+          lookup_username: usernameNormalized
+        }
+      );
+
+      if (authEmailError) {
+        throw authEmailError;
+      }
+
+      if (!authEmail) {
+        throw new Error(
+          "This account does not have a login email."
+        );
+      }
+
+      email = authEmail;
+    }
+
+    const {
+      data,
+      error
+    } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
       throw new Error(
-        "Login API returned an unsuccessful response."
+        "Login succeeded but no user account was returned."
       );
     }
 
-    const token =
-      result.token ||
-      result.data?.token;
+    /*
+     * Supabase Auth has now authenticated the user.
+     * Fetch the corresponding OweMe profile.
+     */
 
-    let user =
-      result.user ||
-      result.data?.user;
+    const {
+      data: profile,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
 
-    if (!token) {
+    if (profileError) {
       throw new Error(
-        "Login succeeded but no session token was returned."
+        "Login succeeded, but your OweMe profile could not be loaded."
       );
     }
 
-    localStorage.setItem(
-      "splitly_session",
-      token
-    );
-
-    if (!user) {
-
-      const userResult =
-        await api("getUser", {}, "GET");
-
-      user =
-        userResult.user ||
-        userResult.data?.user;
-    }
-
-    if (!user) {
-      throw new Error(
-        "Login succeeded but no user profile was returned."
-      );
-    }
-
-    state.user = user;
+    state.user = {
+      userId: profile.id,
+      username: profile.username,
+      email: data.user.email,
+      displayName: profile.display_name,
+      status: profile.status,
+      createdAt: profile.created_at
+    };
 
     $("#loginForm").reset();
 
@@ -366,14 +607,12 @@ async function handleLogin(event) {
 
   } catch (error) {
 
-    console.error("LOGIN ERROR:", error);
+    console.error("SUPABASE LOGIN ERROR:", error);
 
-    const message =
-      error && error.message
-        ? error.message
-        : String(error);
-
-    toast("LOGIN ERROR: " + message);
+    toast(
+      error?.message ||
+      "Unable to log in."
+    );
 
   } finally {
 
@@ -383,9 +622,9 @@ async function handleLogin(event) {
       submitButton.disabled = false;
       submitButton.textContent = "Log In";
     }
+
   }
 }
-
 
 async function handleRegister(event) {
 
@@ -398,80 +637,235 @@ async function handleRegister(event) {
 
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "Creating account...";
+    submitButton.textContent = "Creating Account...";
   }
 
-  const email = $("#registerEmail").value.trim();
-  const username = $("#registerUsername").value.trim();
-  const displayName = $("#registerDisplayName").value.trim();
-  const password = $("#registerPassword").value;
-  const confirmPassword = $("#registerPasswordConfirm").value;
+  setLoading(
+    true,
+    "Creating your account, please wait."
+  );
 
-  if (password !== confirmPassword) {
-    toast("Passwords do not match.");
-    return;
-  }
+  const email =
+    $("#registerEmail").value.trim();
+
+  const username =
+    $("#registerUsername").value.trim();
+
+  const displayName =
+    $("#registerDisplayName").value.trim();
+
+  const password =
+    $("#registerPassword").value;
+
+  const passwordConfirm =
+    $("#registerPasswordConfirm").value;
 
   try {
 
-    setLoading(true, "Creating account...");
+    if (!email) {
+      throw new Error(
+        "Please enter your email address."
+      );
+    }
 
-    const result = await api("register", {
+    if (!username) {
+      throw new Error(
+        "Please enter a username."
+      );
+    }
+
+    if (!/^[A-Za-z0-9_.]+$/.test(username)) {
+      throw new Error(
+        "Username can only contain letters, numbers, underscore and period."
+      );
+    }
+
+    if (!displayName) {
+      throw new Error(
+        "Please enter your display name."
+      );
+    }
+
+    if (password.length < 8) {
+      throw new Error(
+        "Password must be at least 8 characters."
+      );
+    }
+
+    if (password !== passwordConfirm) {
+      throw new Error(
+        "Passwords do not match."
+      );
+    }
+
+    const usernameNormalized =
+      username.toLowerCase();
+
+    /*
+     * Check whether the username is already used.
+     */
+
+    const {
+      data: existingProfiles,
+      error: usernameError
+    } = await supabaseClient
+      .from("profiles")
+      .select("id")
+      .eq(
+        "username_normalized",
+        usernameNormalized
+      )
+      .limit(1);
+
+    if (usernameError) {
+      throw usernameError;
+    }
+
+    if (
+      existingProfiles &&
+      existingProfiles.length
+    ) {
+      throw new Error(
+        "That username is already taken."
+      );
+    }
+
+    /*
+     * Create the Supabase Auth account.
+     */
+
+    const {
+      data,
+      error
+    } = await supabaseClient.auth.signUp({
       email,
-      username,
-      displayName,
       password
     });
 
-    const token =
-      result.token ||
-      result.data?.token;
+    if (error) {
+      throw error;
+    }
 
-    let user =
-      result.user ||
-      result.data?.user;
-
-    if (!token) {
+    if (!data.user) {
       throw new Error(
-        "Account created but the server did not return a session token."
+        "Account creation did not return a user."
       );
     }
 
-    localStorage.setItem(
-      "splitly_session",
-      token
-    );
+    /*
+     * Create the OweMe profile.
+     */
 
-    if (!user) {
+    const {
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .insert({
+        id:
+          data.user.id,
 
-      const userResult =
-        await api("getUser", {}, "GET");
+        username:
+          username,
 
-      user =
-        userResult.user ||
-        userResult.data?.user;
+        username_normalized:
+          usernameNormalized,
 
-    }
+        display_name:
+          displayName,
 
-    if (!user) {
+        status:
+          "ACTIVE"
+      });
+
+    if (profileError) {
+
+      console.error(
+        "PROFILE CREATION ERROR:",
+        profileError
+      );
+
+      /*
+       * The Auth account already exists.
+       * Do not pretend registration completely failed.
+       */
       throw new Error(
-        "Account created but the server did not return your user profile."
+        "Your account was created, but your OweMe profile could not be created. Please contact support."
       );
     }
-
-    state.user = user;
 
     $("#registerForm").reset();
 
-    showApp();
+    /*
+     * If email confirmation is enabled in Supabase,
+     * the session will be null until the email is confirmed.
+     */
 
-    await loadHome();
+    if (data.session) {
 
-    toast("Account created!");
+      state.user = {
+        userId:
+          data.user.id,
+
+        username:
+          username,
+
+        email:
+          data.user.email,
+
+        displayName:
+          displayName,
+
+        status:
+          "ACTIVE",
+
+        createdAt:
+          new Date().toISOString()
+      };
+
+      showApp();
+
+      await loadHome();
+
+      toast(
+        "Account created successfully!"
+      );
+
+    } else {
+
+      const loginPanel =
+        $("#loginPanel");
+
+      const registerPanel =
+        $("#registerPanel");
+
+      if (registerPanel) {
+        registerPanel.classList.add(
+          "hidden"
+        );
+      }
+
+      if (loginPanel) {
+        loginPanel.classList.remove(
+          "hidden"
+        );
+      }
+
+      toast(
+        "Account created. Please check your email to confirm your account."
+      );
+    }
 
   } catch (error) {
 
-    toast(error.message);
+    console.error(
+      "SUPABASE REGISTRATION ERROR:",
+      error
+    );
+
+    toast(
+      error?.message ||
+      "Unable to create your account."
+    );
 
   } finally {
 
@@ -479,9 +873,9 @@ async function handleRegister(event) {
 
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.textContent = "Create Account";
+      submitButton.textContent =
+        "Create Account";
     }
-
   }
 }
 
@@ -489,16 +883,32 @@ async function handleRegister(event) {
 async function logout() {
 
   try {
-    await api("logout");
-  } catch (_) {
-    // Even if the network request fails,
-    // remove the local session.
-  }
 
-  localStorage.removeItem("splitly_session");
+    const { error } =
+      await supabaseClient.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+  } catch (error) {
+
+    console.error(
+      "SUPABASE LOGOUT ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to log out."
+    );
+
+    return;
+  }
 
   state.user = null;
   state.groups = [];
+  state.invitations = [];
   state.currentGroup = null;
 
   showAuth();
@@ -740,7 +1150,8 @@ async function loadGroups() {
 
 async function loadGroupsData(force = false) {
 
-  const cacheAge = Date.now() - state.groupsLoadedAt;
+  const cacheAge =
+    Date.now() - state.groupsLoadedAt;
 
   if (
     !force &&
@@ -750,12 +1161,232 @@ async function loadGroupsData(force = false) {
     return state.groups;
   }
 
-  const result = await api("getGroups", {}, "GET");
 
-  state.groups = result.groups || [];
-  state.groupsLoadedAt = Date.now();
+  /* =====================================================
+     1. GET CURRENT SUPABASE USER
+     ===================================================== */
+
+  const {
+    data: {
+      user
+    },
+    error: sessionError
+  } = await supabaseClient.auth.getUser();
+
+  if (sessionError || !user) {
+    throw new Error(
+      "Your Supabase session has expired."
+    );
+  }
+
+
+  /* =====================================================
+     2. GET GROUP MEMBERSHIPS
+     ===================================================== */
+
+  const {
+    data: memberships,
+    error: membershipError
+  } = await supabaseClient
+    .from("group_members")
+    .select(`
+      group_id,
+      role,
+      status,
+      joined_at,
+      groups (
+        id,
+        group_name,
+        created_by,
+        created_at,
+        status
+      )
+    `)
+    .eq("user_id", user.id)
+    .eq("status", "ACTIVE");
+
+
+  if (membershipError) {
+
+    console.error(
+      "LOAD GROUPS ERROR:",
+      membershipError
+    );
+
+    throw new Error(
+      membershipError.message ||
+      "Unable to load your groups."
+    );
+
+  }
+
+
+  /* =====================================================
+     3. BUILD GROUP LIST
+     ===================================================== */
+
+  const groups =
+    (memberships || [])
+      .filter(row => row.groups)
+      .map(row => ({
+
+        groupId:
+          row.groups.id,
+
+        groupName:
+          row.groups.group_name,
+
+        createdBy:
+          row.groups.created_by,
+
+        createdAt:
+          row.groups.created_at,
+
+        status:
+          row.groups.status,
+
+        role:
+          row.role,
+
+        memberCount:
+          0,
+
+        myBalance:
+          0
+
+      }));
+
+
+  /* =====================================================
+     4. GET MEMBER COUNTS + CURRENT BALANCES
+     ===================================================== */
+
+  for (const group of groups) {
+
+    const {
+      data: memberRows,
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", group.groupId)
+      .eq("status", "ACTIVE");
+
+
+    if (memberError) {
+
+      console.error(
+        "LOAD MEMBER COUNT ERROR:",
+        memberError
+      );
+
+      continue;
+
+    }
+
+
+    group.memberCount =
+      (memberRows || []).length;
+
+
+    /* =================================================
+       GET ACTIVE EXPENSES FOR THIS GROUP
+       ================================================= */
+
+    const {
+      data: expenseRows,
+      error: expenseError
+    } = await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        paid_by_user_id,
+        amount,
+        expense_participants (
+          user_id,
+          share_amount
+        )
+      `)
+      .eq("group_id", group.groupId)
+      .eq("status", "ACTIVE");
+
+
+    if (expenseError) {
+
+      console.error(
+        "LOAD GROUP EXPENSES ERROR:",
+        expenseError
+      );
+
+      continue;
+
+    }
+
+
+    let totalPaid = 0;
+    let totalShare = 0;
+
+
+    (expenseRows || [])
+      .forEach(expense => {
+
+        if (
+          expense.paid_by_user_id ===
+          user.id
+        ) {
+
+          totalPaid +=
+            Number(
+              expense.amount || 0
+            );
+
+        }
+
+
+        (expense.expense_participants || [])
+          .forEach(participant => {
+
+            if (
+              participant.user_id ===
+              user.id
+            ) {
+
+              totalShare +=
+                Number(
+                  participant.share_amount || 0
+                );
+
+            }
+
+          });
+
+      });
+
+
+    group.myBalance =
+      Number(
+        (
+          totalPaid -
+          totalShare
+        ).toFixed(2)
+      );
+
+  }
+
+
+  /* =====================================================
+     5. SAVE TO STATE
+     ===================================================== */
+
+  state.groups =
+    groups;
+
+  state.groupsLoadedAt =
+    Date.now();
+
 
   return state.groups;
+
 }
 
 
@@ -805,61 +1436,793 @@ async function openGroup(groupId) {
 
   try {
 
-    const [
-      groupResult,
-      transactionResult,
-      settlementResult
-    ] = await Promise.all([
+    /* =====================================================
+       1. GET CURRENT SUPABASE USER
+       ===================================================== */
 
-      api(
-        "getGroup",
-        {
-          groupId
-        },
-        "GET"
-      ),
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
 
-      api(
-        "getGroupTransactions",
-        {
-          groupId
-        },
-        "GET"
-      ),
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
 
-      api(
-        "getSettlements",
-        {
-          groupId
-        },
-        "GET"
-      )
 
-    ]);
+    /* =====================================================
+       2. GET GROUP
+       ===================================================== */
 
-    const transactions =
-      extractTransactions(
-        transactionResult
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .from("groups")
+      .select(`
+        id,
+        group_name,
+        created_by,
+        created_at,
+        status
+      `)
+      .eq("id", groupId)
+      .single();
+
+    if (groupError) {
+      console.error(
+        "GET GROUP ERROR:",
+        groupError
       );
 
+      throw new Error(
+        groupError.message ||
+        "Unable to load group."
+      );
+    }
+
+
+    /* =====================================================
+       3. GET GROUP MEMBERS
+       ===================================================== */
+
+    const {
+      data: memberRows,
+      error: membersError
+    } = await supabaseClient
+      .rpc("get_group_members", {
+        lookup_group_id: groupId
+      });
+
+    if (membersError) {
+      console.error(
+        "GET GROUP MEMBERS ERROR:",
+        membersError
+      );
+
+      throw new Error(
+        membersError.message ||
+        "Unable to load group members."
+      );
+    }
+
+
+    const members =
+      (memberRows || [])
+        .map(row => ({
+          userId: row.user_id,
+          username: row.username,
+          displayName: row.display_name,
+          role: row.role,
+          joinedAt: row.joined_at
+        }));
+
+
+    /* =====================================================
+       4. GET EXPENSES
+       ===================================================== */
+
+    const {
+      data: expenseRows,
+      error: expensesError
+    } = await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        group_id,
+        paid_by_user_id,
+        amount,
+        description,
+        created_at,
+        created_by,
+        status,
+        expense_participants (
+          expense_id,
+          user_id,
+          share_amount,
+          profiles (
+            id,
+            username,
+            display_name
+          )
+        )
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE")
+      .order("created_at", {
+        ascending: false
+      });
+
+    if (expensesError) {
+      console.error(
+        "GET EXPENSES ERROR:",
+        expensesError
+      );
+
+      throw new Error(
+        expensesError.message ||
+        "Unable to load expenses."
+      );
+    }
+
+
+    /* =====================================================
+       5. CONVERT SUPABASE EXPENSES TO OLD APP FORMAT
+       ===================================================== */
+
+    const expenses =
+      (expenseRows || []).map(expense => {
+
+        const payer =
+          members.find(
+            member =>
+              member.userId ===
+              expense.paid_by_user_id
+          );
+
+        return {
+
+          expenseId: expense.id,
+
+          groupId: expense.group_id,
+
+          paidByUserId:
+            expense.paid_by_user_id,
+
+          paidByUsername:
+            payer?.username || "",
+
+          paidByDisplayName:
+            payer?.displayName || "",
+
+          amount:
+            Number(expense.amount),
+
+          description:
+            expense.description || "",
+
+          createdAt:
+            expense.created_at,
+
+          createdBy:
+            expense.created_by,
+
+          status:
+            expense.status,
+
+          participants:
+            (expense.expense_participants || [])
+              .map(participant => ({
+                userId:
+                  participant.user_id,
+
+                username:
+                  participant.profiles?.username ||
+                  "",
+
+                displayName:
+                  participant.profiles?.display_name ||
+                  "",
+
+                shareAmount:
+                  Number(
+                    participant.share_amount
+                  )
+              }))
+
+        };
+
+      });
+
+
+    /* =====================================================
+       6. CALCULATE BALANCES
+       ===================================================== */
+
+    const balanceMap = {};
+
+    members.forEach(member => {
+
+      balanceMap[member.userId] = {
+
+        userId:
+          member.userId,
+
+        username:
+          member.username,
+
+        displayName:
+          member.displayName,
+
+        totalPaid: 0,
+
+        totalShare: 0,
+
+        balance: 0
+
+      };
+
+    });
+
+
+    expenses.forEach(expense => {
+
+      if (
+        balanceMap[
+          expense.paidByUserId
+        ]
+      ) {
+
+        balanceMap[
+          expense.paidByUserId
+        ].totalPaid +=
+          Number(expense.amount);
+
+      }
+
+
+      (expense.participants || [])
+        .forEach(participant => {
+
+          if (
+            balanceMap[
+              participant.userId
+            ]
+          ) {
+
+            balanceMap[
+              participant.userId
+            ].totalShare +=
+              Number(
+                participant.shareAmount
+              );
+
+          }
+
+        });
+
+    });
+
+
+    const balances =
+      Object.values(balanceMap)
+        .map(balance => {
+
+          balance.balance =
+            Number(
+              (
+                balance.totalPaid -
+                balance.totalShare
+              ).toFixed(2)
+            );
+
+          balance.totalPaid =
+            Number(
+              balance.totalPaid.toFixed(2)
+            );
+
+          balance.totalShare =
+            Number(
+              balance.totalShare.toFixed(2)
+            );
+
+          return balance;
+
+        });
+
+
+    /* =====================================================
+       7. GET PAYMENT SUBMISSIONS
+       ===================================================== */
+
+    const {
+      data: paymentRows,
+      error: paymentError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        settlement_id,
+        group_id,
+        payer_user_id,
+        recipient_user_id,
+        payment_option,
+        payment_detail_id,
+        amount_due,
+        amount_paid,
+        proof_file_url,
+        notes,
+        status,
+        submitted_at,
+        confirmed_at,
+        rejected_at,
+        rejection_reason
+      `)
+      .eq("group_id", groupId)
+      .order("submitted_at", {
+        ascending: false
+      });
+
+    if (paymentError) {
+      console.error(
+        "GET PAYMENT SUBMISSIONS ERROR:",
+        paymentError
+      );
+
+      throw new Error(
+        paymentError.message ||
+        "Unable to load payment submissions."
+      );
+    }
+
+
+    /* =====================================================
+       7A. APPLY CONFIRMED PAYMENTS TO BALANCES
+       ===================================================== */
+
+    (paymentRows || [])
+      .filter(
+        payment =>
+          String(payment.status).toUpperCase() ===
+          "CONFIRMED"
+      )
+      .forEach(payment => {
+
+        const amountPaid =
+          Number(payment.amount_paid || 0);
+
+        if (amountPaid <= 0) {
+          return;
+        }
+
+        if (balanceMap[payment.payer_user_id]) {
+          balanceMap[payment.payer_user_id].balance +=
+            amountPaid;
+        }
+
+        if (balanceMap[payment.recipient_user_id]) {
+          balanceMap[payment.recipient_user_id].balance -=
+            amountPaid;
+        }
+
+      });
+
+    const adjustedBalances =
+      Object.values(balanceMap)
+        .map(balance => {
+
+          balance.balance =
+            Number(
+              balance.balance.toFixed(2)
+            );
+
+          return balance;
+
+        });
+
+    /* =====================================================
+       8. CALCULATE SETTLEMENTS
+       ===================================================== */
+
+    const balancesForSettlement =
+      adjustedBalances;
+
+    const debtors =
+      balancesForSettlement
+        .filter(
+          balance =>
+            balance.balance < -0.009
+        )
+        .map(balance => ({
+          userId:
+            balance.userId,
+
+          amount:
+            Math.abs(balance.balance)
+        }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount
+        );
+
+
+    const creditors =
+      balancesForSettlement
+        .filter(
+          balance =>
+            balance.balance > 0.009
+        )
+        .map(balance => ({
+          userId:
+            balance.userId,
+
+          amount:
+            balance.balance
+        }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount
+        );
+
+
+    const settlementMap = {};
+
+
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+
+
+    while (
+      debtorIndex < debtors.length &&
+      creditorIndex < creditors.length
+    ) {
+
+      const debtor =
+        debtors[debtorIndex];
+
+      const creditor =
+        creditors[creditorIndex];
+
+
+      const amount =
+        Number(
+          Math.min(
+            debtor.amount,
+            creditor.amount
+          ).toFixed(2)
+        );
+
+
+      if (amount > 0) {
+
+        const settlementId =
+          `SET_${simpleHash(
+            `${groupId}|${debtor.userId}|${creditor.userId}`
+          )}`;
+
+
+        settlementMap[
+          settlementId
+        ] = {
+
+          settlementId,
+
+          groupId,
+
+          fromUserId:
+            debtor.userId,
+
+          toUserId:
+            creditor.userId,
+
+          amount,
+
+          status: "UNPAID",
+
+          createdAt:
+            new Date().toISOString(),
+
+          paidAt: null
+
+        };
+
+
+        debtor.amount =
+          Number(
+            (
+              debtor.amount -
+              amount
+            ).toFixed(2)
+          );
+
+
+        creditor.amount =
+          Number(
+            (
+              creditor.amount -
+              amount
+            ).toFixed(2)
+          );
+
+      }
+
+
+      if (
+        debtor.amount <= 0.009
+      ) {
+        debtorIndex++;
+      }
+
+
+      if (
+        creditor.amount <= 0.009
+      ) {
+        creditorIndex++;
+      }
+
+    }
+
+
+    /* =====================================================
+       9. FINALIZE SETTLEMENTS
+       ===================================================== */
+
     const settlements =
-      settlementResult.settlements ||
-      settlementResult.data?.settlements ||
-      [];
+      Object.values(
+        settlementMap
+      );
 
-    groupResult.transactions =
-      transactions.length
-        ? transactions
-        : (groupResult.expenses || [])
-            .map(expenseToTransaction);
 
-    groupResult.settlements =
-      settlements;
+    /* =====================================================
+       10. CREATE TRANSACTIONS
+       ===================================================== */
+
+    const expenseTransactions =
+      expenses
+        .map(expense => {
+
+          if (
+            typeof expenseToTransaction ===
+            "function"
+          ) {
+
+            return expenseToTransaction(
+              expense
+            );
+
+          }
+
+          return {
+
+            type: "EXPENSE",
+
+            transactionId:
+              expense.expenseId,
+
+            expenseId:
+              expense.expenseId,
+
+            groupId:
+              expense.groupId,
+
+            amount:
+              expense.amount,
+
+            description:
+              expense.description,
+
+            fromUserId:
+              expense.paidByUserId,
+
+            createdAt:
+              expense.createdAt,
+
+            status:
+              expense.status
+
+          };
+
+        });
+
+    const paymentTransactions =
+      (paymentRows || []).map(payment => {
+
+        const payer =
+          members.find(
+            member =>
+              member.userId ===
+              payment.payer_user_id
+          );
+
+        const recipient =
+          members.find(
+            member =>
+              member.userId ===
+              payment.recipient_user_id
+          );
+
+        return {
+
+          transactionId:
+            payment.id,
+
+          paymentSubmissionId:
+            payment.id,
+
+          settlementId:
+            payment.settlement_id,
+
+          groupId:
+            payment.group_id,
+
+          type:
+            "PAYMENT",
+
+          date:
+            payment.submitted_at ||
+            payment.confirmed_at ||
+            payment.rejected_at ||
+            "",
+
+          description:
+            "Settlement payment",
+
+          fromUserId:
+            payment.payer_user_id,
+
+          fromUsername:
+            payer?.username || "",
+
+          toUserId:
+            payment.recipient_user_id,
+
+          toUsername:
+            recipient?.username || "",
+
+          amount:
+            Number(payment.amount_paid || 0),
+
+          amountDue:
+            Number(payment.amount_due || 0),
+
+          paymentOption:
+            payment.payment_option || "",
+
+          paymentDetailId:
+            payment.payment_detail_id,
+
+          proofFileUrl:
+            payment.proof_file_url || "",
+
+          notes:
+            payment.notes || "",
+
+          status:
+            payment.status,
+
+          submittedAt:
+            payment.submitted_at,
+
+          confirmedAt:
+            payment.confirmed_at,
+
+          rejectedAt:
+            payment.rejected_at,
+
+          rejectionReason:
+            payment.rejection_reason || ""
+
+        };
+
+      });
+
+    const transactions =
+      [
+        ...expenseTransactions,
+        ...paymentTransactions
+      ].sort(
+        (a, b) =>
+          new Date(b.date || 0) -
+          new Date(a.date || 0)
+      );
+
+
+    /* =====================================================
+       11. BUILD GROUP RESULT
+       ===================================================== */
+
+    const totalSpent =
+      expenses.reduce(
+        (total, expense) =>
+          total +
+          Number(expense.amount || 0),
+        0
+      );
+
+
+    const currentMember =
+      members.find(
+        member =>
+          member.userId === user.id
+      );
+
+
+    const currentUserBalance =
+      balances.find(
+        balance =>
+          balance.userId === user.id
+      );
+
+
+    const groupResult = {
+
+  group: {
+
+    groupId:
+      group.id,
+
+    groupName:
+      group.group_name,
+
+    createdBy:
+      group.created_by,
+
+    createdAt:
+      group.created_at,
+
+    status:
+      group.status,
+
+    currentUserRole:
+      currentMember?.role ||
+      null,
+
+    memberCount:
+      members.length,
+
+    totalSpent:
+      Number(
+        totalSpent.toFixed(2)
+      ),
+
+    myBalance:
+      Number(
+        currentUserBalance?.balance ||
+        0
+      )
+
+  },
+
+  members,
+
+  expenses,
+
+  balances:
+    adjustedBalances,
+
+  settlements,
+
+  transactions
+
+};
+
+
+    /* =====================================================
+       12. SAVE CURRENT GROUP
+       ===================================================== */
 
     state.currentGroup =
       groupResult;
 
+
+    /* =====================================================
+       13. RENDER GROUP
+       ===================================================== */
+
     renderGroup();
+
 
   } catch (error) {
 
@@ -880,6 +2243,31 @@ async function openGroup(groupId) {
   }
 
 }
+
+
+function simpleHash(value) {
+
+  let hash = 0;
+
+  for (let i = 0; i < value.length; i++) {
+
+    hash =
+      (
+        (hash << 5) -
+        hash +
+        value.charCodeAt(i)
+      ) |
+      0;
+
+  }
+
+  return Math.abs(hash)
+    .toString(16)
+    .padStart(24, "0")
+    .substring(0, 24);
+
+}
+
 
 async function refreshCurrentGroup() {
 
@@ -970,38 +2358,68 @@ function extractTransactions(result) {
 
 function expenseToTransaction(expense) {
 
-  const paidBy =
-    expense.paidBy || {};
-
   return {
+
     transactionId:
       expense.expenseId,
-    type: "EXPENSE",
+
+    type:
+      "EXPENSE",
+
     date:
       expense.createdAt ||
       expense.date ||
       "",
+
     description:
       expense.description ||
       "Expense",
+
     fromUserId:
       expense.paidByUserId ||
-      paidBy.userId ||
       "",
+
     fromUsername:
-      paidBy.username ||
+      expense.paidByUsername ||
       "",
-    toUserId: "",
-    toUsername: "Group",
+
+    fromDisplayName:
+      expense.paidByDisplayName ||
+      "",
+
+    toUserId:
+      "",
+
+    toUsername:
+      "Group",
+
     amount:
       Number(expense.amount || 0),
-    status: "RECORDED",
+
+    status:
+      "RECORDED",
+
     expenseId:
-      expense.expenseId
+      expense.expenseId,
+
+    participants:
+      (expense.participants || []).map(participant => ({
+        userId:
+          participant.userId,
+
+        username:
+          participant.username || "",
+
+        displayName:
+          participant.displayName || "",
+
+        shareAmount:
+          Number(participant.shareAmount || 0)
+      }))
+
   };
 
 }
-
 
 function renderTransactionRow(transaction) {
 
@@ -1128,6 +2546,83 @@ function renderTransactionRow(transaction) {
     </tr>
   `;
 
+}
+
+
+async function openExpenseDetails(expenseId) {
+
+  const expenses =
+    state.currentGroup?.expenses || [];
+
+  const expense =
+    expenses.find(item =>
+      String(item.expenseId || item.id) ===
+      String(expenseId)
+    );
+
+  if (!expense) {
+    toast("Expense not found.");
+    return;
+  }
+
+  const participants =
+    expense.participants || [];
+
+  openModal(`
+    <h2>Expense Details</h2>
+
+    <div class="card" style="margin-top:16px;">
+
+      <div class="muted">Description</div>
+      <div style="font-weight:600;margin-top:4px;">
+        ${escapeHtml(expense.description || "Expense")}
+      </div>
+
+      <div class="muted" style="margin-top:16px;">
+        Amount
+      </div>
+      <div style="font-size:24px;font-weight:700;margin-top:4px;">
+        ${formatMoney(expense.amount)}
+      </div>
+
+      <div class="muted" style="margin-top:16px;">
+        Paid by
+      </div>
+      <div style="margin-top:4px;">
+        @${escapeHtml(expense.paidByUsername || "Unknown")}
+      </div>
+
+    </div>
+
+    <h3 style="margin-top:20px;">Participants</h3>
+
+    ${
+      participants.length
+        ? `
+          <div class="balance-detail-list">
+            ${participants.map(participant => `
+              <div class="balance-detail-row">
+                <div>
+                  <div class="user-name">
+                    @${escapeHtml(participant.username || "Unknown")}
+                  </div>
+                </div>
+
+                <strong>
+                  ${formatMoney(participant.shareAmount)}
+                </strong>
+              </div>
+            `).join("")}
+          </div>
+        `
+        : `
+          <div class="card empty">
+            No participants found.
+          </div>
+        `
+    }
+
+  `);
 }
 
 
@@ -1490,22 +2985,234 @@ async function createGroup(event) {
 
   event.preventDefault();
 
-  const groupName = $("#newGroupName").value.trim();
+  const groupName =
+    $("#newGroupName").value.trim();
 
-  const usernames = $("#newGroupMembers")
-    .value
-    .split("\n")
-    .map(x => x.trim())
-    .filter(Boolean);
+  const usernames =
+    $("#newGroupMembers")
+      .value
+      .split("\n")
+      .map(x => x.trim().replace(/^@/, ""))
+      .filter(Boolean);
+
+  if (!groupName) {
+    toast("Please enter a group name.");
+    return;
+  }
 
   try {
 
     setLoading(true, "Creating group...");
 
-    const result = await api("createGroup", {
-      groupName,
-      usernames
-    });
+    /* ================================================
+       1. GET CURRENT SUPABASE USER
+       ================================================ */
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    /* ================================================
+       2. CREATE GROUP
+       ================================================ */
+
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .rpc("create_group", {
+        p_group_name: groupName
+      });
+
+    if (groupError) {
+      throw new Error(
+        groupError.message ||
+        "Unable to create the group."
+      );
+    }
+
+    if (!group) {
+      throw new Error(
+        "Group creation did not return a group."
+      );
+    }
+
+
+    /* ================================================
+       3. ADD CREATOR AS ADMIN
+       ================================================ */
+
+    const {
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .insert({
+        group_id: group.id,
+        user_id: user.id,
+        role: "ADMIN",
+        status: "ACTIVE"
+      });
+
+    if (memberError) {
+
+      /*
+       * The group was created but the creator could not
+       * be added as a member. Stop here rather than
+       * pretending the group was created successfully.
+       */
+
+      console.error(
+        "CREATE GROUP MEMBERSHIP ERROR:",
+        memberError
+      );
+
+      throw new Error(
+        memberError.message ||
+        "The group was created, but you could not be added as its admin."
+      );
+    }
+
+
+    /* ================================================
+       4. FIND INVITED USERS
+       ================================================ */
+
+    if (usernames.length) {
+
+      const normalizedUsernames =
+        [...new Set(
+          usernames
+            .map(username =>
+              username.toLowerCase()
+            )
+            .filter(Boolean)
+        )];
+
+      const {
+        data: invitedProfiles,
+        error: profileError
+      } = await supabaseClient
+        .from("profiles")
+        .select("id, username, username_normalized")
+        .in(
+          "username_normalized",
+          normalizedUsernames
+        );
+
+      if (profileError) {
+        throw new Error(
+          profileError.message ||
+          "The group was created, but invited users could not be checked."
+        );
+      }
+
+
+      /* ==============================================
+         5. CREATE PENDING INVITATIONS
+         ============================================== */
+
+      const invitations = [];
+
+      for (const profile of invitedProfiles || []) {
+
+        /*
+         * Do not invite yourself.
+         */
+
+        if (profile.id === user.id) {
+          continue;
+        }
+
+        /*
+         * Check whether the user is already an
+         * active member of this group.
+         */
+
+        const {
+          data: existingMember,
+          error: existingMemberError
+        } = await supabaseClient
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", group.id)
+          .eq("user_id", profile.id)
+          .eq("status", "ACTIVE")
+          .maybeSingle();
+
+        if (existingMemberError) {
+          throw new Error(
+            existingMemberError.message
+          );
+        }
+
+        if (existingMember) {
+          continue;
+        }
+
+
+        /*
+         * Check for an existing pending invitation.
+         */
+
+        const {
+          data: existingInvitation,
+          error: existingInvitationError
+        } = await supabaseClient
+          .from("invitations")
+          .select("id")
+          .eq("group_id", group.id)
+          .eq("invited_user_id", profile.id)
+          .eq("status", "PENDING")
+          .maybeSingle();
+
+        if (existingInvitationError) {
+          throw new Error(
+            existingInvitationError.message
+          );
+        }
+
+        if (existingInvitation) {
+          continue;
+        }
+
+
+        invitations.push({
+          group_id: group.id,
+          invited_user_id: profile.id,
+          invited_by_user_id: user.id,
+          status: "PENDING"
+        });
+      }
+
+
+      if (invitations.length) {
+
+        const {
+          error: invitationError
+        } = await supabaseClient
+          .from("invitations")
+          .insert(invitations);
+
+        if (invitationError) {
+          throw new Error(
+            invitationError.message ||
+            "The group was created, but some invitations could not be sent."
+          );
+        }
+      }
+    }
+
+
+    /* ================================================
+       6. REFRESH GROUP STATE
+       ================================================ */
 
     state.groupsLoadedAt = 0;
 
@@ -1513,11 +3220,22 @@ async function createGroup(event) {
 
     toast("Group created.");
 
-    await openGroup(result.group.groupId);
+    await loadGroupsData(true);
+
+    await openGroup(group.id);
 
   } catch (error) {
 
-    toast(error.message);
+    console.error(
+      "CREATE GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error && error.message
+        ? error.message
+        : "Unable to create group."
+    );
 
   } finally {
 
@@ -1638,7 +3356,8 @@ async function addExpense(event) {
 
   event.preventDefault();
 
-  const amount = Number($("#expenseAmount").value);
+  const amount =
+    Number($("#expenseAmount").value);
 
   const description =
     $("#expenseDescription").value.trim();
@@ -1647,8 +3366,13 @@ async function addExpense(event) {
     [...document.querySelectorAll(".participant-checkbox:checked")]
       .map(input => input.value);
 
-  if (!amount || amount <= 0) {
+  if (!Number.isFinite(amount) || amount <= 0) {
     toast("Enter a valid amount.");
+    return;
+  }
+
+  if (amount > 100000000) {
+    toast("Amount is too large.");
     return;
   }
 
@@ -1661,12 +3385,193 @@ async function addExpense(event) {
 
     setLoading(true, "Adding expense...");
 
-    await api("addExpense", {
-      groupId: state.currentGroup.group.groupId,
-      amount,
-      description,
-      participantIds
-    });
+
+    /* ================================================
+       1. GET CURRENT USER
+       ================================================ */
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error(
+        "Your session has expired. Please log in again."
+      );
+    }
+
+
+    const groupId =
+      state.currentGroup.group.groupId;
+
+
+    /* ================================================
+       2. VERIFY PARTICIPANTS ARE ACTIVE MEMBERS
+       ================================================ */
+
+    const uniqueParticipantIds =
+      [...new Set(participantIds)];
+
+    const {
+      data: members,
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE")
+      .in("user_id", uniqueParticipantIds);
+
+    if (memberError) {
+      throw new Error(
+        memberError.message ||
+        "Unable to verify expense participants."
+      );
+    }
+
+    const activeMemberIds =
+      new Set(
+        (members || [])
+          .map(member => member.user_id)
+      );
+
+    const allParticipantsAreMembers =
+      uniqueParticipantIds.every(
+        id => activeMemberIds.has(id)
+      );
+
+    if (!allParticipantsAreMembers) {
+      throw new Error(
+        "All participants must be active members of this group."
+      );
+    }
+
+
+    /* ================================================
+       3. CALCULATE EQUAL SHARES
+       ================================================ */
+
+    /*
+     * Work in cents to avoid floating-point rounding
+     * problems.
+     */
+
+    const amountCents =
+      Math.round(
+        amount * 100
+      );
+
+    const participantCount =
+      uniqueParticipantIds.length;
+
+    const baseShareCents =
+      Math.floor(
+        amountCents /
+        participantCount
+      );
+
+    const remainderCents =
+      amountCents %
+      participantCount;
+
+    const shares =
+      uniqueParticipantIds.map(
+        (userId, index) => {
+
+          const shareCents =
+            baseShareCents +
+            (index < remainderCents ? 1 : 0);
+
+          return {
+            user_id: userId,
+            share_amount:
+              Number(
+                (
+                  shareCents / 100
+                ).toFixed(2)
+              )
+          };
+
+        }
+      );
+
+
+    /* ================================================
+       4. CREATE EXPENSE
+       ================================================ */
+
+    const {
+      data: expense,
+      error: expenseError
+    } = await supabaseClient
+      .from("expenses")
+      .insert({
+        group_id: groupId,
+        paid_by_user_id: user.id,
+        amount: Number(amount.toFixed(2)),
+        description,
+        created_by: user.id,
+        status: "ACTIVE"
+      })
+      .select()
+      .single();
+
+    if (expenseError) {
+      throw new Error(
+        expenseError.message ||
+        "Unable to add the expense."
+      );
+    }
+
+
+    /* ================================================
+       5. CREATE PARTICIPANT SHARES
+       ================================================ */
+
+    const participantRows =
+      shares.map(share => ({
+        expense_id: expense.id,
+        user_id: share.user_id,
+        share_amount: share.share_amount
+      }));
+
+    const {
+      error: participantError
+    } = await supabaseClient
+      .from("expense_participants")
+      .insert(participantRows);
+
+    if (participantError) {
+
+      console.error(
+        "ADD EXPENSE PARTICIPANTS ERROR:",
+        participantError
+      );
+
+      /*
+       * Remove the expense if its participant rows
+       * could not be created, so we don't leave behind
+       * an incomplete expense.
+       */
+
+      await supabaseClient
+        .from("expenses")
+        .delete()
+        .eq("id", expense.id);
+
+      throw new Error(
+        participantError.message ||
+        "The expense could not be saved."
+      );
+    }
+
+
+    /* ================================================
+       6. REFRESH GROUP
+       ================================================ */
 
     closeModal();
 
@@ -1676,7 +3581,16 @@ async function addExpense(event) {
 
   } catch (error) {
 
-    toast(error.message);
+    console.error(
+      "ADD EXPENSE ERROR:",
+      error
+    );
+
+    toast(
+      error && error.message
+        ? error.message
+        : "Unable to add expense."
+    );
 
   } finally {
 
@@ -1793,9 +3707,15 @@ async function deleteExpense(expenseId) {
 
     setLoading(true, "Deleting expense...");
 
-    await api("deleteExpense", {
-      expenseId
-    });
+    const { error } = await supabaseClient
+      .from("expenses")
+      .update({ status: "DELETED" })
+      .eq("id", expenseId)
+      .eq("created_by", state.user.userId);
+
+    if (error) {
+      throw error;
+    }
 
     closeModal();
 
@@ -1825,12 +3745,8 @@ async function openBalancesModal() {
 
   try {
 
-    const result = await api(
-      "getBalances",
-      {
-        groupId: state.currentGroup.group.groupId
-      },
-      "GET"
+    const result = await getBalancesFromSupabase(
+      state.currentGroup.group.groupId
     );
 
     const balances = result.data.balances;
@@ -1892,13 +3808,8 @@ async function openBalancesModal() {
 
 async function loadCurrentSettlements() {
 
-  const result = await api(
-    "getSettlements",
-    {
-      groupId:
-        state.currentGroup.group.groupId
-    },
-    "GET"
+  const result = await getSettlementsFromSupabase(
+    state.currentGroup.group.groupId
   );
 
   return result.settlements ||
@@ -1924,35 +3835,271 @@ async function openPayables() {
       );
 
     openModal(`
-      <h2>Payables</h2>
-      <p class="muted">What you still need to pay.</p>
 
-      ${payables.length
-        ? `
-          <div class="balance-detail-list">
-            ${payables.map(item => `
-              <div class="balance-detail-row">
-                <div>
-                  <div class="user-name">
-                    @${escapeHtml(item.toUsername)}
-                  </div>
-                  <div class="muted">
-                    ${formatMoney(item.amount)}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="small-button green-button"
-                  onclick="openSettlePayment('${escapeHtml(item.settlementId)}')"
+      <h2>Payables</h2>
+
+      <p class="muted">
+        People you still need to pay.
+      </p>
+
+      ${
+        payables.length
+          ? `
+            <div class="balance-detail-list">
+
+              ${payables.map(item => `
+
+                <div
+                  class="balance-detail-row"
+                  style="align-items:center;"
                 >
-                  Settle
-                </button>
-              </div>
-            `).join("")}
-          </div>
-        `
-        : `<div class="card empty">You do not owe anyone right now.</div>`
+
+                  <div style="flex:1;">
+
+                    <div class="user-name">
+                      @${escapeHtml(item.toUsername || "Unknown")}
+                    </div>
+
+                    <div
+                      style="
+                        font-size:24px;
+                        font-weight:700;
+                        margin-top:4px;
+                      "
+                    >
+                      ${formatMoney(item.amount)}
+                    </div>
+
+                    <div class="muted">
+                      You still need to pay
+                    </div>
+
+                  </div>
+
+                  <div
+                    style="
+                      display:flex;
+                      flex-direction:column;
+                      gap:8px;
+                      align-items:flex-end;
+                    "
+                  >
+
+                    <button
+                      type="button"
+                      class="small-button"
+                      onclick="openPayableDetails('${escapeHtml(item.settlementId)}')"
+                    >
+                      View details
+                    </button>
+
+                  </div>
+
+                </div>
+
+              `).join("")}
+
+            </div>
+          `
+          : `
+            <div class="card empty">
+              You do not owe anyone right now.
+            </div>
+          `
       }
+
+    `);
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+async function openPayableDetails(settlementId) {
+
+  setLoading(true, "Loading payable details...");
+
+  try {
+
+    const settlements =
+      await loadCurrentSettlements();
+
+    const settlement =
+      settlements.find(item =>
+        String(item.settlementId) ===
+        String(settlementId)
+      );
+
+    if (!settlement) {
+      toast("Payable not found.");
+      return;
+    }
+
+    const transactions =
+      state.currentGroup?.transactions || [];
+
+    const relatedExpenses =
+      transactions
+        .filter(transaction =>
+          String(transaction.type).toUpperCase() === "EXPENSE" &&
+          (transaction.participants || []).some(participant =>
+            String(participant.userId) ===
+              String(state.user.userId) &&
+            Number(participant.shareAmount || 0) > 0
+          )
+        );
+
+    const totalShare =
+      relatedExpenses.reduce(
+        (total, expense) => {
+          const participant =
+            (expense.participants || []).find(item =>
+              String(item.userId) ===
+              String(state.user.userId)
+            );
+
+          return total +
+            Number(participant?.shareAmount || 0);
+        },
+        0
+      );
+
+    const paymentRows =
+      relatedExpenses.length
+        ? relatedExpenses.map(expense => {
+
+            const participant =
+              (expense.participants || []).find(item =>
+                String(item.userId) ===
+                String(state.user.userId)
+              );
+
+            return `
+              <div
+                class="balance-detail-row"
+                style="align-items:flex-start;"
+              >
+
+                <div style="flex:1;">
+
+                  <div class="user-name">
+                    ${escapeHtml(
+                      expense.description || "Expense"
+                    )}
+                  </div>
+
+                  <div class="muted">
+                    ${expense.date
+                      ? new Date(expense.date)
+                          .toLocaleDateString()
+                      : ""}
+                  </div>
+
+                </div>
+
+                <strong>
+                  ${formatMoney(
+                    Number(participant?.shareAmount || 0)
+                  )}
+                </strong>
+
+              </div>
+            `;
+
+          }).join("")
+        : `
+          <div class="muted">
+            No shared expenses found.
+          </div>
+        `;
+
+    openModal(`
+
+      <h2>You owe @${escapeHtml(
+        settlement.toUsername || "Unknown"
+      )}</h2>
+
+      <p class="muted">
+        Outstanding amount
+      </p>
+
+      <div
+        class="card"
+        style="
+          margin-top:16px;
+          text-align:center;
+          padding:24px;
+        "
+      >
+
+        <div
+          style="
+            font-size:32px;
+            font-weight:700;
+          "
+        >
+          ${formatMoney(settlement.amount)}
+        </div>
+
+        <div class="muted">
+          Remaining to pay
+        </div>
+
+      </div>
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Shared expenses
+        </div>
+
+        <div class="card">
+
+          ${paymentRows}
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              padding-top:16px;
+              margin-top:8px;
+              border-top:1px solid var(--border-color);
+            "
+          >
+
+            <strong>
+              Your total share
+            </strong>
+
+            <strong>
+              ${formatMoney(totalShare)}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <button
+        type="button"
+        class="primary-button green-button"
+        style="width:100%;margin-top:20px;"
+        onclick="openSettlePayment('${escapeHtml(
+          settlement.settlementId
+        )}')"
+      >
+        Settle ${formatMoney(settlement.amount)}
+      </button>
+
     `);
 
   } catch (error) {
@@ -2048,17 +4195,278 @@ async function openReceivableDetails(settlementId) {
       return;
     }
 
+    const transactions =
+      state.currentGroup?.transactions || [];
+
+    const relatedExpenses =
+      transactions
+        .filter(transaction =>
+          String(transaction.type).toUpperCase() === "EXPENSE" &&
+          (transaction.participants || []).some(participant =>
+            String(participant.userId) ===
+              String(settlement.fromUserId) &&
+            Number(participant.shareAmount || 0) > 0
+          )
+        );
+
+    const originalAmount =
+      relatedExpenses.reduce(
+        (total, expense) => {
+
+          const participant =
+            (expense.participants || []).find(item =>
+              String(item.userId) ===
+              String(settlement.fromUserId)
+            );
+
+          return total +
+            Number(participant?.shareAmount || 0);
+
+        },
+        0
+      );
+
+    const paymentResult =
+      await supabaseClient
+        .from("payment_submissions")
+        .select("*")
+        .eq(
+          "settlement_id",
+          settlement.settlementId
+        )
+        .eq(
+          "status",
+          "CONFIRMED"
+        )
+        .order(
+          "confirmed_at",
+          {
+            ascending: false
+          }
+        );
+
+    if (paymentResult.error) {
+      throw paymentResult.error;
+    }
+
+    const confirmedPayments =
+      paymentResult.data || [];
+
+    const paidAmount =
+      confirmedPayments.reduce(
+        (total, payment) =>
+          total +
+          Number(payment.amount_paid || 0),
+        0
+      );
+
+    const expenseRows =
+      relatedExpenses.length
+        ? relatedExpenses.map(expense => {
+
+            const participant =
+              (expense.participants || []).find(item =>
+                String(item.userId) ===
+                String(settlement.fromUserId)
+              );
+
+            return `
+              <div
+                class="balance-detail-row"
+                style="align-items:flex-start;"
+              >
+
+                <div style="flex:1;">
+
+                  <div class="user-name">
+                    ${escapeHtml(
+                      expense.description || "Expense"
+                    )}
+                  </div>
+
+                  <div class="muted">
+                    ${
+                      expense.date
+                        ? new Date(expense.date)
+                            .toLocaleDateString()
+                        : ""
+                    }
+                  </div>
+
+                </div>
+
+                <strong>
+                  ${formatMoney(
+                    Number(
+                      participant?.shareAmount || 0
+                    )
+                  )}
+                </strong>
+
+              </div>
+            `;
+
+          }).join("")
+        : `
+          <div class="muted">
+            No shared expenses found.
+          </div>
+        `;
+
+    const paymentHistory =
+      confirmedPayments.length
+        ? confirmedPayments.map(payment => `
+
+            <div
+              class="balance-detail-row"
+              style="align-items:flex-start;"
+            >
+
+              <div style="flex:1;">
+
+                <div class="user-name">
+                  Payment
+                </div>
+
+                <div class="muted">
+                  ${
+                    payment.confirmed_at
+                      ? new Date(
+                          payment.confirmed_at
+                        ).toLocaleString()
+                      : "Confirmed"
+                  }
+                </div>
+
+              </div>
+
+              <div style="text-align:right;">
+
+                <strong>
+                  ${formatMoney(
+                    Number(payment.amount_paid || 0)
+                  )}
+                </strong>
+
+                <div class="muted">
+                  Confirmed
+                </div>
+
+              </div>
+
+            </div>
+
+          `).join("")
+        : `
+          <div class="muted">
+            No confirmed payments yet.
+          </div>
+        `;
+
     openModal(`
-      <h2>Receivable Details</h2>
-      <p class="muted">
-        @${escapeHtml(settlement.fromUsername)} owes you
-      </p>
-      <div class="card" style="margin-top:16px;">
-        <div class="muted">Remaining</div>
-        <strong style="font-size:28px;">
+
+      <h2>
+        @${escapeHtml(
+          settlement.fromUsername || "Unknown"
+        )} owes you
+      </h2>
+
+      <div
+        class="card"
+        style="
+          margin-top:16px;
+          padding:24px;
+        "
+      >
+
+        <div class="muted">
+          Remaining
+        </div>
+
+        <div
+          style="
+            font-size:32px;
+            font-weight:700;
+            margin-top:4px;
+          "
+        >
           ${formatMoney(settlement.amount)}
-        </strong>
+        </div>
+
       </div>
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Payment summary
+        </div>
+
+        <div class="card">
+
+          <div class="balance-detail-row">
+            <span class="muted">
+              Original amount
+            </span>
+
+            <strong>
+              ${formatMoney(
+                Math.max(
+                  originalAmount,
+                  Number(settlement.amount) +
+                  paidAmount
+                )
+              )}
+            </strong>
+          </div>
+
+          <div class="balance-detail-row">
+            <span class="muted">
+              Paid so far
+            </span>
+
+            <strong>
+              ${formatMoney(paidAmount)}
+            </strong>
+          </div>
+
+          <div class="balance-detail-row">
+            <strong>
+              Remaining
+            </strong>
+
+            <strong>
+              ${formatMoney(settlement.amount)}
+            </strong>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Shared expenses
+        </div>
+
+        <div class="card">
+          ${expenseRows}
+        </div>
+
+      </div>
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Payment history
+        </div>
+
+        <div class="card">
+          ${paymentHistory}
+        </div>
+
+      </div>
+
     `);
 
   } catch (error) {
@@ -2073,18 +4481,15 @@ async function openReceivableDetails(settlementId) {
 
 }
 
+
 async function openSettlementsModal() {
 
   setLoading(true, "Loading settlements...");
 
   try {
 
-    const result = await api(
-      "getSettlements",
-      {
-        groupId: state.currentGroup.group.groupId
-      },
-      "GET"
+    const result = await getSettlementsFromSupabase(
+      state.currentGroup.group.groupId
     );
 
     const settlements = result.data.settlements || [];
@@ -2157,13 +4562,8 @@ async function loadPendingPayments() {
 
   try {
 
-    const result = await api(
-      "getPendingPayments",
-      {
-        groupId:
-          state.currentGroup.group.groupId
-      },
-      "GET"
+    const result = await getPendingPaymentsFromSupabase(
+      state.currentGroup.group.groupId
     );
 
     const payments =
@@ -2267,13 +4667,8 @@ async function reviewPayment(paymentSubmissionId) {
   try {
 
     const result =
-      await api(
-        "getPendingPayments",
-        {
-          groupId:
-            state.currentGroup.group.groupId
-        },
-        "GET"
+      await getPendingPaymentsFromSupabase(
+        state.currentGroup.group.groupId
       );
 
 
@@ -2321,6 +4716,11 @@ async function reviewPayment(paymentSubmissionId) {
       String(
         payment.proofFileUrl || ""
       ).trim();
+
+    const proofDisplayUrl =
+      proofFileUrl
+        ? await getPaymentQrUrl(proofFileUrl)
+        : "";
 
 
     openModal(`
@@ -2439,7 +4839,7 @@ async function reviewPayment(paymentSubmissionId) {
 
 
                   <a
-  href="${escapeHtml(proofFileUrl)}"
+  href="${escapeHtml(proofDisplayUrl)}"
   target="_blank"
   rel="noopener noreferrer"
   class="secondary-button"
@@ -2629,13 +5029,19 @@ async function processConfirmPayment(paymentSubmissionId) {
       "Confirming payment..."
     );
 
-    await api(
-      "confirmPayment",
-      {
-        paymentSubmissionId:
-          paymentSubmissionId
-      }
-    );
+    const { error } = await supabaseClient
+      .from("payment_submissions")
+      .update({
+        status: "CONFIRMED",
+        confirmed_at: new Date().toISOString()
+      })
+      .eq("id", paymentSubmissionId)
+      .eq("recipient_user_id", state.user.userId)
+      .eq("status", "SUBMITTED");
+
+    if (error) {
+      throw error;
+    }
 
     closeModal();
 
@@ -2733,16 +5139,20 @@ async function processRejectPayment(paymentSubmissionId) {
       "Rejecting payment..."
     );
 
-    await api(
-      "rejectPayment",
-      {
-        paymentSubmissionId:
-          paymentSubmissionId,
+    const { error } = await supabaseClient
+      .from("payment_submissions")
+      .update({
+        status: "REJECTED",
+        rejected_at: new Date().toISOString(),
+        rejection_reason: rejectionReason
+      })
+      .eq("id", paymentSubmissionId)
+      .eq("recipient_user_id", state.user.userId)
+      .eq("status", "SUBMITTED");
 
-        rejectionReason:
-          rejectionReason
-      }
-    );
+    if (error) {
+      throw error;
+    }
 
     closeModal();
 
@@ -2845,13 +5255,8 @@ async function openSettlePayment(settlementId) {
   try {
 
     const settlementResult =
-      await api(
-        "getSettlements",
-        {
-          groupId:
-            state.currentGroup.group.groupId
-        },
-        "GET"
+      await getSettlementsFromSupabase(
+        state.currentGroup.group.groupId
       );
 
     const settlements =
@@ -2899,20 +5304,36 @@ async function openSettlePayment(settlementId) {
       return;
     }
 
-    const result =
-      await api(
-        "getUserPaymentDetails",
-        {
-          userId:
-            settlement.toUserId
-        },
-        "GET"
-      );
+    const {
+      data: paymentDetails,
+      error: paymentDetailsError
+    } = await supabaseClient
+      .rpc("get_user_payment_details", {
+        lookup_user_id: settlement.toUserId
+      });
 
-    const paymentDetails =
-      result.paymentDetails ||
-      result.data?.paymentDetails ||
-      [];
+    if (paymentDetailsError) {
+      throw paymentDetailsError;
+    }
+
+    const normalizedPaymentDetails =
+      await Promise.all(
+        (paymentDetails || []).map(async detail => ({
+          paymentDetailId: detail.id,
+          userId: detail.user_id,
+          paymentOption: detail.payment_option,
+          accountNumber: detail.account_number,
+          accountName: detail.account_name,
+          qrFileUrl: detail.qr_file_url,
+          qrDisplayUrl: detail.qr_file_url
+            ? await getPaymentQrUrl(detail.qr_file_url)
+            : "",
+          isPreferred: detail.is_preferred,
+          status: detail.status,
+          createdAt: detail.created_at,
+          updatedAt: detail.updated_at
+        }))
+      );
 
     /*
      * Preserve the amount while the payment modal
@@ -2989,8 +5410,8 @@ async function openSettlePayment(settlementId) {
 
 
         ${
-          paymentDetails.length
-            ? paymentDetails
+          normalizedPaymentDetails.length
+            ? normalizedPaymentDetails
                 .map(
                   detail => `
 
@@ -3066,7 +5487,7 @@ async function openSettlePayment(settlementId) {
                         }
 
                         ${
-                          detail.qrFileUrl
+                          detail.qrDisplayUrl
                             ? `
                               <div
                                 style="
@@ -3089,7 +5510,7 @@ async function openSettlePayment(settlementId) {
 
                                 <a
                                   href="${escapeHtml(
-                                    detail.qrFileUrl
+                                    detail.qrDisplayUrl
                                   )}"
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -3101,7 +5522,7 @@ async function openSettlePayment(settlementId) {
 
                                   <img
                                     src="${escapeHtml(
-                                      detail.qrFileUrl
+                                      detail.qrDisplayUrl
                                     )}"
                                     alt="Payment QR Code"
                                     style="
@@ -3120,7 +5541,7 @@ async function openSettlePayment(settlementId) {
 
                                 <a
                                   href="${escapeHtml(
-                                    detail.qrFileUrl
+                                    detail.qrDisplayUrl
                                   )}"
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -3164,7 +5585,7 @@ async function openSettlePayment(settlementId) {
 
 
       ${
-        paymentDetails.length
+        normalizedPaymentDetails.length
           ? `
 
             <form
@@ -3586,6 +6007,77 @@ function preparePaymentProof(file) {
 }
 
 
+
+async function uploadPaymentProofToSupabase(
+  proof,
+  groupId,
+  settlementId
+) {
+  if (!proof || !proof.base64Data) {
+    throw new Error("Payment proof is required.");
+  }
+
+  const binaryString =
+    atob(proof.base64Data);
+
+  const bytes =
+    new Uint8Array(binaryString.length);
+
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] =
+      binaryString.charCodeAt(i);
+  }
+
+  const safeName =
+    String(proof.fileName || "payment-proof")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  const extension =
+    proof.mimeType === "image/jpeg"
+      ? "jpg"
+      : (safeName.split(".").pop() || "bin");
+
+  const filePath =
+    `${groupId}/${settlementId}/${crypto.randomUUID()}.${extension}`;
+
+  const blob =
+    new Blob(
+      [bytes],
+      {
+        type:
+          proof.mimeType ||
+          "application/octet-stream"
+      }
+    );
+
+  const { error } =
+    await supabaseClient.storage
+      .from("payment-proofs")
+      .upload(
+        filePath,
+        blob,
+        {
+          contentType:
+            proof.mimeType ||
+            "application/octet-stream",
+          upsert: false
+        }
+      );
+
+  if (error) {
+    throw new Error(
+      error.message ||
+      "Unable to upload payment proof."
+    );
+  }
+
+  /*
+   * The bucket is private, so store the storage path
+   * rather than pretending it is a public URL.
+   */
+  return filePath;
+}
+
 async function submitSettlementPayment(event, settlement) {
 
   event.preventDefault();
@@ -3672,21 +6164,26 @@ async function submitSettlementPayment(event, settlement) {
      * Check whether this settlement already
      * has a payment awaiting confirmation.
      */
-    const transactionResult =
-      await api(
-        "getGroupTransactions",
-        {
-          groupId:
-            settlement.groupId
-        },
-        "GET"
-      );
+      const { data: transactionPayments, error: transactionError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .select("*")
+          .eq("group_id", settlement.groupId);
 
+      if (transactionError) {
+        throw transactionError;
+      }
 
-    const transactions =
-      transactionResult.transactions ||
-      transactionResult.data?.transactions ||
-      [];
+      const transactions =
+        (transactionPayments || []).map(payment => ({
+          type: "PAYMENT",
+          status: payment.status,
+          settlementId: payment.settlement_id,
+          fromUserId: payment.payer_user_id,
+          toUserId: payment.recipient_user_id,
+          paymentSubmissionId: payment.id,
+          amountPaid: Number(payment.amount_paid || 0)
+        }));
 
 
     const existingPending =
@@ -3758,35 +6255,12 @@ async function submitSettlementPayment(event, settlement) {
       );
 
 
-      const uploadResult =
-        await api(
-          "uploadPaymentProof",
-          {
-            fileName:
-              proof.fileName,
-
-            mimeType:
-              proof.mimeType,
-
-            base64Data:
-              proof.base64Data
-          }
-        );
-
-
       const proofFileUrl =
-        uploadResult.fileUrl ||
-        uploadResult.data?.fileUrl ||
-        "";
-
-
-      if (!proofFileUrl) {
-
-        throw new Error(
-          "Payment proof uploaded, but no file URL was returned."
+        await uploadPaymentProofToSupabase(
+          proof,
+          settlement.groupId,
+          settlement.settlementId
         );
-
-      }
 
 
       setLoading(
@@ -3795,16 +6269,18 @@ async function submitSettlementPayment(event, settlement) {
       );
 
 
-      await api(
-        "updatePaymentProof",
-        {
-          paymentSubmissionId:
-            existingPending.paymentSubmissionId,
+      const { error: proofUpdateError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .update({
+            proof_file_url: proofFileUrl
+          })
+          .eq("id", existingPending.paymentSubmissionId)
+          .eq("payer_user_id", state.user.userId);
 
-          proofFileUrl:
-            proofFileUrl
-        }
-      );
+      if (proofUpdateError) {
+        throw proofUpdateError;
+      }
 
 
       if (
@@ -3843,57 +6319,28 @@ async function submitSettlementPayment(event, settlement) {
 
     let proofFileUrl = "";
 
-
     if (proofFile) {
-
       setLoading(
         true,
         "Preparing payment proof..."
       );
-
 
       const proof =
         await preparePaymentProof(
           proofFile
         );
 
-
       setLoading(
         true,
         "Uploading payment proof..."
       );
 
-
-      const uploadResult =
-        await api(
-          "uploadPaymentProof",
-          {
-            fileName:
-              proof.fileName,
-
-            mimeType:
-              proof.mimeType,
-
-            base64Data:
-              proof.base64Data
-          }
-        );
-
-
       proofFileUrl =
-        uploadResult.fileUrl ||
-        uploadResult.data?.fileUrl ||
-        "";
-
-
-      if (!proofFileUrl) {
-
-        throw new Error(
-          "Payment proof uploaded, but no file URL was returned."
+        await uploadPaymentProofToSupabase(
+          proof,
+          settlement.groupId,
+          settlement.settlementId
         );
-
-      }
-
     }
 
 
@@ -3909,36 +6356,67 @@ async function submitSettlementPayment(event, settlement) {
     );
 
 
-    await api(
-      "submitPayment",
-      {
-        settlementId:
-          settlement.settlementId,
+    const { data: submission, error: submissionError } =
+      await supabaseClient
+        .from("payment_submissions")
+        .insert({
+          settlement_id: settlement.settlementId,
+          group_id: settlement.groupId,
+          payer_user_id: state.user.userId,
+          recipient_user_id: settlement.toUserId,
+          payment_option:
+            selected.closest("label")?.querySelector(
+              "strong"
+            )?.textContent?.trim() ||
+            selected.dataset?.paymentOption ||
+            selected.value,
+          payment_detail_id: paymentDetailId,
+          amount_due: Number(settlement.amount),
+          amount_paid: amountPaid,
+          proof_file_url: proofFileUrl,
+          notes: notes || "",
+          status: "SUBMITTED"
+        })
+        .select()
+        .single();
 
-        groupId:
-          settlement.groupId,
+    if (submissionError) {
+      throw submissionError;
+    }
 
-        recipientUserId:
-          settlement.toUserId,
+    /*
+     * Keep a settlement record so the payment is tied
+     * to the current debtor/creditor pair.
+     */
+    const { data: existingSettlement, error: settlementLookupError } =
+      await supabaseClient
+        .from("settlements")
+        .select("id")
+        .eq("group_id", settlement.groupId)
+        .eq("from_user_id", state.user.userId)
+        .eq("to_user_id", settlement.toUserId)
+        .maybeSingle();
 
-        paymentDetailId:
-          paymentDetailId,
+    if (settlementLookupError) {
+      throw settlementLookupError;
+    }
 
-        amountDue:
-          Number(
-            settlement.amount
-          ),
+    if (!existingSettlement) {
+      const { error: settlementInsertError } =
+        await supabaseClient
+          .from("settlements")
+          .insert({
+            group_id: settlement.groupId,
+            from_user_id: state.user.userId,
+            to_user_id: settlement.toUserId,
+            amount: Number(settlement.amount),
+            status: "PENDING"
+          });
 
-        amountPaid:
-          amountPaid,
-
-        proofFileUrl:
-          proofFileUrl,
-
-        notes:
-          notes
+      if (settlementInsertError) {
+        throw settlementInsertError;
       }
-    );
+    }
 
 
     if (
@@ -4014,13 +6492,10 @@ async function markSettlementPaid(settlementId) {
 
     setLoading(true, "Saving settlement...");
 
-    const settlementResult = await api(
-      "getSettlements",
-      {
-        groupId: state.currentGroup.group.groupId
-      },
-      "GET"
-    );
+    const settlementResult =
+      await getSettlementsFromSupabase(
+        state.currentGroup.group.groupId
+      );
 
     const settlements =
       settlementResult.settlements ||
@@ -4037,13 +6512,19 @@ async function markSettlementPaid(settlementId) {
       return;
     }
 
-    await api("markSettlementPaid", {
-      settlementId: settlement.settlementId,
-      groupId: settlement.groupId,
-      fromUserId: settlement.fromUserId,
-      toUserId: settlement.toUserId,
-      amount: settlement.amount
-    });
+    const { error: settlementError } =
+      await supabaseClient
+        .from("settlements")
+        .update({
+          status: "PAID",
+          paid_at: new Date().toISOString()
+        })
+        .eq("id", settlement.settlementId)
+        .eq("group_id", settlement.groupId);
+
+    if (settlementError) {
+      throw settlementError;
+    }
 
     toast("Settlement marked as paid.");
 
@@ -4153,10 +6634,78 @@ async function inviteMember(event) {
 
     setLoading(true, "Sending invitation...");
 
-    await api("inviteMember", {
-      groupId: state.currentGroup.group.groupId,
-      username
-    });
+    const {
+      data: invitedProfile,
+      error: profileError
+    } = await supabaseClient
+      .rpc("find_profile_by_username", {
+        lookup_username: username
+      });
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    const targetProfile =
+      Array.isArray(invitedProfile)
+        ? invitedProfile[0]
+        : invitedProfile;
+
+    if (!targetProfile) {
+      throw new Error("User not found.");
+    }
+
+    if (targetProfile.id === state.user.userId) {
+      throw new Error("You cannot invite yourself.");
+    }
+
+    const { data: existingMember, error: memberError } =
+      await supabaseClient
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", state.currentGroup.group.groupId)
+        .eq("user_id", targetProfile.id)
+        .eq("status", "ACTIVE")
+        .maybeSingle();
+
+    if (memberError) {
+      throw memberError;
+    }
+
+    if (existingMember) {
+      throw new Error("This user is already a member of this group.");
+    }
+
+    const { data: existingInvitation, error: existingInvitationError } =
+      await supabaseClient
+        .from("invitations")
+        .select("id")
+        .eq("group_id", state.currentGroup.group.groupId)
+        .eq("invited_user_id", targetProfile.id)
+        .eq("status", "PENDING")
+        .maybeSingle();
+
+    if (existingInvitationError) {
+      throw existingInvitationError;
+    }
+
+    if (existingInvitation) {
+      throw new Error("An invitation is already pending.");
+    }
+
+    const { error: invitationError } =
+      await supabaseClient
+        .from("invitations")
+        .insert({
+          group_id: state.currentGroup.group.groupId,
+          invited_user_id: targetProfile.id,
+          invited_by_user_id: state.user.userId,
+          status: "PENDING"
+        });
+
+    if (invitationError) {
+      throw invitationError;
+    }
 
     closeModal();
 
@@ -4182,11 +6731,40 @@ async function loadInvitations() {
 
   $("#pageTitle").textContent = "Invites";
 
-  const result =
-    await api("getInvitations", {}, "GET");
+  const { data: invitationRows, error } =
+    await supabaseClient
+      .from("invitations")
+      .select(`
+        id,
+        group_id,
+        invited_user_id,
+        invited_by_user_id,
+        status,
+        created_at,
+        responded_at,
+        groups (
+          id,
+          group_name
+        )
+      `)
+      .eq("invited_user_id", state.user.userId)
+      .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
 
   state.invitations =
-    result.data.invitations || [];
+    (invitationRows || []).map(invitation => ({
+      invitationId: invitation.id,
+      groupId: invitation.group_id,
+      invitedUserId: invitation.invited_user_id,
+      invitedByUserId: invitation.invited_by_user_id,
+      status: invitation.status,
+      createdAt: invitation.created_at,
+      respondedAt: invitation.responded_at,
+      groupName: invitation.groups?.group_name || "Group"
+    }));
 
   $("#content").innerHTML = `
 
@@ -4282,14 +6860,67 @@ async function respondInvitation(
         : "Declining..."
     );
 
-    await api(
-      action === "accept"
-        ? "acceptInvitation"
-        : "declineInvitation",
-      {
-        invitationId
+    if (action === "accept") {
+      const {
+        data: invitation,
+        error: invitationError
+      } = await supabaseClient
+        .from("invitations")
+        .select("*")
+        .eq("id", invitationId)
+        .eq("invited_user_id", state.user.userId)
+        .eq("status", "PENDING")
+        .single();
+
+      if (invitationError || !invitation) {
+        throw invitationError ||
+          new Error("Invitation not found or already handled.");
       }
-    );
+
+      const { error: memberError } =
+        await supabaseClient
+          .from("group_members")
+          .insert({
+            group_id: invitation.group_id,
+            user_id: state.user.userId,
+            role: "MEMBER",
+            status: "ACTIVE"
+          });
+
+      if (memberError) {
+        throw memberError;
+      }
+
+      const { error: updateInvitationError } =
+        await supabaseClient
+          .from("invitations")
+          .update({
+            status: "ACCEPTED",
+            responded_at: new Date().toISOString()
+          })
+          .eq("id", invitationId)
+          .eq("invited_user_id", state.user.userId);
+
+      if (updateInvitationError) {
+        throw updateInvitationError;
+      }
+
+    } else {
+
+      const { error } = await supabaseClient
+        .from("invitations")
+        .update({
+          status: "DECLINED",
+          responded_at: new Date().toISOString()
+        })
+        .eq("id", invitationId)
+        .eq("invited_user_id", state.user.userId)
+        .eq("status", "PENDING");
+
+      if (error) {
+        throw error;
+      }
+    }
 
     await loadInvitations();
 
@@ -4317,35 +6948,56 @@ async function respondInvitation(
 
 async function loadPaymentProviders() {
 
-  const result =
-    await api(
-      "getPaymentProviders",
-      {},
-      "GET"
-    );
+  const { data, error } = await supabaseClient
+    .from("payment_providers")
+    .select("*")
+    .eq("status", "ACTIVE")
+    .order("provider_name");
 
-  return result.providers || [];
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
 }
 
 
 async function loadPaymentDetails() {
 
-  const result =
-    await api(
-      "getPaymentDetails",
-      {},
-      "GET"
-    );
+  const { data, error } = await supabaseClient
+    .from("payment_details")
+    .select("*")
+    .eq("user_id", state.user.userId)
+    .eq("status", "ACTIVE")
+    .order("is_preferred", { ascending: false })
+    .order("created_at", { ascending: true });
 
-  return result.paymentDetails || [];
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(detail => ({
+    paymentDetailId: detail.id,
+    userId: detail.user_id,
+    paymentOption: detail.payment_option,
+    accountNumber: detail.account_number,
+    accountName: detail.account_name,
+    qrFileUrl: detail.qr_file_url,
+    isPreferred: detail.is_preferred,
+    status: detail.status,
+    createdAt: detail.created_at,
+    updatedAt: detail.updated_at
+  }));
 }
 
 
 async function renderProfile() {
 
-  $("#pageTitle").textContent = "Profile";
+  try {
 
-  $("#content").innerHTML = `
+    $("#pageTitle").textContent = "Profile";
+
+    $("#content").innerHTML = `
 
     <div class="card">
 
@@ -4502,7 +7154,41 @@ async function renderProfile() {
   );
 
 
-  await renderSavedPaymentDetails();
+  try {
+    await renderSavedPaymentDetails();
+  } catch (error) {
+    console.error(
+      "LOAD PAYMENT DETAILS ERROR:",
+      error
+    );
+
+    const container =
+      $("#paymentDetailsList");
+
+    if (container) {
+      container.innerHTML = `
+        <div class="muted">
+          No payment details added yet.
+        </div>
+      `;
+    }
+  }
+
+  } catch (error) {
+
+    console.error("PROFILE RENDER ERROR:", error);
+
+    $("#content").innerHTML = `
+      <div class="card">
+        <div class="card-title">Profile Error</div>
+        <p class="muted">
+          ${escapeHtml(error.message || String(error))}
+        </p>
+      </div>
+    `;
+
+    throw error;
+  }
 
 }
 
@@ -4514,9 +7200,9 @@ function openPaymentDetailsForm() {
       const options = providers
         .map(provider => `
           <option
-            value="${escapeHtml(provider.providerName)}"
+            value="${escapeHtml(provider.provider_name)}"
           >
-            ${escapeHtml(provider.providerName)}
+            ${escapeHtml(provider.provider_name)}
           </option>
         `)
         .join("");
@@ -4721,6 +7407,24 @@ function updatePaymentOptionFields() {
 
 }
 
+async function getPaymentQrUrl(storagePath) {
+  if (!storagePath) {
+    return "";
+  }
+
+  const { data, error } = await supabaseClient.storage
+    .from("payment-proofs")
+    .createSignedUrl(storagePath, 3600);
+
+  if (error) {
+    console.error("PAYMENT QR URL ERROR:", error);
+    return "";
+  }
+
+  return data?.signedUrl || "";
+}
+
+
 async function renderSavedPaymentDetails() {
 
   const container =
@@ -4749,8 +7453,17 @@ async function renderSavedPaymentDetails() {
     }
 
 
+    const detailsWithQrUrls = await Promise.all(
+      details.map(async detail => ({
+        ...detail,
+        qrDisplayUrl: detail.qrDisplayUrl
+          ? await getPaymentQrUrl(detail.qrDisplayUrl)
+          : ""
+      }))
+    );
+
     container.innerHTML =
-      details
+      detailsWithQrUrls
         .map(detail => `
 
           <div
@@ -4792,7 +7505,7 @@ async function renderSavedPaymentDetails() {
                 }
 
                 ${
-                  detail.qrFileUrl
+                  detail.qrDisplayUrl
                     ? `
                       <div
                         style="
@@ -4812,7 +7525,7 @@ async function renderSavedPaymentDetails() {
                         </div>
 
                         <a
-                          href="${escapeHtml(detail.qrFileUrl)}"
+                          href="${escapeHtml(detail.qrDisplayUrl)}"
                           target="_blank"
                           rel="noopener noreferrer"
                           style="
@@ -4822,7 +7535,7 @@ async function renderSavedPaymentDetails() {
                         >
 
                           <img
-                            src="${escapeHtml(detail.qrFileUrl)}"
+                            src="${escapeHtml(detail.qrDisplayUrl)}"
                             alt="Payment QR Code"
                             style="
                               width:180px;
@@ -4839,7 +7552,7 @@ async function renderSavedPaymentDetails() {
                         </a>
 
                         <a
-                          href="${escapeHtml(detail.qrFileUrl)}"
+                          href="${escapeHtml(detail.qrDisplayUrl)}"
                           target="_blank"
                           rel="noopener noreferrer"
                           class="secondary-button"
@@ -4951,14 +7664,14 @@ async function editPaymentDetails(paymentDetailId) {
       providers
         .map(provider => `
           <option
-            value="${escapeHtml(provider.providerName)}"
+            value="${escapeHtml(provider.provider_name)}"
             ${
-              provider.providerName === detail.paymentOption
+              provider.provider_name === detail.paymentOption
                 ? "selected"
                 : ""
             }
           >
-            ${escapeHtml(provider.providerName)}
+            ${escapeHtml(provider.provider_name)}
           </option>
         `)
         .join("");
@@ -5109,7 +7822,28 @@ async function editPaymentDetails(paymentDetailId) {
 }
 
 
-async function updatePaymentDetails(event, paymentDetailId) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Updating payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult=await api("uploadPaymentProof",{fileName:qr.fileName,mimeType:qr.mimeType,base64Data:qr.base64Data}); qrFileUrl=uploadResult.fileUrl||uploadResult.data?.fileUrl||""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file URL was returned.");} const payload={paymentDetailId,paymentOption,accountNumber,accountName,isPreferred}; if(qrFileUrl)payload.qrFileUrl=qrFileUrl; await api("updatePaymentDetails",payload); closeModal(); await renderSavedPaymentDetails(); toast("Payment details updated.");}catch(error){console.error("UPDATE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
+async function updatePaymentDetails(event, paymentDetailId) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Updating payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult = await uploadPaymentProofToSupabase(
+        qr,
+        state.user.userId,
+        crypto.randomUUID()
+      ); qrFileUrl = uploadResult || ""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file path was returned.");} const payload={paymentDetailId,paymentOption,accountNumber,accountName,isPreferred}; if(qrFileUrl)payload.qrFileUrl=qrFileUrl; const { error: updateError } = await supabaseClient
+        .from("payment_details")
+        .update({
+          payment_option: payload.paymentOption,
+          account_number: payload.accountNumber,
+          account_name: payload.accountName,
+          ...(payload.qrFileUrl
+            ? { qr_file_url: payload.qrFileUrl }
+            : {}),
+          is_preferred: payload.isPreferred,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", paymentDetailId)
+        .eq("user_id", state.user.userId);
+
+      if (updateError) {
+        throw updateError;
+      } closeModal(); await renderSavedPaymentDetails(); toast("Payment details updated.");}catch(error){console.error("UPDATE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
 
 async function deletePaymentDetails(
   paymentDetailId
@@ -5171,12 +7905,18 @@ async function confirmDeletePaymentDetails(
       "Deleting payment details..."
     );
 
-    await api(
-      "deletePaymentDetails",
-      {
-        paymentDetailId
-      }
-    );
+    const { error } = await supabaseClient
+      .from("payment_details")
+      .update({
+        status: "DELETED",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", paymentDetailId)
+      .eq("user_id", state.user.userId);
+
+    if (error) {
+      throw error;
+    }
 
     closeModal();
 
@@ -5198,7 +7938,25 @@ async function confirmDeletePaymentDetails(
 
 }
 
-async function savePaymentDetails(event) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Saving payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult=await api("uploadPaymentProof",{fileName:qr.fileName,mimeType:qr.mimeType,base64Data:qr.base64Data}); qrFileUrl=uploadResult.fileUrl||uploadResult.data?.fileUrl||""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file URL was returned.");} await api("savePaymentDetails",{paymentOption,accountNumber,accountName,qrFileUrl,isPreferred}); closeModal(); await renderSavedPaymentDetails(); toast("Payment details saved.");}catch(error){console.error("SAVE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
+async function savePaymentDetails(event) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Saving payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult = await uploadPaymentProofToSupabase(
+        qr,
+        state.user.userId,
+        crypto.randomUUID()
+      ); qrFileUrl = uploadResult || ""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file path was returned.");} const { error: saveError } = await supabaseClient
+        .from("payment_details")
+        .insert({
+          user_id: state.user.userId,
+          payment_option: paymentOption,
+          account_number: accountNumber,
+          account_name: accountName,
+          qr_file_url: qrFileUrl || null,
+          is_preferred: isPreferred,
+          status: "ACTIVE"
+        });
+
+      if (saveError) {
+        throw saveError;
+      } closeModal(); await renderSavedPaymentDetails(); toast("Payment details saved.");}catch(error){console.error("SAVE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
 
 async function updateProfile(event) {
 
@@ -5211,12 +7969,27 @@ async function updateProfile(event) {
 
     setLoading(true, "Saving...");
 
-    const result = await api(
-      "updateProfile",
-      { displayName }
-    );
+    const { data: updatedProfile, error } =
+      await supabaseClient
+        .from("profiles")
+        .update({
+          display_name: displayName
+        })
+        .eq("id", state.user.userId)
+        .select("*")
+        .single();
 
-    state.user = result.user;
+    if (error) {
+      throw error;
+    }
+
+    state.user = {
+      ...state.user,
+      displayName: updatedProfile.display_name,
+      username: updatedProfile.username,
+      status: updatedProfile.status,
+      createdAt: updatedProfile.created_at
+    };
 
     toast("Profile updated.");
 
@@ -5256,10 +8029,41 @@ async function changePassword(event) {
 
     setLoading(true, "Changing password...");
 
-    await api("changePassword", {
-      currentPassword,
-      newPassword
-    });
+    const {
+      data: { user: currentUser },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !currentUser) {
+      throw userError || new Error("Your session has expired.");
+    }
+
+    /*
+     * Supabase Auth does not expose the current password for comparison.
+     * Re-authenticate by signing in with the current password first.
+     */
+    if (!currentUser.email) {
+      throw new Error("Your account does not have an email address.");
+    }
+
+    const { error: reauthError } =
+      await supabaseClient.auth.signInWithPassword({
+        email: currentUser.email,
+        password: currentPassword
+      });
+
+    if (reauthError) {
+      throw new Error("Your current password is incorrect.");
+    }
+
+    const { error: updatePasswordError } =
+      await supabaseClient.auth.updateUser({
+        password: newPassword
+      });
+
+    if (updatePasswordError) {
+      throw updatePasswordError;
+    }
 
     $("#passwordForm").reset();
 
@@ -5299,7 +8103,17 @@ function showApp() {
 
 function openModal(html) {
 
-  $("#modalContent").innerHTML = html;
+  $("#modalContent").innerHTML = `
+    <button
+      type="button"
+      class="modal-close"
+      aria-label="Close"
+      onclick="closeModal()"
+    >
+      &times;
+    </button>
+    ${html}
+  `;
 
   $("#modal").classList.remove("hidden");
 
