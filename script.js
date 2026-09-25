@@ -739,7 +739,13 @@ async function handleRegister(event) {
       error
     } = await supabaseClient.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        data: {
+          username: username,
+          display_name: displayName
+        }
+      }
     });
 
     if (error) {
@@ -753,45 +759,10 @@ async function handleRegister(event) {
     }
 
     /*
-     * Create the OweMe profile.
+     * The database trigger on auth.users automatically
+     * creates the OweMe profile using the username and
+     * display name stored in Auth metadata.
      */
-
-    const {
-      error: profileError
-    } = await supabaseClient
-      .from("profiles")
-      .insert({
-        id:
-          data.user.id,
-
-        username:
-          username,
-
-        username_normalized:
-          usernameNormalized,
-
-        display_name:
-          displayName,
-
-        status:
-          "ACTIVE"
-      });
-
-    if (profileError) {
-
-      console.error(
-        "PROFILE CREATION ERROR:",
-        profileError
-      );
-
-      /*
-       * The Auth account already exists.
-       * Do not pretend registration completely failed.
-       */
-      throw new Error(
-        "Your account was created, but your OweMe profile could not be created. Please contact support."
-      );
-    }
 
     $("#registerForm").reset();
 
