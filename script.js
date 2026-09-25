@@ -2796,15 +2796,10 @@ async function confirmCloseGroup() {
       throw new Error("Please log in first.");
     }
 
-    if (String(currentGroup.createdBy) !== String(user.id)) {
-      throw new Error("Only the group creator can close this group.");
-    }
-
     const { error: updateError } = await supabaseClient
       .from("groups")
       .update({ status: "CLOSED" })
-      .eq("id", currentGroup.groupId)
-      .eq("created_by", user.id);
+      .eq("id", currentGroup.groupId);
 
     if (updateError) {
       throw new Error(
