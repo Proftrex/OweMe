@@ -3020,7 +3020,7 @@ async function openSettlePayment(settlementId) {
                         "
                       >
 
-                      <div>
+                      <div style="flex:1;">
 
                         <strong>
                           ${escapeHtml(
@@ -3060,6 +3060,78 @@ async function openSettlePayment(settlementId) {
                                 style="margin-top:4px;"
                               >
                                 Preferred
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          detail.qrFileUrl
+                            ? `
+                              <div
+                                style="
+                                  margin-top:12px;
+                                  display:flex;
+                                  flex-direction:column;
+                                  align-items:flex-start;
+                                  gap:8px;
+                                "
+                              >
+
+                                <div
+                                  class="muted"
+                                  style="
+                                    font-weight:600;
+                                  "
+                                >
+                                  Payment QR Code
+                                </div>
+
+                                <a
+                                  href="${escapeHtml(
+                                    detail.qrFileUrl
+                                  )}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style="
+                                    display:inline-block;
+                                    text-decoration:none;
+                                  "
+                                >
+
+                                  <img
+                                    src="${escapeHtml(
+                                      detail.qrFileUrl
+                                    )}"
+                                    alt="Payment QR Code"
+                                    style="
+                                      width:180px;
+                                      height:180px;
+                                      object-fit:contain;
+                                      border:1px solid var(--border-color, #ddd);
+                                      border-radius:12px;
+                                      background:#fff;
+                                      padding:8px;
+                                      display:block;
+                                    "
+                                  >
+
+                                </a>
+
+                                <a
+                                  href="${escapeHtml(
+                                    detail.qrFileUrl
+                                  )}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  class="secondary-button"
+                                  style="
+                                    text-decoration:none;
+                                  "
+                                >
+                                  View QR Code
+                                </a>
+
                               </div>
                             `
                             : ""
@@ -3314,7 +3386,6 @@ async function openSettlePayment(settlementId) {
   }
 
 }
-
 
 
 function preparePaymentProof(file) {
@@ -4720,6 +4791,68 @@ async function renderSavedPaymentDetails() {
                     `
                 }
 
+                ${
+                  detail.qrFileUrl
+                    ? `
+                      <div
+                        style="
+                          margin-top:12px;
+                          display:flex;
+                          flex-direction:column;
+                          align-items:flex-start;
+                          gap:8px;
+                        "
+                      >
+
+                        <div
+                          class="muted"
+                          style="font-weight:600;"
+                        >
+                          Payment QR Code
+                        </div>
+
+                        <a
+                          href="${escapeHtml(detail.qrFileUrl)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style="
+                            display:inline-block;
+                            text-decoration:none;
+                          "
+                        >
+
+                          <img
+                            src="${escapeHtml(detail.qrFileUrl)}"
+                            alt="Payment QR Code"
+                            style="
+                              width:180px;
+                              height:180px;
+                              object-fit:contain;
+                              border:1px solid var(--border-color, #ddd);
+                              border-radius:12px;
+                              background:#fff;
+                              padding:8px;
+                              display:block;
+                            "
+                          >
+
+                        </a>
+
+                        <a
+                          href="${escapeHtml(detail.qrFileUrl)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="secondary-button"
+                          style="text-decoration:none;"
+                        >
+                          View QR Code
+                        </a>
+
+                      </div>
+                    `
+                    : ""
+                }
+
               </div>
 
 
@@ -4788,7 +4921,6 @@ async function renderSavedPaymentDetails() {
   }
 
 }
-
 
 async function editPaymentDetails(paymentDetailId) {
 
