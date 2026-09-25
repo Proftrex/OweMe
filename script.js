@@ -2438,15 +2438,15 @@ async function reviewPayment(paymentSubmissionId) {
                   </div>
 
 
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    onclick="viewPaymentProof('${escapeHtml(
-                      proofFileUrl
-                    )}')"
-                  >
-                    View Proof
-                  </button>
+                  <a
+  href="${escapeHtml(proofFileUrl)}"
+  target="_blank"
+  rel="noopener noreferrer"
+  class="secondary-button"
+  style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;"
+>
+  View Proof
+</a>
 
                 </div>
               `
