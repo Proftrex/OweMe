@@ -27,6 +27,7 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 
+
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
@@ -919,6 +920,10 @@ async function navigate(page) {
       await loadInvitations();
     }
 
+    if (page === "history") {
+      await loadHistory();
+    }
+
     if (page === "profile") {
       renderProfile();
     }
@@ -1119,6 +1124,156 @@ async function loadGroups() {
 }
 
 
+
+async function loadHistory() {
+
+  $("#pageTitle").textContent = "History";
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    const {
+      data: memberships,
+      error: membershipError
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        status,
+        groups (
+          id,
+          group_name,
+          created_by,
+          created_at,
+          status
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+
+    if (membershipError) {
+      throw new Error(
+        membershipError.message ||
+        "Unable to load your group history."
+      );
+    }
+
+    const closedGroups =
+      (memberships || [])
+        .filter(row =>
+          row.groups &&
+          String(row.groups.status).toUpperCase() === "CLOSED"
+        )
+        .map(row => ({
+          groupId: row.groups.id,
+          groupName: row.groups.group_name,
+          createdBy: row.groups.created_by,
+          createdAt: row.groups.created_at,
+          status: row.groups.status,
+          memberCount: 0
+        }));
+
+    for (const group of closedGroups) {
+
+      const {
+        data: memberRows
+      } = await supabaseClient
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", group.groupId)
+        .eq("status", "ACTIVE");
+
+      group.memberCount =
+        (memberRows || []).length;
+    }
+
+    $("#content").innerHTML = `
+
+      <div class="history-intro">
+
+        <h2>Past adventures</h2>
+
+        <p>
+          Groups you've closed and kept for the memories.
+        </p>
+
+      </div>
+
+      ${
+        closedGroups.length
+          ? closedGroups.map(group => `
+              <div
+                class="card group-card history-group-card"
+                data-group-id="${escapeHtml(group.groupId)}"
+              >
+
+                <div>
+                  <h3>
+                    ${escapeHtml(group.groupName)}
+                  </h3>
+
+                  <p>
+                    ${Number(group.memberCount || 0)}
+                    member${group.memberCount === 1 ? "" : "s"}
+                    · Closed
+                  </p>
+                </div>
+
+                <div class="arrow">›</div>
+
+              </div>
+            `).join("")
+          : `
+              <div class="card empty-state">
+
+                <h3>No adventures here yet</h3>
+
+                <p>
+                  Closed groups will appear here after everyone is settled.
+                </p>
+
+              </div>
+            `
+      }
+
+    `;
+
+    document
+      .querySelectorAll(".history-group-card")
+      .forEach(card => {
+
+        card.addEventListener("click", () => {
+          openGroup(card.dataset.groupId);
+        });
+
+      });
+
+  } catch (error) {
+
+    console.error(
+      "LOAD HISTORY ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load your group history."
+    );
+
+  }
+
+}
+
 async function loadGroupsData(force = false) {
 
   const cacheAge =
@@ -1198,7 +1353,10 @@ async function loadGroupsData(force = false) {
 
   const groups =
     (memberships || [])
-      .filter(row => row.groups)
+      .filter(row =>
+        row.groups &&
+        String(row.groups.status).toUpperCase() === "ACTIVE"
+      )
       .map(row => ({
 
         groupId:
@@ -2597,6 +2755,122 @@ async function openExpenseDetails(expenseId) {
 }
 
 
+
+async function closeCurrentGroup() {
+
+  const currentGroup =
+    state.currentGroup?.group;
+
+  if (!currentGroup) {
+    toast("No group is currently open.");
+    return;
+  }
+
+  if (String(currentGroup.status).toUpperCase() !== "ACTIVE") {
+    toast("This group is already closed.");
+    return;
+  }
+
+  const settlements =
+    state.currentGroup.settlements || [];
+
+  const outstandingAmount =
+    settlements.reduce(
+      (sum, settlement) =>
+        sum + Number(settlement.amount || 0),
+      0
+    );
+
+  if (outstandingAmount > 0.009) {
+    toast(
+      `This group still has ${formatMoney(outstandingAmount)} outstanding.`
+    );
+    return;
+  }
+
+  const confirmed =
+    window.confirm(
+      `Close "${currentGroup.groupName}"?\n\n` +
+      "Everyone is settled. This group will be moved to History and will no longer accept new expenses."
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  setLoading(
+    true,
+    "Closing group..."
+  );
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    if (
+      String(currentGroup.createdBy) !==
+      String(user.id)
+    ) {
+      throw new Error(
+        "Only the group creator can close this group."
+      );
+    }
+
+    const {
+      error: updateError
+    } = await supabaseClient
+      .from("groups")
+      .update({
+        status: "CLOSED"
+      })
+      .eq("id", currentGroup.groupId)
+      .eq("created_by", user.id);
+
+    if (updateError) {
+      throw new Error(
+        updateError.message ||
+        "Unable to close the group."
+      );
+    }
+
+    currentGroup.status = "CLOSED";
+
+    toast("Group closed and moved to History.");
+
+    state.groupsLoadedAt = 0;
+
+    await loadGroups();
+
+  } catch (error) {
+
+    console.error(
+      "CLOSE GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to close the group."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
 function renderGroup() {
 
   const group =
@@ -2692,16 +2966,26 @@ function renderGroup() {
     </div>
 
 
-    <div style="margin-top:16px;">
+    ${
+      String(group.status).toUpperCase() === "ACTIVE"
+        ? `
+          <div style="margin-top:16px;">
 
-      <button
-        class="add-expense-button"
-        onclick="openAddExpenseModal()"
-      >
-        + Add Expense
-      </button>
+            <button
+              class="add-expense-button"
+              onclick="openAddExpenseModal()"
+            >
+              + Add Expense
+            </button>
 
-    </div>
+          </div>
+        `
+        : `
+          <div class="group-closed-banner">
+            ✓ This group is closed. You're viewing its history.
+          </div>
+        `
+    }
 
 
     <div class="section-title">
@@ -2738,7 +3022,11 @@ function renderGroup() {
           class="small-button"
           onclick="openPayables()"
         >
-          Settle →
+          ${
+            String(group.status).toUpperCase() === "ACTIVE"
+              ? "Settle →"
+              : "View history →"
+          }
         </button>
 
       </div>
@@ -2771,7 +3059,11 @@ function renderGroup() {
           class="small-button"
           onclick="openReceivables()"
         >
-          Check details →
+          ${
+            String(group.status).toUpperCase() === "ACTIVE"
+              ? "Check details →"
+              : "View history →"
+          }
         </button>
 
       </div>
@@ -2836,6 +3128,31 @@ function renderGroup() {
       </button>
 
     </div>
+
+    ${
+      String(group.status).toUpperCase() === "ACTIVE"
+        ? `
+          <div class="group-close-section">
+
+            <div class="group-close-note">
+              Everyone settled? You can close this group and move it to History.
+            </div>
+
+            <button
+              class="close-group-button"
+              onclick="closeCurrentGroup()"
+            >
+              ✓ Close this group
+            </button>
+
+          </div>
+        `
+        : `
+          <div class="group-closed-banner">
+            ✓ This group is closed and saved in History.
+          </div>
+        `
+    }
 
   `;
 
@@ -5221,6 +5538,14 @@ function renderSettlement(item) {
 
 async function openSettlePayment(settlementId) {
 
+  if (
+    String(state.currentGroup?.group?.status).toUpperCase() ===
+    "CLOSED"
+  ) {
+    toast("This group is closed. New payments cannot be submitted.");
+    return;
+  }
+
   setLoading(true, "Loading settlement...");
 
   try {
@@ -6052,6 +6377,14 @@ async function uploadPaymentProofToSupabase(
 async function submitSettlementPayment(event, settlement) {
 
   event.preventDefault();
+
+  if (
+    String(state.currentGroup?.group?.status).toUpperCase() ===
+    "CLOSED"
+  ) {
+    toast("This group is closed. New payments cannot be submitted.");
+    return;
+  }
 
   try {
 
@@ -8242,7 +8575,6 @@ window.processRejectPayment = processRejectPayment;
 window.confirmPaymentSubmission = confirmPaymentSubmission;
 window.confirmSubmittedPayment = confirmSubmittedPayment;
 window.processConfirmPayment = processConfirmPayment;
-window.openPaymentTransaction = openPaymentTransaction;
 function viewPaymentProof(proofFileUrl) {
 
   const url =

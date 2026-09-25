@@ -1430,28 +1430,6 @@ input[type="file"]:focus {
 }
 
 /* =========================
-   TOAST VISIBILITY
-========================= */
-
-.toast {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translate(-50%, 10px);
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    visibility 0.2s ease;
-}
-
-.toast.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-}
-
-/* =========================
    EMPTY GROUP — COMPACT CTA
 ========================= */
 
@@ -1565,3 +1543,210 @@ input + button {
     border-radius: 25px;
   }
 }
+
+/* =========================
+   CLOSE GROUP / HISTORY
+========================= */
+
+.group-close-section {
+  width: 100%;
+  max-width: 520px;
+  margin: 28px auto 10px;
+  padding: 18px 0 4px;
+  text-align: center;
+  border-top: 1px dashed var(--border);
+}
+
+.group-close-note {
+  margin-bottom: 13px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.close-group-button {
+  width: fit-content !important;
+  min-width: 180px;
+  padding: 11px 20px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  border: 1px solid #cce5d6;
+  border-radius: 13px;
+  font-weight: 900;
+  box-shadow: none !important;
+}
+
+.close-group-button:hover {
+  background: #d8eee1;
+  box-shadow: none !important;
+}
+
+.group-closed-banner {
+  width: 100%;
+  max-width: 520px;
+  margin: 28px auto 10px;
+  padding: 14px 16px;
+  text-align: center;
+  background: var(--green-soft);
+  color: var(--green);
+  border: 1px solid #cfe8d8;
+  border-radius: 15px;
+  font-weight: 900;
+}
+
+/* =========================================
+   OweMe — Toast
+   ========================================= */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 92px;
+  z-index: 9999;
+
+  width: min(420px, calc(100% - 32px));
+  padding: 14px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--card);
+  color: var(--text);
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  box-shadow: 0 10px 28px rgba(38, 68, 58, 0.14);
+
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transform: translate(-50%, 10px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    visibility 0.22s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+@media (max-width: 700px) {
+  .toast {
+    bottom: 88px;
+    width: calc(100% - 32px);
+    padding: 13px 16px;
+    border-radius: 15px;
+    font-size: 13px;
+  }
+}
+
+/* =========================================
+   OweMe — Close Group Confirmation
+   ========================================= */
+
+.close-group-modal {
+  padding: 18px 8px 8px;
+  text-align: center;
+}
+
+.close-group-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+
+  border: 1px solid #cce5d6;
+  border-radius: 50%;
+
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.close-group-modal h2 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.close-group-modal-text {
+  margin: 0 auto 8px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.close-group-modal-note {
+  max-width: 420px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.close-group-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.close-group-actions button {
+  width: fit-content !important;
+  min-width: 120px;
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  box-shadow: none !important;
+  font-weight: 800;
+}
+
+.close-group-actions .secondary-button {
+  background: var(--card-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.close-group-actions .secondary-button:hover {
+  background: var(--primary-soft);
+}
+
+.close-group-confirm-button {
+  background: var(--primary);
+  color: #ffffff;
+  border: 1px solid var(--primary);
+}
+
+.close-group-confirm-button:hover {
+  background: var(--primary-dark);
+}
+
+@media (max-width: 500px) {
+  .close-group-actions {
+    flex-direction: column-reverse;
+  }
+
+  .close-group-actions button {
+    width: 100% !important;
+  }
+}
+
