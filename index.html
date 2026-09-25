@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#111827">
+  <title>OweMe</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="app">
+
+    <!-- AUTH -->
+    <section id="authView" class="screen">
+
+      <div class="auth-card">
+
+        <div class="brand">
+          <div class="brand-icon">÷</div>
+          <h1>OweMe</h1>
+          <p>Record what you paid. We'll do the math.</p>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="loginPanel">
+
+          <h2>Welcome back</h2>
+
+          <form id="loginForm">
+
+            <label>
+              Username or email
+              <input
+                id="loginIdentifier"
+                type="text"
+                autocomplete="username"
+                required
+                placeholder="@anna23 or anna@email.com"
+              >
+            </label>
+
+            <label>
+              Password
+              <input
+                id="loginPassword"
+                type="password"
+                autocomplete="current-password"
+                required
+              >
+            </label>
+
+            <button class="primary-button" type="submit">
+              Log In
+            </button>
+
+          </form>
+
+          <p class="switch-text">
+            Don't have an account?
+            <button class="link-button" id="showRegister">
+              Create one
+            </button>
+          </p>
+
+        </div>
+
+        <!-- REGISTER -->
+        <div id="registerPanel" class="hidden">
+
+          <h2>Create account</h2>
+
+          <form id="registerForm">
+
+            <label>
+              Email
+              <input
+                id="registerEmail"
+                type="email"
+                autocomplete="email"
+                required
+                placeholder="anna@email.com"
+              >
+            </label>
+
+            <label>
+              Username
+              <div class="username-input">
+                <span>@</span>
+                <input
+                  id="registerUsername"
+                  type="text"
+                  autocomplete="username"
+                  required
+                  maxlength="30"
+                  placeholder="anna23"
+                >
+              </div>
+            </label>
+
+            <small class="field-help">
+              Letters, numbers, underscore and period only.
+            </small>
+
+            <label>
+              Display name
+              <input
+                id="registerDisplayName"
+                type="text"
+                required
+                maxlength="50"
+                placeholder="Anna"
+              >
+            </label>
+
+            <label>
+              Password
+              <input
+                id="registerPassword"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="8"
+                placeholder="At least 8 characters"
+              >
+            </label>
+
+            <label>
+              Confirm password
+              <input
+                id="registerPasswordConfirm"
+                type="password"
+                autocomplete="new-password"
+                required
+              >
+            </label>
+
+            <button class="primary-button" type="submit">
+              Create Account
+            </button>
+
+          </form>
+
+          <p class="switch-text">
+            Already have an account?
+            <button class="link-button" id="showLogin">
+              Log in
+            </button>
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- MAIN APP -->
+    <section id="mainApp" class="hidden">
+
+      <header class="topbar">
+
+        <div>
+          <div class="app-name">OweMe</div>
+          <div id="pageTitle" class="page-title">Home</div>
+        </div>
+
+        <button id="refreshButton" class="icon-button" aria-label="Refresh">
+          ↻
+        </button>
+
+      </header>
+
+
+      <main id="content"></main>
+
+
+      <nav class="bottom-nav">
+
+        <button data-page="home" class="nav-item active">
+          <span>⌂</span>
+          <small>Home</small>
+        </button>
+
+        <button data-page="groups" class="nav-item">
+          <span>◫</span>
+          <small>Groups</small>
+        </button>
+
+        <button data-page="invites" class="nav-item">
+          <span>✉</span>
+          <small>Invites</small>
+        </button>
+
+        <button data-page="profile" class="nav-item">
+          <span>●</span>
+          <small>Profile</small>
+        </button>
+
+      </nav>
+
+    </section>
+
+
+    <!-- MODAL -->
+    <div id="modal" class="modal hidden">
+
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-card">
+
+        <button id="closeModal" class="modal-close">
+          ×
+        </button>
+
+        <div id="modalContent"></div>
+
+      </div>
+
+    </div>
+
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+
+
+    <!-- LOADING -->
+    <div id="loading" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <span id="loadingText">Loading, please wait...</span>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
