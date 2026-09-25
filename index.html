@@ -55,6 +55,16 @@
               >
             </label>
 
+            <p style="text-align:right;margin-top:-8px;margin-bottom:14px;">
+              <button
+                type="button"
+                class="link-button"
+                id="forgotPasswordButton"
+              >
+                Forgot password?
+              </button>
+            </p>
+
             <button class="primary-button" type="submit">
               Log In
             </button>
@@ -69,6 +79,63 @@
           </p>
 
         </div>
+
+        <!-- RESET PASSWORD -->
+        <div id="resetPasswordPanel" class="hidden">
+
+          <h2>Set a new password</h2>
+
+          <p class="muted">
+            Enter your new password below.
+          </p>
+
+          <form id="resetPasswordForm">
+
+            <label>
+              New password
+              <input
+                id="resetPassword"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="8"
+                placeholder="At least 8 characters"
+              >
+            </label>
+
+            <label>
+              Confirm new password
+              <input
+                id="resetPasswordConfirm"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="8"
+              >
+            </label>
+
+            <button
+              class="primary-button"
+              type="submit"
+            >
+              Update Password
+            </button>
+
+          </form>
+
+          <p class="switch-text">
+            Remembered your password?
+            <button
+              type="button"
+              class="link-button"
+              id="backToLoginFromReset"
+            >
+              Back to Log In
+            </button>
+          </p>
+
+        </div>
+
 
         <!-- REGISTER -->
         <div id="registerPanel" class="hidden">

@@ -37,6 +37,23 @@ async function init() {
     data: { session }
   } = await supabaseClient.auth.getSession();
 
+  const hashParams =
+    new URLSearchParams(
+      window.location.hash.replace(/^#/, "")
+    );
+
+  const recoveryType =
+    hashParams.get("type");
+
+  if (
+    recoveryType === "recovery" &&
+    session
+  ) {
+    showAuth();
+    showResetPasswordPanel();
+    return;
+  }
+
   if (!session) {
     showAuth();
     return;
@@ -427,6 +444,9 @@ function bindEvents() {
   const registerForm = $("#registerForm");
   const showRegister = $("#showRegister");
   const showLogin = $("#showLogin");
+  const forgotPasswordButton = $("#forgotPasswordButton");
+  const backToLoginFromReset = $("#backToLoginFromReset");
+  const resetPasswordForm = $("#resetPasswordForm");
   const refreshButton = $("#refreshButton");
   const closeModalButton = $("#closeModal");
   const modalBackdrop = $(".modal-backdrop");
@@ -473,6 +493,27 @@ function bindEvents() {
     });
   }
 
+  if (forgotPasswordButton) {
+    forgotPasswordButton.addEventListener(
+      "click",
+      openForgotPassword
+    );
+  }
+
+  if (backToLoginFromReset) {
+    backToLoginFromReset.addEventListener(
+      "click",
+      showLoginPanel
+    );
+  }
+
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener(
+      "submit",
+      handlePasswordReset
+    );
+  }
+
   document.querySelectorAll(".nav-item").forEach(function(button) {
     button.addEventListener("click", function() {
       navigate(button.dataset.page);
@@ -495,6 +536,228 @@ function bindEvents() {
   }
 
 }
+
+function showLoginPanel() {
+
+  const loginPanel = $("#loginPanel");
+  const registerPanel = $("#registerPanel");
+  const resetPanel = $("#resetPasswordPanel");
+
+  if (loginPanel) {
+    loginPanel.classList.remove("hidden");
+  }
+
+  if (registerPanel) {
+    registerPanel.classList.add("hidden");
+  }
+
+  if (resetPanel) {
+    resetPanel.classList.add("hidden");
+  }
+}
+
+
+function showResetPasswordPanel() {
+
+  const loginPanel = $("#loginPanel");
+  const registerPanel = $("#registerPanel");
+  const resetPanel = $("#resetPasswordPanel");
+
+  if (loginPanel) {
+    loginPanel.classList.add("hidden");
+  }
+
+  if (registerPanel) {
+    registerPanel.classList.add("hidden");
+  }
+
+  if (resetPanel) {
+    resetPanel.classList.remove("hidden");
+  }
+
+}
+
+
+async function openForgotPassword() {
+
+  const identifier =
+    $("#loginIdentifier")?.value.trim() || "";
+
+  openModal(`
+
+    <div class="modal-confirmation">
+
+      <h2>Reset Password</h2>
+
+      <p class="muted">
+        Enter the email address linked to your OweMe account.
+        We'll send you a password reset link.
+      </p>
+
+      <form id="forgotPasswordForm">
+
+        <label>
+          Email address
+
+          <input
+            id="forgotPasswordEmail"
+            type="email"
+            autocomplete="email"
+            value="${
+              identifier.includes("@")
+                ? escapeHtml(identifier)
+                : ""
+            }"
+            required
+          >
+        </label>
+
+        <button
+          type="submit"
+          class="primary-button"
+          style="margin-top:16px;"
+        >
+          Send Reset Link
+        </button>
+
+      </form>
+
+    </div>
+
+  `);
+
+  $("#forgotPasswordForm").addEventListener(
+    "submit",
+    sendPasswordReset
+  );
+}
+
+
+async function sendPasswordReset(event) {
+
+  event.preventDefault();
+
+  const email =
+    $("#forgotPasswordEmail").value.trim();
+
+  if (!email) {
+    toast("Please enter your email address.");
+    return;
+  }
+
+  try {
+
+    setLoading(
+      true,
+      "Sending password reset link..."
+    );
+
+    const {
+      error
+    } = await supabaseClient.auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo:
+  "https://arkhonstudio.com/oweme_app/"
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    closeModal();
+
+    toast(
+      "Password reset link sent. Check your email."
+    );
+
+  } catch (error) {
+
+    console.error(
+      "PASSWORD RESET REQUEST ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to send password reset link."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+async function handlePasswordReset(event) {
+
+  event.preventDefault();
+
+  const password =
+    $("#resetPassword").value;
+
+  const confirmPassword =
+    $("#resetPasswordConfirm").value;
+
+  if (password.length < 8) {
+    toast("Password must be at least 8 characters.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    toast("Passwords do not match.");
+    return;
+  }
+
+  try {
+
+    setLoading(
+      true,
+      "Updating your password..."
+    );
+
+    const {
+      error
+    } = await supabaseClient.auth.updateUser({
+      password
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    $("#resetPasswordForm").reset();
+
+    await supabaseClient.auth.signOut();
+
+    showLoginPanel();
+
+    toast(
+      "Password updated. You can now log in."
+    );
+
+  } catch (error) {
+
+    console.error(
+      "PASSWORD RESET ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to update your password."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
 
 async function handleLogin(event) {
 
