@@ -88,6 +88,7 @@ async function init() {
 
     showApp();
 
+    await loadNotificationCount();
     await loadHome();
 
   } catch (error) {
@@ -902,6 +903,7 @@ async function handleLogin(event) {
 
     showApp();
 
+    await loadNotificationCount();
     await loadHome();
 
     toast("Welcome back!");
@@ -7825,6 +7827,8 @@ async function loadInvitations() {
       groupName: invitation.groups?.group_name || "Group"
     }));
 
+  updateNotificationBadge();
+
   $("#content").innerHTML = `
 
     ${
@@ -9427,3 +9431,57 @@ function viewPaymentProof(proofFileUrl) {
 
 window.viewPaymentProof = viewPaymentProof;
 window.markSettlementPaid = markSettlementPaid;
+
+/* ===== NOTIFICATION BADGE ===== */
+
+function updateNotificationBadge() {
+  const badge = document.getElementById("notificationBadge");
+  if (!badge) return;
+
+  const pendingCount = (state.invitations || []).filter(
+    invitation => String(invitation.status || "").toUpperCase() === "PENDING"
+  ).length;
+
+  if (pendingCount > 0) {
+    badge.textContent = pendingCount > 99 ? "99+" : String(pendingCount);
+    badge.classList.remove("hidden");
+  } else {
+    badge.textContent = "0";
+    badge.classList.add("hidden");
+  }
+}
+
+
+/* ===== LOAD NOTIFICATION COUNT ===== */
+
+async function loadNotificationCount() {
+  if (!state.user?.userId) return;
+
+  try {
+    const { count, error } = await supabaseClient
+      .from("invitations")
+      .select("id", { count: "exact", head: true })
+      .eq("invited_user_id", state.user.userId)
+      .eq("status", "PENDING");
+
+    if (error) throw error;
+
+    const badge = document.getElementById("notificationBadge");
+    if (!badge) return;
+
+    const pendingCount = Number(count || 0);
+
+    if (pendingCount > 0) {
+      badge.textContent =
+        pendingCount > 99 ? "99+" : String(pendingCount);
+      badge.classList.remove("hidden");
+    } else {
+      badge.textContent = "0";
+      badge.classList.add("hidden");
+    }
+
+  } catch (error) {
+    console.error("LOAD NOTIFICATION COUNT ERROR:", error);
+  }
+}
+

@@ -2239,3 +2239,118 @@ body {
 .bottom-nav {
   flex: 0 0 auto;
 }
+/* ===== NOTIFICATION BELL ===== */
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.notification-button:hover {
+  background: var(--yellow-soft);
+}
+
+.notification-bell {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: #5c4b00;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 17px;
+  text-align: center;
+  border: 2px solid var(--card);
+}
+
+.notification-badge.hidden {
+  display: none;
+}
+
+
+/* ===== TOPBAR LAYOUT ===== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+
+/* ===== FORCE NOTIFICATION BELL VISIBILITY ===== */
+
+.notification-button {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  flex-shrink: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--yellow-soft) !important;
+  border: 1px solid var(--yellow) !important;
+  color: var(--text) !important;
+}
+
+.notification-bell {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+
+
+/* ===== NOTIFICATION BELL ICON SIZE ===== */
+.notification-bell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.notification-bell svg {
+  display: block !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+}

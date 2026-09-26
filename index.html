@@ -237,9 +237,29 @@
           <div id="pageTitle" class="page-title">Home</div>
         </div>
 
-        <button id="refreshButton" class="icon-button" aria-label="Refresh">
-          ↻
-        </button>
+        <div class="topbar-actions">
+
+          <button
+            id="notificationButton"
+            class="notification-button"
+            type="button"
+            aria-label="Notifications"
+            onclick="navigate('invites')"
+          >
+            <span class="notification-bell" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+        <path d="M10 21h4"/>
+      </svg>
+    </span>
+            <span id="notificationBadge" class="notification-badge hidden">0</span>
+          </button>
+
+          <button id="refreshButton" class="icon-button" aria-label="Refresh">
+            ↻
+          </button>
+
+        </div>
 
       </header>
 
