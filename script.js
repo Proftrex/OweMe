@@ -9642,17 +9642,7 @@ function showApp() {
 
 function openModal(html) {
 
-  $("#modalContent").innerHTML = `
-    <button
-      type="button"
-      class="modal-close"
-      aria-label="Close"
-      onclick="closeModal()"
-    >
-      &times;
-    </button>
-    ${html}
-  `;
+  $("#modalContent").innerHTML = html;
 
   $("#modal").classList.remove("hidden");
 
