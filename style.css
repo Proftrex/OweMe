@@ -2558,3 +2558,31 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Optional expense receipt */
+.expense-receipt-section {
+  margin-top: 22px;
+}
+
+.receipt-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 15px;
+  background: var(--card-soft);
+  border: 1px dashed var(--border);
+  border-radius: 13px;
+  color: var(--primary-dark);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.receipt-upload-box:hover {
+  background: var(--primary-soft);
+}
+
+.receipt-upload-icon {
+  font-size: 18px;
+}
