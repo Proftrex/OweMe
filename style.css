@@ -1760,7 +1760,7 @@ input + button {
   inset: 0;
   background: rgba(243, 248, 243, 0.78);
   backdrop-filter: blur(3px);
-  z-index: 300;
+  z-index: 1000000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2856,6 +2856,11 @@ body {
 
 
 /* Modal lives directly under body; keep it above the entire app shell. */
+body > #modal.hidden {
+  display: none !important;
+}
+
+
 body > #modal {
   position: fixed !important;
   inset: 0 !important;

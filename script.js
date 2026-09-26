@@ -7625,129 +7625,94 @@ async function submitSettlementPayment(event, settlement) {
         }));
 
 
-    const existingPending =
-      transactions.find(
-        transaction =>
-
-          String(
-            transaction.type
-          ).toUpperCase() ===
-            "PAYMENT" &&
-
-          String(
-            transaction.status
-          ).toUpperCase() ===
-            "SUBMITTED" &&
-
-          String(
-            transaction.settlementId
-          ) ===
-            String(
-              settlement.settlementId
-            ) &&
-
-          String(
-            transaction.fromUserId
-          ) ===
-            String(
-              state.user.userId
-            )
-      );
-
-
     /*
      * --------------------------------------------------
-     * EXISTING PAYMENT
+     * PARTIAL PAYMENT CHECK
      * --------------------------------------------------
      *
-     * If a payment already exists, attach the
-     * payment proof instead of creating another
-     * payment submission.
+     * A settlement may be paid through multiple
+     * partial payment submissions.
+     *
+     * Calculate the amount already covered by
+     * confirmed and pending payments before allowing
+     * another submission.
      */
-    if (existingPending) {
 
-      if (!proofFile) {
-
-        toast(
-          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
-        );
-
-        return;
-      }
-
-
-      setLoading(
-        true,
-        "Preparing payment proof..."
+    const settlementPayments =
+      transactions.filter(
+        transaction =>
+          String(transaction.type).toUpperCase() === "PAYMENT" &&
+          String(transaction.settlementId) ===
+            String(settlement.settlementId) &&
+          String(transaction.fromUserId) ===
+            String(state.user.userId)
       );
 
-
-      const proof =
-        await preparePaymentProof(
-          proofFile
+    const confirmedPaid =
+      settlementPayments
+        .filter(
+          transaction =>
+            String(transaction.status).toUpperCase() ===
+            "CONFIRMED"
+        )
+        .reduce(
+          (total, transaction) =>
+            total + Number(transaction.amountPaid || 0),
+          0
         );
 
-
-      setLoading(
-        true,
-        "Uploading payment proof..."
-      );
-
-
-      const proofFileUrl =
-        await uploadPaymentProofToSupabase(
-          proof,
-          settlement.groupId,
-          settlement.settlementId
+    const pendingPaid =
+      settlementPayments
+        .filter(
+          transaction =>
+            String(transaction.status).toUpperCase() ===
+            "SUBMITTED"
+        )
+        .reduce(
+          (total, transaction) =>
+            total + Number(transaction.amountPaid || 0),
+          0
         );
 
+    const settlementAmount =
+      Number(settlement.amount || 0);
 
-      setLoading(
-        true,
-        "Attaching payment proof..."
+    const remainingAmount =
+      Math.max(
+        0,
+        settlementAmount -
+          confirmedPaid -
+          pendingPaid
       );
 
-
-      const { error: proofUpdateError } =
-        await supabaseClient
-          .from("payment_submissions")
-          .update({
-            proof_file_url: proofFileUrl
-          })
-          .eq("id", existingPending.paymentSubmissionId)
-          .eq("payer_user_id", state.user.userId);
-
-      if (proofUpdateError) {
-        throw proofUpdateError;
-      }
-
-
-      if (
-        window.owemeSettlementDrafts &&
-        window.owemeSettlementDrafts[
-          settlement.settlementId
-        ]
-      ) {
-
-        delete window.owemeSettlementDrafts[
-          settlement.settlementId
-        ];
-
-      }
-
-
-      closeModal();
-
-
-      await refreshCurrentGroup();
-
+    /*
+     * If the amount entered would exceed what is
+     * still unpaid, stop the submission.
+     */
+    if (
+      amountPaid >
+      remainingAmount + 0.01
+    ) {
 
       toast(
-        "Payment proof attached successfully."
+        `Amount paid cannot exceed the remaining balance of ${formatMoney(
+          remainingAmount
+        )}.`
       );
 
       return;
     }
+
+
+    /*
+     * If there is already a pending payment, allow
+     * another submission only when there is still
+     * remaining balance.
+     *
+     * Existing pending payments are left untouched.
+     * Their proof can still be attached through the
+     * existing payment-review flow.
+     */
 
 
     /*
@@ -7858,6 +7823,9 @@ async function submitSettlementPayment(event, settlement) {
 
     closeModal();
 
+    await new Promise(resolve =>
+      requestAnimationFrame(resolve)
+    );
 
     await refreshCurrentGroup();
 
