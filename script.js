@@ -89,7 +89,7 @@ async function init() {
     showApp();
 
     await loadNotificationCount();
-    await loadHome();
+    await loadHome(null, true);
 
   } catch (error) {
 
@@ -911,7 +911,7 @@ async function handleLogin(event) {
     showApp();
 
     await loadNotificationCount();
-    await loadHome();
+    await loadHome(null, true);
 
     toast("Welcome back!");
 
@@ -1109,7 +1109,7 @@ async function handleRegister(event) {
 
       showApp();
 
-      await loadHome();
+      await loadHome(null, true);
 
       toast(
         "Account created successfully!"
@@ -1262,7 +1262,7 @@ async function navigate(page) {
    HOME
    ========================================================= */
 
-async function loadHome(initialGroups = null) {
+async function loadHome(initialGroups = null, force = false) {
 
   $("#pageTitle").textContent = "Home";
 
@@ -1275,7 +1275,7 @@ async function loadHome(initialGroups = null) {
 
     } else {
 
-      await loadGroupsData();
+      await loadGroupsData(force);
 
     }
 

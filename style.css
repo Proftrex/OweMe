@@ -2960,3 +2960,31 @@ body > #modal .modal-backdrop {
   min-width: 0 !important;
   margin: 0 !important;
 }
+
+/* Receivables: add breathing room between name, amount, and action */
+.balance-detail-row .user-name {
+  margin-bottom: 6px;
+}
+
+.balance-detail-row > div:first-child .muted {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.balance-detail-row > button {
+  margin-top: 4px;
+}
+
+
+/* Align balance action buttons to the left */
+.balance-section > button {
+  justify-self: start;
+  margin-left: 0 !important;
+}
+
+
+/* Add space between people count and balance action */
+.balance-section > button {
+  margin-top: 10px !important;
+}
+
