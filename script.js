@@ -1538,9 +1538,25 @@ async function loadHistory() {
                     member${group.memberCount === 1 ? "" : "s"}
                     · Closed
                   </p>
-                </div>
 
-                <div class="arrow">›</div>
+                  <div class="history-group-actions">
+                    <button
+                      type="button"
+                      class="small-button danger-button"
+                      onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
+                    >
+                      Delete
+                    </button>
+
+                    <button
+                      type="button"
+                      class="small-button"
+                      onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
 
               </div>
             `).join("")
@@ -3273,6 +3289,148 @@ async function confirmCloseGroup() {
     setLoading(false);
   }
 }
+
+
+async function deleteClosedGroup(groupId) {
+
+  const group =
+    (state.groups || []).find(
+      item => String(item.groupId) === String(groupId)
+    );
+
+  let groupName =
+    group?.groupName || "this group";
+
+  openModal(`
+    <div class="close-group-confirmation">
+
+      <div class="close-group-confirmation-icon">
+        !
+      </div>
+
+      <h2>Delete this group?</h2>
+
+      <p class="close-group-confirmation-group">
+        ${escapeHtml(groupName)}
+      </p>
+
+      <p class="close-group-confirmation-text">
+        This will permanently delete the group and its expenses,
+        payments, settlements, and member records.
+        This action cannot be undone.
+      </p>
+
+      <div class="close-group-confirmation-actions">
+
+        <button
+          type="button"
+          class="close-group-cancel-button"
+          onclick="closeModal()"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="close-group-confirm-button"
+          onclick="confirmDeleteClosedGroup('${escapeHtml(groupId)}')"
+        >
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+  `);
+}
+
+
+async function confirmDeleteClosedGroup(groupId) {
+
+  closeModal();
+
+  setLoading(true, "Deleting group...");
+
+  try {
+
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .from("groups")
+      .select("id, group_name, created_by, status")
+      .eq("id", groupId)
+      .single();
+
+    if (groupError || !group) {
+      throw new Error("Group not found.");
+    }
+
+    if (
+      String(group.status).toUpperCase() !==
+      "CLOSED"
+    ) {
+      throw new Error(
+        "Only closed groups can be deleted."
+      );
+    }
+
+    if (
+      String(group.created_by) !==
+      String(user.id)
+    ) {
+      throw new Error(
+        "Only the group creator can delete this group."
+      );
+    }
+
+    const { error: deleteError } =
+      await supabaseClient
+        .from("groups")
+        .delete()
+        .eq("id", groupId)
+        .eq("created_by", user.id)
+        .eq("status", "CLOSED");
+
+    if (deleteError) {
+      throw new Error(
+        deleteError.message ||
+        "Unable to delete the group."
+      );
+    }
+
+    toast("Group deleted.");
+
+    await loadHistory();
+
+  } catch (error) {
+
+    console.error(
+      "DELETE GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to delete the group."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
 
 async function closeCurrentGroup() {
 

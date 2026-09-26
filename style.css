@@ -1741,12 +1741,19 @@ input + button {
 }
 
 @media (max-width: 500px) {
-  .close-group-actions {
-    flex-direction: column-reverse;
+  .close-group-confirmation-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
   }
 
-  .close-group-actions button {
-    width: 100% !important;
+  .close-group-confirmation-actions button {
+    flex: 1;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    white-space: nowrap;
   }
 }
 
@@ -1788,6 +1795,24 @@ input + button {
 
 .loading-overlay.hidden {
   display: none;
+}
+
+
+/* History group actions */
+.history-group-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.history-group-actions button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  white-space: nowrap;
 }
 
 /* Keep transaction dates on one line on mobile */
