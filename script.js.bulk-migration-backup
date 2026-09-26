@@ -1,0 +1,6739 @@
+const SUPABASE_URL = "https://khrawdzhvfdfrvbhbhge.supabase.co";
+
+const SUPABASE_KEY = "sb_publishable_diLxiZhI5gM-L_WrCh2Hfg_er9qLNtB";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+console.log("Supabase connected:", !!supabaseClient);
+
+const state = {
+  user: null,
+  groups: [],
+  invitations: [],
+  groupsLoadedAt: 0,
+  currentGroup: null,
+  currentPage: "home"
+};
+
+const $ = (selector) => document.querySelector(selector);
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  bindEvents();
+
+  const {
+    data: { session }
+  } = await supabaseClient.auth.getSession();
+
+  if (!session) {
+    showAuth();
+    return;
+  }
+
+  setLoading(true, "Loading, please wait...");
+
+  try {
+    const {
+      data: profile,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error(
+        "Your account is signed in, but your OweMe profile could not be loaded."
+      );
+    }
+
+    state.user = {
+      userId: profile.id,
+      username: profile.username,
+      email: session.user.email,
+      displayName: profile.display_name,
+      status: profile.status,
+      createdAt: profile.created_at
+    };
+
+    showApp();
+
+    await loadHome();
+
+  } catch (error) {
+
+    console.error("SUPABASE SESSION RESTORE ERROR:", error);
+
+    await supabaseClient.auth.signOut();
+
+    state.user = null;
+    state.groups = [];
+    state.currentGroup = null;
+
+    showAuth();
+
+    toast(
+      error.message ||
+      "Your session could not be restored."
+    );
+
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* =========================================================
+   API
+   ========================================================= */
+
+async function api(action, data = {}, method = "POST") {
+
+  const startedAt = performance.now();
+
+  const token =
+    localStorage.getItem("splitly_session") || "";
+
+  let url =
+    `${API_URL}?action=${encodeURIComponent(action)}`;
+
+  const options = {
+    method: method,
+    redirect: "follow"
+  };
+
+  console.log("OweMe API REQUEST:", {
+    action: action,
+    method: method,
+    url: url,
+    hasToken: !!token,
+    dataKeys: Object.keys(data || {})
+  });
+
+  if (method === "GET") {
+
+    if (token) {
+      url +=
+        `&token=${encodeURIComponent(token)}`;
+    }
+
+    Object.entries(data).forEach(
+      ([key, value]) => {
+
+        if (
+          value !== undefined &&
+          value !== null
+        ) {
+          url +=
+            `&${encodeURIComponent(key)}` +
+            `=${encodeURIComponent(value)}`;
+        }
+      }
+    );
+  }
+
+  if (method === "POST") {
+
+    options.headers = {
+      "Content-Type":
+        "text/plain;charset=utf-8"
+    };
+
+    options.body =
+      JSON.stringify({
+        ...data,
+        token: token
+      });
+  }
+
+  let response;
+
+  try {
+
+    response =
+      await fetch(
+        url,
+        options
+      );
+
+  } catch (error) {
+
+    console.error(
+      "OweMe API CONNECTION ERROR:",
+      error
+    );
+
+    throw new Error(
+      "Unable to connect to OweMe."
+    );
+  }
+
+  const responseTime =
+    performance.now() - startedAt;
+
+  console.log(
+    `OweMe API RESPONSE: ${action} — ${response.status} — ${responseTime.toFixed(0)}ms`
+  );
+
+  console.log(
+    "OweMe API RESPONSE URL:",
+    response.url
+  );
+
+  if (!response.ok) {
+
+    throw new Error(
+      `${action}: server error (${response.status}). Check the Apps Script web app deployment.`
+    );
+  }
+
+  const rawText =
+    await response.text();
+
+  console.log(
+    "OweMe API RAW RESPONSE:",
+    rawText
+  );
+
+  let json;
+
+  try {
+
+    json =
+      JSON.parse(rawText);
+
+  } catch (error) {
+
+    console.error(
+      "OweMe API JSON PARSE ERROR:",
+      error
+    );
+
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  console.log(
+    "OweMe API JSON:",
+    json
+  );
+
+  if (!json.success) {
+
+    throw new Error(
+      `${action}: ${json.message ||
+      "Something went wrong."
+      }`
+    );
+  }
+
+  return {
+    ...json,
+    data:
+      json.data !== undefined
+        ? json.data
+        : json
+  };
+}
+
+function bindEvents() {
+
+  const loginForm = $("#loginForm");
+  const registerForm = $("#registerForm");
+  const showRegister = $("#showRegister");
+  const showLogin = $("#showLogin");
+  const refreshButton = $("#refreshButton");
+  const closeModalButton = $("#closeModal");
+  const modalBackdrop = $(".modal-backdrop");
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLogin);
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener("submit", handleRegister);
+  }
+
+  if (showRegister) {
+    showRegister.addEventListener("click", function(event) {
+      event.preventDefault();
+
+      const loginPanel = $("#loginPanel");
+      const registerPanel = $("#registerPanel");
+
+      if (loginPanel) {
+        loginPanel.classList.add("hidden");
+      }
+
+      if (registerPanel) {
+        registerPanel.classList.remove("hidden");
+      }
+    });
+  }
+
+  if (showLogin) {
+    showLogin.addEventListener("click", function(event) {
+      event.preventDefault();
+
+      const registerPanel = $("#registerPanel");
+      const loginPanel = $("#loginPanel");
+
+      if (registerPanel) {
+        registerPanel.classList.add("hidden");
+      }
+
+      if (loginPanel) {
+        loginPanel.classList.remove("hidden");
+      }
+    });
+  }
+
+  document.querySelectorAll(".nav-item").forEach(function(button) {
+    button.addEventListener("click", function() {
+      navigate(button.dataset.page);
+    });
+  });
+
+  if (refreshButton) {
+    refreshButton.addEventListener("click", async function() {
+      state.groupsLoadedAt = 0;
+      await navigate(state.currentPage);
+    });
+  }
+
+  if (closeModalButton) {
+    closeModalButton.addEventListener("click", closeModal);
+  }
+
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener("click", closeModal);
+  }
+
+}
+
+async function handleLogin(event) {
+
+  event.preventDefault();
+
+  const submitButton =
+    event.currentTarget.querySelector(
+      'button[type="submit"]'
+    );
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Logging in...";
+  }
+
+  setLoading(true, "Logging in, please wait.");
+
+  const email =
+    $("#loginIdentifier").value.trim();
+
+  const password =
+    $("#loginPassword").value;
+
+  try {
+
+    if (!email) {
+      throw new Error("Please enter your email address.");
+    }
+
+    const {
+      data,
+      error
+    } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error(
+        "Login succeeded but no user account was returned."
+      );
+    }
+
+    /*
+     * Supabase Auth has now authenticated the user.
+     * Fetch the corresponding OweMe profile.
+     */
+
+    const {
+      data: profile,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error(
+        "Login succeeded, but your OweMe profile could not be loaded."
+      );
+    }
+
+    state.user = {
+      userId: profile.id,
+      username: profile.username,
+      email: data.user.email,
+      displayName: profile.display_name,
+      status: profile.status,
+      createdAt: profile.created_at
+    };
+
+    $("#loginForm").reset();
+
+    showApp();
+
+    await loadHome();
+
+    toast("Welcome back!");
+
+  } catch (error) {
+
+    console.error("SUPABASE LOGIN ERROR:", error);
+
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    toast(message);
+
+  } finally {
+
+    setLoading(false);
+
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Log In";
+    }
+  }
+}
+
+async function logout() {
+
+  try {
+
+    const { error } =
+      await supabaseClient.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+  } catch (error) {
+
+    console.error(
+      "SUPABASE LOGOUT ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to log out."
+    );
+
+    return;
+  }
+
+  state.user = null;
+  state.groups = [];
+  state.invitations = [];
+  state.currentGroup = null;
+
+  showAuth();
+
+  toast("Logged out.");
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+async function navigate(page) {
+
+  state.currentPage = page;
+
+  setLoading(true, "Loading, please wait...");
+
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.classList.toggle(
+      "active",
+      item.dataset.page === page
+    );
+  });
+
+  try {
+
+    if (page === "home") {
+      await loadHome();
+    }
+
+    if (page === "groups") {
+      await loadGroups();
+    }
+
+    if (page === "invites") {
+      await loadInvitations();
+    }
+
+    if (page === "profile") {
+      renderProfile();
+    }
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   HOME
+   ========================================================= */
+
+async function loadHome(initialGroups = null) {
+
+  $("#pageTitle").textContent = "Home";
+
+  try {
+
+    if (initialGroups) {
+
+      state.groups = initialGroups;
+      state.groupsLoadedAt = Date.now();
+
+    } else {
+
+      await loadGroupsData();
+
+    }
+
+
+    /*
+     * getGroups() now returns payment-adjusted
+     * myBalance values.
+     *
+     * This means Home does NOT need to call
+     * getSettlements() separately for every group.
+     *
+     * Before:
+     *
+     *   getGroups()
+     *   getSettlements(group 1)
+     *   getSettlements(group 2)
+     *   getSettlements(group 3)
+     *   ...
+     *
+     * Now:
+     *
+     *   getGroups()
+     *
+     * One request provides the group balances.
+     */
+
+    let totalBalance = 0;
+
+
+    state.groups.forEach(group => {
+
+      totalBalance +=
+        Number(
+          group.myBalance || 0
+        );
+
+    });
+
+
+    const totalBalanceRounded =
+      Number(
+        totalBalance.toFixed(2)
+      );
+
+
+    $("#content").innerHTML = `
+
+      <div class="welcome">
+
+        <h2>
+          Hi,
+          ${escapeHtml(
+            state.user.displayName
+          )}
+          👋
+        </h2>
+
+        <p class="muted">
+          Here's where things stand.
+        </p>
+
+      </div>
+
+
+      <div class="card balance-card">
+
+        <div class="balance-label">
+          Your overall balance
+        </div>
+
+        <div
+          class="balance-number
+          ${balanceClass(totalBalanceRounded)}"
+        >
+          ${formatBalance(totalBalanceRounded)}
+        </div>
+
+      </div>
+
+
+      <div class="section-title">
+        Your groups
+      </div>
+
+
+      ${
+        state.groups.length
+
+          ? state.groups
+              .map(renderGroupCard)
+              .join("")
+
+          : `
+
+            <div class="card empty">
+
+              <p>
+                You don't have any groups yet.
+              </p>
+
+              <button
+                class="primary-button"
+                onclick="openCreateGroupModal()"
+              >
+                Create a Group
+              </button>
+
+            </div>
+
+          `
+      }
+
+    `;
+
+
+    bindGroupCards();
+
+
+  } catch (error) {
+
+    console.error(
+      "LOAD HOME ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load Home."
+    );
+
+  }
+
+}
+
+async function loadGroups() {
+
+  $("#pageTitle").textContent = "Groups";
+
+  await loadGroupsData();
+
+  $("#content").innerHTML = `
+
+    <button
+      class="primary-button"
+      onclick="openCreateGroupModal()"
+      style="margin-bottom:16px"
+    >
+      + Create Group
+    </button>
+
+    ${
+      state.groups.length
+      ? state.groups.map(renderGroupCard).join("")
+      : `
+        <div class="card empty">
+          No groups yet.
+        </div>
+      `
+    }
+
+  `;
+
+  bindGroupCards();
+}
+
+
+async function loadGroupsData(force = false) {
+
+  const cacheAge =
+    Date.now() - state.groupsLoadedAt;
+
+  if (
+    !force &&
+    state.groupsLoadedAt &&
+    cacheAge < 30000
+  ) {
+    return state.groups;
+  }
+
+
+  /* =====================================================
+     1. GET CURRENT SUPABASE USER
+     ===================================================== */
+
+  const {
+    data: {
+      user
+    },
+    error: sessionError
+  } = await supabaseClient.auth.getUser();
+
+  if (sessionError || !user) {
+    throw new Error(
+      "Your Supabase session has expired."
+    );
+  }
+
+
+  /* =====================================================
+     2. GET GROUP MEMBERSHIPS
+     ===================================================== */
+
+  const {
+    data: memberships,
+    error: membershipError
+  } = await supabaseClient
+    .from("group_members")
+    .select(`
+      group_id,
+      role,
+      status,
+      joined_at,
+      groups (
+        id,
+        group_name,
+        created_by,
+        created_at,
+        status
+      )
+    `)
+    .eq("user_id", user.id)
+    .eq("status", "ACTIVE");
+
+
+  if (membershipError) {
+
+    console.error(
+      "LOAD GROUPS ERROR:",
+      membershipError
+    );
+
+    throw new Error(
+      membershipError.message ||
+      "Unable to load your groups."
+    );
+
+  }
+
+
+  /* =====================================================
+     3. BUILD GROUP LIST
+     ===================================================== */
+
+  const groups =
+    (memberships || [])
+      .filter(row => row.groups)
+      .map(row => ({
+
+        groupId:
+          row.groups.id,
+
+        groupName:
+          row.groups.group_name,
+
+        createdBy:
+          row.groups.created_by,
+
+        createdAt:
+          row.groups.created_at,
+
+        status:
+          row.groups.status,
+
+        role:
+          row.role,
+
+        memberCount:
+          0,
+
+        myBalance:
+          0
+
+      }));
+
+
+  /* =====================================================
+     4. GET MEMBER COUNTS + CURRENT BALANCES
+     ===================================================== */
+
+  for (const group of groups) {
+
+    const {
+      data: memberRows,
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", group.groupId)
+      .eq("status", "ACTIVE");
+
+
+    if (memberError) {
+
+      console.error(
+        "LOAD MEMBER COUNT ERROR:",
+        memberError
+      );
+
+      continue;
+
+    }
+
+
+    group.memberCount =
+      (memberRows || []).length;
+
+
+    /* =================================================
+       GET ACTIVE EXPENSES FOR THIS GROUP
+       ================================================= */
+
+    const {
+      data: expenseRows,
+      error: expenseError
+    } = await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        paid_by_user_id,
+        amount,
+        expense_participants (
+          user_id,
+          share_amount
+        )
+      `)
+      .eq("group_id", group.groupId)
+      .eq("status", "ACTIVE");
+
+
+    if (expenseError) {
+
+      console.error(
+        "LOAD GROUP EXPENSES ERROR:",
+        expenseError
+      );
+
+      continue;
+
+    }
+
+
+    let totalPaid = 0;
+    let totalShare = 0;
+
+
+    (expenseRows || [])
+      .forEach(expense => {
+
+        if (
+          expense.paid_by_user_id ===
+          user.id
+        ) {
+
+          totalPaid +=
+            Number(
+              expense.amount || 0
+            );
+
+        }
+
+
+        (expense.expense_participants || [])
+          .forEach(participant => {
+
+            if (
+              participant.user_id ===
+              user.id
+            ) {
+
+              totalShare +=
+                Number(
+                  participant.share_amount || 0
+                );
+
+            }
+
+          });
+
+      });
+
+
+    group.myBalance =
+      Number(
+        (
+          totalPaid -
+          totalShare
+        ).toFixed(2)
+      );
+
+  }
+
+
+  /* =====================================================
+     5. SAVE TO STATE
+     ===================================================== */
+
+  state.groups =
+    groups;
+
+  state.groupsLoadedAt =
+    Date.now();
+
+
+  return state.groups;
+
+}
+
+
+function renderGroupCard(group) {
+
+  return `
+    <div
+      class="card group-card"
+      data-group-id="${escapeHtml(group.groupId)}"
+    >
+
+      <div>
+        <h3>${escapeHtml(group.groupName)}</h3>
+        <p>${Number(group.memberCount || 0)} members</p>
+      </div>
+
+      <div class="arrow">›</div>
+
+    </div>
+  `;
+}
+
+
+function bindGroupCards() {
+
+  document.querySelectorAll(".group-card").forEach(card => {
+
+    card.addEventListener("click", () => {
+      openGroup(card.dataset.groupId);
+    });
+
+  });
+
+}
+
+
+/* =========================================================
+   GROUP PAGE
+   ========================================================= */
+
+async function openGroup(groupId) {
+
+  setLoading(
+    true,
+    "Opening group, please wait..."
+  );
+
+  try {
+
+    /* =====================================================
+       1. GET CURRENT SUPABASE USER
+       ===================================================== */
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+
+    /* =====================================================
+       2. GET GROUP
+       ===================================================== */
+
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .from("groups")
+      .select(`
+        id,
+        group_name,
+        created_by,
+        created_at,
+        status
+      `)
+      .eq("id", groupId)
+      .single();
+
+    if (groupError) {
+      console.error(
+        "GET GROUP ERROR:",
+        groupError
+      );
+
+      throw new Error(
+        groupError.message ||
+        "Unable to load group."
+      );
+    }
+
+
+    /* =====================================================
+       3. GET GROUP MEMBERS
+       ===================================================== */
+
+    const {
+      data: memberRows,
+      error: membersError
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        user_id,
+        role,
+        status,
+        joined_at,
+        profiles (
+          id,
+          username,
+          display_name,
+          status
+        )
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE");
+
+    if (membersError) {
+      console.error(
+        "GET GROUP MEMBERS ERROR:",
+        membersError
+      );
+
+      throw new Error(
+        membersError.message ||
+        "Unable to load group members."
+      );
+    }
+
+
+    const members =
+      (memberRows || [])
+        .filter(row => row.profiles)
+        .map(row => ({
+          userId: row.user_id,
+          username: row.profiles.username,
+          displayName: row.profiles.display_name,
+          role: row.role,
+          joinedAt: row.joined_at
+        }));
+
+
+    /* =====================================================
+       4. GET EXPENSES
+       ===================================================== */
+
+    const {
+      data: expenseRows,
+      error: expensesError
+    } = await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        group_id,
+        paid_by_user_id,
+        amount,
+        description,
+        created_at,
+        created_by,
+        status,
+        expense_participants (
+          expense_id,
+          user_id,
+          share_amount,
+          profiles (
+            id,
+            username,
+            display_name
+          )
+        )
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE")
+      .order("created_at", {
+        ascending: false
+      });
+
+    if (expensesError) {
+      console.error(
+        "GET EXPENSES ERROR:",
+        expensesError
+      );
+
+      throw new Error(
+        expensesError.message ||
+        "Unable to load expenses."
+      );
+    }
+
+
+    /* =====================================================
+       5. CONVERT SUPABASE EXPENSES TO OLD APP FORMAT
+       ===================================================== */
+
+    const expenses =
+      (expenseRows || []).map(expense => {
+
+        const payer =
+          members.find(
+            member =>
+              member.userId ===
+              expense.paid_by_user_id
+          );
+
+        return {
+
+          expenseId: expense.id,
+
+          groupId: expense.group_id,
+
+          paidByUserId:
+            expense.paid_by_user_id,
+
+          paidByUsername:
+            payer?.username || "",
+
+          paidByDisplayName:
+            payer?.displayName || "",
+
+          amount:
+            Number(expense.amount),
+
+          description:
+            expense.description || "",
+
+          createdAt:
+            expense.created_at,
+
+          createdBy:
+            expense.created_by,
+
+          status:
+            expense.status,
+
+          participants:
+            (expense.expense_participants || [])
+              .map(participant => ({
+                userId:
+                  participant.user_id,
+
+                username:
+                  participant.profiles?.username ||
+                  "",
+
+                displayName:
+                  participant.profiles?.display_name ||
+                  "",
+
+                shareAmount:
+                  Number(
+                    participant.share_amount
+                  )
+              }))
+
+        };
+
+      });
+
+
+    /* =====================================================
+       6. CALCULATE BALANCES
+       ===================================================== */
+
+    const balanceMap = {};
+
+    members.forEach(member => {
+
+      balanceMap[member.userId] = {
+
+        userId:
+          member.userId,
+
+        username:
+          member.username,
+
+        displayName:
+          member.displayName,
+
+        totalPaid: 0,
+
+        totalShare: 0,
+
+        balance: 0
+
+      };
+
+    });
+
+
+    expenses.forEach(expense => {
+
+      if (
+        balanceMap[
+          expense.paidByUserId
+        ]
+      ) {
+
+        balanceMap[
+          expense.paidByUserId
+        ].totalPaid +=
+          Number(expense.amount);
+
+      }
+
+
+      (expense.participants || [])
+        .forEach(participant => {
+
+          if (
+            balanceMap[
+              participant.userId
+            ]
+          ) {
+
+            balanceMap[
+              participant.userId
+            ].totalShare +=
+              Number(
+                participant.shareAmount
+              );
+
+          }
+
+        });
+
+    });
+
+
+    const balances =
+      Object.values(balanceMap)
+        .map(balance => {
+
+          balance.balance =
+            Number(
+              (
+                balance.totalPaid -
+                balance.totalShare
+              ).toFixed(2)
+            );
+
+          balance.totalPaid =
+            Number(
+              balance.totalPaid.toFixed(2)
+            );
+
+          balance.totalShare =
+            Number(
+              balance.totalShare.toFixed(2)
+            );
+
+          return balance;
+
+        });
+
+
+    /* =====================================================
+       7. GET PAYMENT SUBMISSIONS
+       ===================================================== */
+
+    const {
+      data: paymentRows,
+      error: paymentError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        settlement_id,
+        group_id,
+        payer_user_id,
+        recipient_user_id,
+        payment_option,
+        payment_detail_id,
+        amount_due,
+        amount_paid,
+        proof_file_url,
+        notes,
+        status,
+        submitted_at,
+        confirmed_at,
+        rejected_at,
+        rejection_reason
+      `)
+      .eq("group_id", groupId)
+      .order("submitted_at", {
+        ascending: false
+      });
+
+    if (paymentError) {
+      console.error(
+        "GET PAYMENT SUBMISSIONS ERROR:",
+        paymentError
+      );
+
+      throw new Error(
+        paymentError.message ||
+        "Unable to load payment submissions."
+      );
+    }
+
+
+    /* =====================================================
+       8. CALCULATE SETTLEMENTS
+       ===================================================== */
+
+    const debtors =
+      balances
+        .filter(
+          balance =>
+            balance.balance < -0.009
+        )
+        .map(balance => ({
+          userId:
+            balance.userId,
+
+          amount:
+            Math.abs(balance.balance)
+        }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount
+        );
+
+
+    const creditors =
+      balances
+        .filter(
+          balance =>
+            balance.balance > 0.009
+        )
+        .map(balance => ({
+          userId:
+            balance.userId,
+
+          amount:
+            balance.balance
+        }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount
+        );
+
+
+    const settlementMap = {};
+
+
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+
+
+    while (
+      debtorIndex < debtors.length &&
+      creditorIndex < creditors.length
+    ) {
+
+      const debtor =
+        debtors[debtorIndex];
+
+      const creditor =
+        creditors[creditorIndex];
+
+
+      const amount =
+        Number(
+          Math.min(
+            debtor.amount,
+            creditor.amount
+          ).toFixed(2)
+        );
+
+
+      if (amount > 0) {
+
+        const settlementId =
+          `SET_${simpleHash(
+            `${groupId}|${debtor.userId}|${creditor.userId}`
+          )}`;
+
+
+        settlementMap[
+          settlementId
+        ] = {
+
+          settlementId,
+
+          groupId,
+
+          fromUserId:
+            debtor.userId,
+
+          toUserId:
+            creditor.userId,
+
+          amount,
+
+          status: "UNPAID",
+
+          createdAt:
+            new Date().toISOString(),
+
+          paidAt: null
+
+        };
+
+
+        debtor.amount =
+          Number(
+            (
+              debtor.amount -
+              amount
+            ).toFixed(2)
+          );
+
+
+        creditor.amount =
+          Number(
+            (
+              creditor.amount -
+              amount
+            ).toFixed(2)
+          );
+
+      }
+
+
+      if (
+        debtor.amount <= 0.009
+      ) {
+        debtorIndex++;
+      }
+
+
+      if (
+        creditor.amount <= 0.009
+      ) {
+        creditorIndex++;
+      }
+
+    }
+
+
+    /* =====================================================
+       9. APPLY CONFIRMED PAYMENTS
+       ===================================================== */
+
+    (paymentRows || [])
+      .filter(
+        payment =>
+          payment.status ===
+          "CONFIRMED"
+      )
+      .forEach(payment => {
+
+        const settlement =
+          settlementMap[
+            payment.settlement_id
+          ];
+
+        if (!settlement) {
+          return;
+        }
+
+
+        settlement.status =
+          "PAID";
+
+
+        settlement.paidAt =
+          payment.confirmed_at;
+
+      });
+
+
+    const settlements =
+      Object.values(
+        settlementMap
+      );
+
+
+    /* =====================================================
+       10. CREATE TRANSACTIONS
+       ===================================================== */
+
+    const transactions =
+      expenses
+        .map(expense => {
+
+          if (
+            typeof expenseToTransaction ===
+            "function"
+          ) {
+
+            return expenseToTransaction(
+              expense
+            );
+
+          }
+
+          return {
+
+            type: "EXPENSE",
+
+            transactionId:
+              expense.expenseId,
+
+            expenseId:
+              expense.expenseId,
+
+            groupId:
+              expense.groupId,
+
+            amount:
+              expense.amount,
+
+            description:
+              expense.description,
+
+            paidByUserId:
+              expense.paidByUserId,
+
+            createdAt:
+              expense.createdAt,
+
+            status:
+              expense.status
+
+          };
+
+        });
+
+
+    /* =====================================================
+       11. BUILD GROUP RESULT
+       ===================================================== */
+
+    const totalSpent =
+      expenses.reduce(
+        (total, expense) =>
+          total +
+          Number(expense.amount || 0),
+        0
+      );
+
+
+    const currentMember =
+      members.find(
+        member =>
+          member.userId === user.id
+      );
+
+
+    const currentUserBalance =
+      balances.find(
+        balance =>
+          balance.userId === user.id
+      );
+
+
+    const groupResult = {
+
+  group: {
+
+    groupId:
+      group.id,
+
+    groupName:
+      group.group_name,
+
+    createdBy:
+      group.created_by,
+
+    createdAt:
+      group.created_at,
+
+    status:
+      group.status,
+
+    currentUserRole:
+      currentMember?.role ||
+      null,
+
+    memberCount:
+      members.length,
+
+    totalSpent:
+      Number(
+        totalSpent.toFixed(2)
+      ),
+
+    myBalance:
+      Number(
+        currentUserBalance?.balance ||
+        0
+      )
+
+  },
+
+  members,
+
+  expenses,
+
+  balances,
+
+  settlements,
+
+  transactions
+
+};
+
+
+    /* =====================================================
+       12. SAVE CURRENT GROUP
+       ===================================================== */
+
+    state.currentGroup =
+      groupResult;
+
+
+    /* =====================================================
+       13. RENDER GROUP
+       ===================================================== */
+
+    renderGroup();
+
+
+  } catch (error) {
+
+    console.error(
+      "OPEN GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to open group."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+function simpleHash(value) {
+
+  let hash = 0;
+
+  for (let i = 0; i < value.length; i++) {
+
+    hash =
+      (
+        (hash << 5) -
+        hash +
+        value.charCodeAt(i)
+      ) |
+      0;
+
+  }
+
+  return Math.abs(hash)
+    .toString(16)
+    .padStart(24, "0")
+    .substring(0, 24);
+
+}
+
+
+async function refreshCurrentGroup() {
+
+  if (!state.currentGroup) return;
+
+  await openGroup(state.currentGroup.group.groupId);
+}
+
+
+async function loadGroupTransactions() {
+
+  const container =
+    $("#transactionsTableBody");
+
+  if (!container) {
+    return;
+  }
+
+  try {
+
+    const transactions =
+      state.currentGroup.transactions ||
+      [];
+
+    if (!transactions.length) {
+
+      container.innerHTML = `
+        <tr>
+          <td
+            colspan="8"
+            class="muted"
+            style="text-align:center;padding:30px;"
+          >
+            No transactions yet.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      transactions
+        .map(renderTransactionRow)
+        .join("");
+
+  } catch (error) {
+
+    console.error(
+      "LOAD GROUP TRANSACTIONS ERROR:",
+      error
+    );
+
+    container.innerHTML = `
+      <tr>
+        <td
+          colspan="8"
+          class="muted"
+          style="text-align:center;padding:30px;"
+        >
+          ${escapeHtml(
+            error.message ||
+            "Unable to load transactions."
+          )}
+        </td>
+      </tr>
+    `;
+
+  }
+
+}
+
+
+function extractTransactions(result) {
+
+  const candidates = [
+    result?.transactions,
+    result?.data?.transactions,
+    result?.data?.data?.transactions
+  ];
+
+  return candidates.find(
+    value => Array.isArray(value)
+  ) || [];
+
+}
+
+
+function expenseToTransaction(expense) {
+
+  const paidBy =
+    expense.paidBy || {};
+
+  return {
+    transactionId:
+      expense.expenseId,
+    type: "EXPENSE",
+    date:
+      expense.createdAt ||
+      expense.date ||
+      "",
+    description:
+      expense.description ||
+      "Expense",
+    fromUserId:
+      expense.paidByUserId ||
+      paidBy.userId ||
+      "",
+    fromUsername:
+      paidBy.username ||
+      "",
+    toUserId: "",
+    toUsername: "Group",
+    amount:
+      Number(expense.amount || 0),
+    status: "RECORDED",
+    expenseId:
+      expense.expenseId
+  };
+
+}
+
+
+function renderTransactionRow(transaction) {
+
+  const isExpense =
+    String(transaction.type).toUpperCase() ===
+    "EXPENSE";
+
+  const isPayment =
+    String(transaction.type).toUpperCase() ===
+    "PAYMENT";
+
+  const currentUserId =
+    String(state.user.userId);
+
+  const fromUserId =
+    String(transaction.fromUserId || "");
+
+  const toUserId =
+    String(transaction.toUserId || "");
+
+  const fromLabel =
+    fromUserId === currentUserId
+      ? "You"
+      : transaction.fromUsername
+        ? `@${escapeHtml(transaction.fromUsername)}`
+        : "—";
+
+  const toLabel =
+    toUserId === currentUserId
+      ? "You"
+      : transaction.toUsername
+        ? `@${escapeHtml(transaction.toUsername)}`
+        : isExpense
+          ? "Group"
+          : "—";
+
+  let statusHtml = "Recorded";
+
+  if (isPayment) {
+
+    const status =
+      String(transaction.status || "").toUpperCase();
+
+    if (status === "SUBMITTED") {
+
+      statusHtml =
+        toUserId === currentUserId
+          ? `<span class="status-pending">Pending confirmation</span>`
+          : `<span class="status-pending">Pending</span>`;
+
+    } else if (status === "CONFIRMED") {
+
+      statusHtml =
+        `<span class="status-confirmed">Confirmed</span>`;
+
+    } else if (status === "REJECTED") {
+
+      statusHtml =
+        `<span class="status-rejected">Rejected</span>`;
+
+    }
+
+  }
+
+  let actionHtml = "";
+
+  if (isExpense) {
+
+    actionHtml = `
+      <button
+        type="button"
+        class="table-action-button"
+        onclick="openExpenseDetails('${escapeHtml(
+          transaction.expenseId
+        )}')"
+      >
+        View
+      </button>
+    `;
+
+  } else if (isPayment) {
+
+    const status =
+      String(transaction.status || "").toUpperCase();
+
+    actionHtml =
+      status === "SUBMITTED" &&
+      toUserId === currentUserId
+        ? `
+          <button
+            type="button"
+            class="table-action-button"
+            onclick="reviewPayment('${escapeHtml(
+              transaction.paymentSubmissionId
+            )}')"
+          >
+            Review
+          </button>
+        `
+        : `
+          <button
+            type="button"
+            class="table-action-button"
+            onclick="openPaymentTransaction('${escapeHtml(
+              transaction.paymentSubmissionId
+            )}')"
+          >
+            View
+          </button>
+        `;
+
+  }
+
+  return `
+    <tr>
+      <td>${escapeHtml(formatTransactionDate(transaction.date))}</td>
+      <td>${isExpense ? "Expense" : "Payment"}</td>
+      <td>${escapeHtml(transaction.description || "—")}</td>
+      <td>${fromLabel}</td>
+      <td>${toLabel}</td>
+      <td><strong>${formatMoney(transaction.amount)}</strong></td>
+      <td>${statusHtml}</td>
+      <td>${actionHtml}</td>
+    </tr>
+  `;
+
+}
+
+
+function renderGroup() {
+
+  const group =
+    state.currentGroup.group;
+
+  const expenses =
+    state.currentGroup.expenses || [];
+
+  const members =
+    state.currentGroup.members || [];
+
+  const balances =
+    state.currentGroup.balances || [];
+
+  const settlements =
+    state.currentGroup.settlements || [];
+
+
+  $("#pageTitle").textContent =
+    group.groupName;
+
+
+  const totalSpent =
+    expenses.reduce(
+      (sum, expense) =>
+        sum + Number(expense.amount || 0),
+      0
+    );
+
+
+  /*
+   * Use payment-aware settlements for
+   * the main Payables / Receivables cards.
+   *
+   * `item.amount` is the REMAINING amount.
+   */
+  const myPayables =
+    settlements
+      .filter(item =>
+        String(item.fromUserId) ===
+        String(state.user.userId)
+      )
+      .reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
+        0
+      );
+
+
+  const myReceivables =
+    settlements
+      .filter(item =>
+        String(item.toUserId) ===
+        String(state.user.userId)
+      )
+      .reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
+        0
+      );
+
+
+  const payableCount =
+    settlements.filter(item =>
+      String(item.fromUserId) ===
+      String(state.user.userId) &&
+      Number(item.amount || 0) > 0.009
+    ).length;
+
+
+  const receivableCount =
+    settlements.filter(item =>
+      String(item.toUserId) ===
+      String(state.user.userId) &&
+      Number(item.amount || 0) > 0.009
+    ).length;
+
+
+  $("#content").innerHTML = `
+
+    <div class="group-header">
+
+      <h2>
+        ${escapeHtml(group.groupName)}
+      </h2>
+
+      <p>
+        ${members.length}
+        member${members.length === 1 ? "" : "s"}
+        · ${formatMoney(totalSpent)} spent
+      </p>
+
+    </div>
+
+
+    <div style="margin-top:16px;">
+
+      <button
+        class="add-expense-button"
+        onclick="openAddExpenseModal()"
+      >
+        + Add Expense
+      </button>
+
+    </div>
+
+
+    <div class="section-title">
+      Your Balances
+    </div>
+
+
+    <div class="balance-sections">
+
+      <div class="balance-section">
+
+        <div>
+
+          <div class="balance-section-title">
+            Payables
+          </div>
+
+          <div class="muted">
+            What I need to pay
+          </div>
+
+          <div class="balance-section-amount">
+            ${formatMoney(myPayables)}
+          </div>
+
+          <div class="muted">
+            ${payableCount}
+            ${payableCount === 1 ? "person" : "people"}
+          </div>
+
+        </div>
+
+        <button
+          class="small-button"
+          onclick="openPayables()"
+        >
+          Settle →
+        </button>
+
+      </div>
+
+
+      <div class="balance-section">
+
+        <div>
+
+          <div class="balance-section-title">
+            Receivables
+          </div>
+
+          <div class="muted">
+            What others need to pay me
+          </div>
+
+          <div class="balance-section-amount">
+            ${formatMoney(myReceivables)}
+          </div>
+
+          <div class="muted">
+            ${receivableCount}
+            ${receivableCount === 1 ? "person" : "people"}
+          </div>
+
+        </div>
+
+        <button
+          class="small-button"
+          onclick="openReceivables()"
+        >
+          Check details →
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div class="section-title">
+      Transactions
+    </div>
+
+
+    <div class="transactions-wrapper">
+
+      <table class="transactions-table">
+
+        <thead>
+
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody id="transactionsTableBody">
+
+          <tr>
+
+            <td
+              colspan="8"
+              class="muted transactions-loading"
+            >
+              Loading transactions...
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+    <div
+      class="group-actions"
+      style="margin-top:20px;"
+    >
+
+      <button
+        class="action-button"
+        onclick="openMembersModal()"
+      >
+        Members
+      </button>
+
+    </div>
+
+  `;
+
+
+  loadGroupTransactions();
+
+}
+
+
+function renderExpense(expense) {
+
+  const participantText =
+    expense.participants.length === 1
+      ? `For ${escapeHtml(expense.participants[0].username)}`
+      : `${expense.participants.length} participants`;
+
+  return `
+
+    <div
+      class="expense-card"
+      data-expense-id="${escapeHtml(expense.expenseId)}"
+    >
+
+      <div class="expense-top">
+
+        <div class="expense-payer">
+          @${escapeHtml(expense.paidBy.username)}
+        </div>
+
+        <div class="expense-amount">
+          ${formatMoney(expense.amount)}
+        </div>
+
+      </div>
+
+      ${
+        expense.description
+        ? `
+          <div class="expense-description">
+            ${escapeHtml(expense.description)}
+          </div>
+        `
+        : ""
+      }
+
+      <div class="expense-meta">
+        ${participantText} · ${formatDate(expense.createdAt)}
+      </div>
+
+    </div>
+  `;
+}
+
+
+function bindExpenseCards() {
+
+  document.querySelectorAll(".expense-card").forEach(card => {
+
+    card.addEventListener("click", () => {
+      openExpenseDetails(card.dataset.expenseId);
+    });
+
+  });
+
+}
+
+
+/* =========================================================
+   CREATE GROUP
+   ========================================================= */
+
+function openCreateGroupModal() {
+
+  openModal(`
+
+    <h2>Create Group</h2>
+
+    <form id="createGroupForm">
+
+      <label>
+        Group name
+        <input
+          id="newGroupName"
+          maxlength="80"
+          required
+          placeholder="Boracay Trip"
+        >
+      </label>
+
+      <label>
+        Add members
+        <textarea
+          id="newGroupMembers"
+          placeholder="@ben90&#10;@carla21&#10;@dan88"
+        ></textarea>
+      </label>
+
+      <small class="field-help">
+        One username per line.
+      </small>
+
+      <button class="primary-button" type="submit">
+        Create Group
+      </button>
+
+    </form>
+
+  `);
+
+  $("#createGroupForm").addEventListener(
+    "submit",
+    createGroup
+  );
+}
+
+
+async function createGroup(event) {
+
+  event.preventDefault();
+
+  const groupName =
+    $("#newGroupName").value.trim();
+
+  const usernames =
+    $("#newGroupMembers")
+      .value
+      .split("\n")
+      .map(x => x.trim().replace(/^@/, ""))
+      .filter(Boolean);
+
+  if (!groupName) {
+    toast("Please enter a group name.");
+    return;
+  }
+
+  try {
+
+    setLoading(true, "Creating group...");
+
+    /* ================================================
+       1. GET CURRENT SUPABASE USER
+       ================================================ */
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+
+    /* ================================================
+       2. CREATE GROUP
+       ================================================ */
+
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .from("groups")
+      .insert({
+        group_name: groupName,
+        created_by: user.id,
+        status: "ACTIVE"
+      })
+      .select()
+      .single();
+
+    if (groupError) {
+      throw new Error(
+        groupError.message ||
+        "Unable to create the group."
+      );
+    }
+
+
+    /* ================================================
+       3. ADD CREATOR AS ADMIN
+       ================================================ */
+
+    const {
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .insert({
+        group_id: group.id,
+        user_id: user.id,
+        role: "ADMIN",
+        status: "ACTIVE"
+      });
+
+    if (memberError) {
+
+      /*
+       * The group was created but the creator could not
+       * be added as a member. Stop here rather than
+       * pretending the group was created successfully.
+       */
+
+      console.error(
+        "CREATE GROUP MEMBERSHIP ERROR:",
+        memberError
+      );
+
+      throw new Error(
+        memberError.message ||
+        "The group was created, but you could not be added as its admin."
+      );
+    }
+
+
+    /* ================================================
+       4. FIND INVITED USERS
+       ================================================ */
+
+    if (usernames.length) {
+
+      const normalizedUsernames =
+        [...new Set(
+          usernames
+            .map(username =>
+              username.toLowerCase()
+            )
+            .filter(Boolean)
+        )];
+
+      const {
+        data: invitedProfiles,
+        error: profileError
+      } = await supabaseClient
+        .from("profiles")
+        .select("id, username, username_normalized")
+        .in(
+          "username_normalized",
+          normalizedUsernames
+        );
+
+      if (profileError) {
+        throw new Error(
+          profileError.message ||
+          "The group was created, but invited users could not be checked."
+        );
+      }
+
+
+      /* ==============================================
+         5. CREATE PENDING INVITATIONS
+         ============================================== */
+
+      const invitations = [];
+
+      for (const profile of invitedProfiles || []) {
+
+        /*
+         * Do not invite yourself.
+         */
+
+        if (profile.id === user.id) {
+          continue;
+        }
+
+        /*
+         * Check whether the user is already an
+         * active member of this group.
+         */
+
+        const {
+          data: existingMember,
+          error: existingMemberError
+        } = await supabaseClient
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", group.id)
+          .eq("user_id", profile.id)
+          .eq("status", "ACTIVE")
+          .maybeSingle();
+
+        if (existingMemberError) {
+          throw new Error(
+            existingMemberError.message
+          );
+        }
+
+        if (existingMember) {
+          continue;
+        }
+
+
+        /*
+         * Check for an existing pending invitation.
+         */
+
+        const {
+          data: existingInvitation,
+          error: existingInvitationError
+        } = await supabaseClient
+          .from("invitations")
+          .select("id")
+          .eq("group_id", group.id)
+          .eq("invited_user_id", profile.id)
+          .eq("status", "PENDING")
+          .maybeSingle();
+
+        if (existingInvitationError) {
+          throw new Error(
+            existingInvitationError.message
+          );
+        }
+
+        if (existingInvitation) {
+          continue;
+        }
+
+
+        invitations.push({
+          group_id: group.id,
+          invited_user_id: profile.id,
+          invited_by_user_id: user.id,
+          status: "PENDING"
+        });
+      }
+
+
+      if (invitations.length) {
+
+        const {
+          error: invitationError
+        } = await supabaseClient
+          .from("invitations")
+          .insert(invitations);
+
+        if (invitationError) {
+          throw new Error(
+            invitationError.message ||
+            "The group was created, but some invitations could not be sent."
+          );
+        }
+      }
+    }
+
+
+    /* ================================================
+       6. REFRESH GROUP STATE
+       ================================================ */
+
+    state.groupsLoadedAt = 0;
+
+    closeModal();
+
+    toast("Group created.");
+
+    await loadGroupsData(true);
+
+    await openGroup(group.id);
+
+  } catch (error) {
+
+    console.error(
+      "CREATE GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error && error.message
+        ? error.message
+        : "Unable to create group."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   ADD EXPENSE
+   ========================================================= */
+
+function openAddExpenseModal() {
+
+  const members = state.currentGroup.members;
+
+  openModal(`
+
+    <h2>Add Expense</h2>
+
+    <form id="addExpenseForm">
+
+      <label>
+        Amount
+
+        <input
+          id="expenseAmount"
+          class="amount-input"
+          type="number"
+          min="0.01"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="0.00"
+          required
+        >
+
+      </label>
+
+      <label>
+        Description
+        <input
+          id="expenseDescription"
+          maxlength="120"
+          placeholder="Dinner"
+        >
+      </label>
+
+      <div class="section-title">
+        Paid by
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+
+        <strong>
+          @${escapeHtml(state.user.username)}
+        </strong>
+
+        <div class="muted" style="font-size:12px">
+          You are paying for this expense.
+        </div>
+
+      </div>
+
+      <div class="section-title">
+        For
+      </div>
+
+      <div class="participant-list">
+
+        ${members.map(member => `
+
+          <label class="participant-option">
+
+            <input
+              type="checkbox"
+              class="participant-checkbox"
+              value="${escapeHtml(member.userId)}"
+              checked
+            >
+
+            <div>
+              <div class="user-name">
+                @${escapeHtml(member.username)}
+              </div>
+
+              <div class="user-handle">
+                ${escapeHtml(member.displayName)}
+              </div>
+            </div>
+
+          </label>
+
+        `).join("")}
+
+      </div>
+
+      <button
+        class="primary-button"
+        type="submit"
+        style="margin-top:18px"
+      >
+        Add Expense
+      </button>
+
+    </form>
+
+  `);
+
+  $("#addExpenseForm").addEventListener(
+    "submit",
+    addExpense
+  );
+}
+
+
+async function addExpense(event) {
+
+  event.preventDefault();
+
+  const amount =
+    Number($("#expenseAmount").value);
+
+  const description =
+    $("#expenseDescription").value.trim();
+
+  const participantIds =
+    [...document.querySelectorAll(".participant-checkbox:checked")]
+      .map(input => input.value);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    toast("Enter a valid amount.");
+    return;
+  }
+
+  if (amount > 100000000) {
+    toast("Amount is too large.");
+    return;
+  }
+
+  if (!participantIds.length) {
+    toast("Select at least one participant.");
+    return;
+  }
+
+  try {
+
+    setLoading(true, "Adding expense...");
+
+
+    /* ================================================
+       1. GET CURRENT USER
+       ================================================ */
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error(
+        "Your session has expired. Please log in again."
+      );
+    }
+
+
+    const groupId =
+      state.currentGroup.group.groupId;
+
+
+    /* ================================================
+       2. VERIFY PARTICIPANTS ARE ACTIVE MEMBERS
+       ================================================ */
+
+    const uniqueParticipantIds =
+      [...new Set(participantIds)];
+
+    const {
+      data: members,
+      error: memberError
+    } = await supabaseClient
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE")
+      .in("user_id", uniqueParticipantIds);
+
+    if (memberError) {
+      throw new Error(
+        memberError.message ||
+        "Unable to verify expense participants."
+      );
+    }
+
+    const activeMemberIds =
+      new Set(
+        (members || [])
+          .map(member => member.user_id)
+      );
+
+    const allParticipantsAreMembers =
+      uniqueParticipantIds.every(
+        id => activeMemberIds.has(id)
+      );
+
+    if (!allParticipantsAreMembers) {
+      throw new Error(
+        "All participants must be active members of this group."
+      );
+    }
+
+
+    /* ================================================
+       3. CALCULATE EQUAL SHARES
+       ================================================ */
+
+    /*
+     * Work in cents to avoid floating-point rounding
+     * problems.
+     */
+
+    const amountCents =
+      Math.round(
+        amount * 100
+      );
+
+    const participantCount =
+      uniqueParticipantIds.length;
+
+    const baseShareCents =
+      Math.floor(
+        amountCents /
+        participantCount
+      );
+
+    const remainderCents =
+      amountCents %
+      participantCount;
+
+    const shares =
+      uniqueParticipantIds.map(
+        (userId, index) => {
+
+          const shareCents =
+            baseShareCents +
+            (index < remainderCents ? 1 : 0);
+
+          return {
+            user_id: userId,
+            share_amount:
+              Number(
+                (
+                  shareCents / 100
+                ).toFixed(2)
+              )
+          };
+
+        }
+      );
+
+
+    /* ================================================
+       4. CREATE EXPENSE
+       ================================================ */
+
+    const {
+      data: expense,
+      error: expenseError
+    } = await supabaseClient
+      .from("expenses")
+      .insert({
+        group_id: groupId,
+        paid_by_user_id: user.id,
+        amount: Number(amount.toFixed(2)),
+        description,
+        created_by: user.id,
+        status: "ACTIVE"
+      })
+      .select()
+      .single();
+
+    if (expenseError) {
+      throw new Error(
+        expenseError.message ||
+        "Unable to add the expense."
+      );
+    }
+
+
+    /* ================================================
+       5. CREATE PARTICIPANT SHARES
+       ================================================ */
+
+    const participantRows =
+      shares.map(share => ({
+        expense_id: expense.id,
+        user_id: share.user_id,
+        share_amount: share.share_amount
+      }));
+
+    const {
+      error: participantError
+    } = await supabaseClient
+      .from("expense_participants")
+      .insert(participantRows);
+
+    if (participantError) {
+
+      console.error(
+        "ADD EXPENSE PARTICIPANTS ERROR:",
+        participantError
+      );
+
+      /*
+       * Remove the expense if its participant rows
+       * could not be created, so we don't leave behind
+       * an incomplete expense.
+       */
+
+      await supabaseClient
+        .from("expenses")
+        .delete()
+        .eq("id", expense.id);
+
+      throw new Error(
+        participantError.message ||
+        "The expense could not be saved."
+      );
+    }
+
+
+    /* ================================================
+       6. REFRESH GROUP
+       ================================================ */
+
+    closeModal();
+
+    await refreshCurrentGroup();
+
+    toast("Expense added.");
+
+  } catch (error) {
+
+    console.error(
+      "ADD EXPENSE ERROR:",
+      error
+    );
+
+    toast(
+      error && error.message
+        ? error.message
+        : "Unable to add expense."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   EXPENSE DETAILS
+   ========================================================= */
+
+function openExpenseDetails(expenseId) {
+
+  const expense =
+    state.currentGroup.expenses.find(
+      x => x.expenseId === expenseId
+    );
+
+  if (!expense) return;
+
+  const canManage =
+    expense.createdBy === state.user.userId ||
+    state.currentGroup.currentUserRole === "ADMIN";
+
+  openModal(`
+
+    <h2>Expense</h2>
+
+    <div class="card">
+
+      <div class="expense-top">
+
+        <div>
+          <div class="muted">Paid by</div>
+          <strong>
+            @${escapeHtml(expense.paidBy.username)}
+          </strong>
+        </div>
+
+        <div class="expense-amount">
+          ${formatMoney(expense.amount)}
+        </div>
+
+      </div>
+
+      ${
+        expense.description
+        ? `
+          <div style="margin-top:15px">
+            ${escapeHtml(expense.description)}
+          </div>
+        `
+        : ""
+      }
+
+    </div>
+
+    <div class="section-title">
+      Participants
+    </div>
+
+    <div class="card">
+
+      ${expense.participants.map(participant => `
+
+        <div class="member-row">
+
+          <div>
+            <div class="user-name">
+              @${escapeHtml(participant.username)}
+            </div>
+
+            <div class="user-handle">
+              ${escapeHtml(participant.displayName)}
+            </div>
+          </div>
+
+          <strong>
+            ${formatMoney(participant.shareAmount)}
+          </strong>
+
+        </div>
+
+      `).join("")}
+
+    </div>
+
+    ${
+      canManage
+      ? `
+        <button
+          class="danger-button"
+          onclick="deleteExpense('${escapeHtml(expense.expenseId)}')"
+        >
+          Delete Expense
+        </button>
+      `
+      : ""
+    }
+
+  `);
+}
+
+
+async function deleteExpense(expenseId) {
+
+  if (!confirm("Delete this expense?")) {
+    return;
+  }
+
+  try {
+
+    setLoading(true, "Deleting expense...");
+
+    await api("deleteExpense", {
+      expenseId
+    });
+
+    closeModal();
+
+    await refreshCurrentGroup();
+
+    toast("Expense deleted.");
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   BALANCES
+   ========================================================= */
+
+async function openBalancesModal() {
+
+  setLoading(true, "Loading balances...");
+
+  try {
+
+    const result = await api(
+      "getBalances",
+      {
+        groupId: state.currentGroup.group.groupId
+      },
+      "GET"
+    );
+
+    const balances = result.data.balances;
+
+    openModal(`
+
+      <h2>Balances</h2>
+
+      <p class="muted">
+        Paid minus fair share.
+      </p>
+
+      <div class="card">
+
+        ${balances.map(item => `
+
+          <div class="member-row">
+
+            <div>
+              <div class="user-name">
+                @${escapeHtml(item.username)}
+              </div>
+
+              <div class="user-handle">
+                Paid ${formatMoney(item.totalPaid)}
+                · Share ${formatMoney(item.totalShare)}
+              </div>
+            </div>
+
+            <strong class="${balanceClass(item.balance)}">
+              ${formatBalance(item.balance)}
+            </strong>
+
+          </div>
+
+        `).join("")}
+
+      </div>
+
+    `);
+
+    await loadPendingPayments();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   SETTLEMENTS
+   ========================================================= */
+
+async function loadCurrentSettlements() {
+
+  const result = await api(
+    "getSettlements",
+    {
+      groupId:
+        state.currentGroup.group.groupId
+    },
+    "GET"
+  );
+
+  return result.settlements ||
+    result.data?.settlements ||
+    [];
+
+}
+
+
+async function openPayables() {
+
+  setLoading(true, "Loading payables...");
+
+  try {
+
+    const settlements =
+      await loadCurrentSettlements();
+
+    const payables =
+      settlements.filter(item =>
+        String(item.fromUserId) ===
+        String(state.user.userId)
+      );
+
+    openModal(`
+      <h2>Payables</h2>
+      <p class="muted">What you still need to pay.</p>
+
+      ${payables.length
+        ? `
+          <div class="balance-detail-list">
+            ${payables.map(item => `
+              <div class="balance-detail-row">
+                <div>
+                  <div class="user-name">
+                    @${escapeHtml(item.toUsername)}
+                  </div>
+                  <div class="muted">
+                    ${formatMoney(item.amount)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="small-button green-button"
+                  onclick="openSettlePayment('${escapeHtml(item.settlementId)}')"
+                >
+                  Settle
+                </button>
+              </div>
+            `).join("")}
+          </div>
+        `
+        : `<div class="card empty">You do not owe anyone right now.</div>`
+      }
+    `);
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+async function openReceivables() {
+
+  setLoading(true, "Loading receivables...");
+
+  try {
+
+    const settlements =
+      await loadCurrentSettlements();
+
+    const receivables =
+      settlements.filter(item =>
+        String(item.toUserId) ===
+        String(state.user.userId)
+      );
+
+    openModal(`
+      <h2>Receivables</h2>
+      <p class="muted">What others still need to pay you.</p>
+
+      ${receivables.length
+        ? `
+          <div class="balance-detail-list">
+            ${receivables.map(item => `
+              <div class="balance-detail-row">
+                <div>
+                  <div class="user-name">
+                    @${escapeHtml(item.fromUsername)}
+                  </div>
+                  <div class="muted">
+                    ${formatMoney(item.amount)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="small-button"
+                  onclick="openReceivableDetails('${escapeHtml(item.settlementId)}')"
+                >
+                  Details
+                </button>
+              </div>
+            `).join("")}
+          </div>
+        `
+        : `<div class="card empty">Nobody owes you right now.</div>`
+      }
+    `);
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+async function openReceivableDetails(settlementId) {
+
+  setLoading(true, "Loading receivable details...");
+
+  try {
+
+    const settlements =
+      await loadCurrentSettlements();
+
+    const settlement =
+      settlements.find(item =>
+        String(item.settlementId) ===
+        String(settlementId)
+      );
+
+    if (!settlement) {
+      toast("Receivable not found.");
+      return;
+    }
+
+    openModal(`
+      <h2>Receivable Details</h2>
+      <p class="muted">
+        @${escapeHtml(settlement.fromUsername)} owes you
+      </p>
+      <div class="card" style="margin-top:16px;">
+        <div class="muted">Remaining</div>
+        <strong style="font-size:28px;">
+          ${formatMoney(settlement.amount)}
+        </strong>
+      </div>
+    `);
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+async function openSettlementsModal() {
+
+  setLoading(true, "Loading settlements...");
+
+  try {
+
+    const result = await api(
+      "getSettlements",
+      {
+        groupId: state.currentGroup.group.groupId
+      },
+      "GET"
+    );
+
+    const settlements = result.data.settlements || [];
+
+    openModal(`
+
+      <h2>Settle Up</h2>
+
+      <p class="muted">
+        These are the simplest transfers based on the current balances.
+      </p>
+
+      ${
+        settlements.length
+        ? `
+          <div class="card">
+
+            ${settlements.map(renderSettlement).join("")}
+
+          </div>
+        `
+        : `
+          <div class="card empty">
+            Everyone is settled up.
+          </div>
+        `
+      }
+
+      <div
+        id="pendingPaymentsSection"
+        style="margin-top:24px;"
+      >
+        <div class="section-title">
+          Pending Payments
+        </div>
+
+        <div
+          id="pendingPaymentsList"
+          class="card"
+        >
+          <div class="muted">
+            Loading pending payments...
+          </div>
+        </div>
+      </div>
+
+    `);
+
+    await loadPendingPayments();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+async function loadPendingPayments() {
+
+  const container = $("#pendingPaymentsList");
+
+  if (!container) {
+    return;
+  }
+
+  try {
+
+    const result = await api(
+      "getPendingPayments",
+      {
+        groupId:
+          state.currentGroup.group.groupId
+      },
+      "GET"
+    );
+
+    const payments =
+      result.payments ||
+      result.data?.payments ||
+      [];
+
+    if (!payments.length) {
+
+      container.innerHTML = `
+        <div class="muted" style="text-align:center;padding:10px;">
+          No pending payments.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      payments
+        .map(renderPendingPayment)
+        .join("");
+
+  } catch (error) {
+
+    container.innerHTML = `
+      <div class="muted">
+        ${escapeHtml(error.message)}
+      </div>
+    `;
+  }
+}
+
+
+function renderPendingPayment(payment) {
+
+  return `
+    <div
+      class="settlement-row"
+      style="margin-bottom:12px;"
+    >
+
+      <div>
+
+        <strong>
+          Payment received
+        </strong>
+
+        <div class="muted">
+          ${escapeHtml(payment.paymentOption)}
+        </div>
+
+        <div
+          style="
+            margin-top:6px;
+            font-size:18px;
+            font-weight:700;
+          "
+        >
+          ₱${Number(payment.amountPaid).toLocaleString(
+            "en-PH",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          )}
+        </div>
+
+        ${
+          payment.notes
+            ? `
+              <div
+                class="muted"
+                style="margin-top:4px;"
+              >
+                ${escapeHtml(payment.notes)}
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+
+      <button
+        type="button"
+        class="small-button green-button"
+        onclick="reviewPayment('${escapeHtml(payment.paymentSubmissionId)}')"
+      >
+        Review
+      </button>
+
+    </div>
+  `;
+}
+
+
+async function reviewPayment(paymentSubmissionId) {
+
+  setLoading(true, "Loading payment review...");
+
+  try {
+
+    const result =
+      await api(
+        "getPendingPayments",
+        {
+          groupId:
+            state.currentGroup.group.groupId
+        },
+        "GET"
+      );
+
+
+    const payments =
+      result.payments ||
+      result.data?.payments ||
+      [];
+
+
+    const payment =
+      payments.find(
+        item =>
+          String(
+            item.paymentSubmissionId
+          ) ===
+          String(
+            paymentSubmissionId
+          )
+      );
+
+
+    if (!payment) {
+
+      toast(
+        "Payment submission not found."
+      );
+
+      return;
+    }
+
+
+    const amountDue =
+      Number(
+        payment.amountDue || 0
+      );
+
+
+    const amountPaid =
+      Number(
+        payment.amountPaid || 0
+      );
+
+
+    const proofFileUrl =
+      String(
+        payment.proofFileUrl || ""
+      ).trim();
+
+
+    openModal(`
+
+      <h2>
+        Review Payment
+      </h2>
+
+      <p class="muted">
+        Review this payment before confirming it.
+      </p>
+
+
+      <div
+        class="card"
+        style="margin-top:16px;"
+      >
+
+        <div class="muted">
+          Payment Method
+        </div>
+
+        <strong>
+          ${escapeHtml(
+            payment.paymentOption ||
+            "—"
+          )}
+        </strong>
+
+
+        <div
+          style="margin-top:16px;"
+        >
+
+          <div class="muted">
+            Amount Due
+          </div>
+
+          <strong
+            style="font-size:20px;"
+          >
+            ₱${amountDue.toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}
+          </strong>
+
+        </div>
+
+
+        <div
+          style="margin-top:12px;"
+        >
+
+          <div class="muted">
+            Amount Paid
+          </div>
+
+          <strong
+            style="font-size:20px;"
+          >
+            ₱${amountPaid.toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}
+          </strong>
+
+        </div>
+
+
+        <div
+          style="margin-top:20px;"
+        >
+
+          <div class="muted">
+            Payment Proof
+          </div>
+
+
+          ${
+            proofFileUrl
+              ? `
+                <div
+                  style="
+                    margin-top:8px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    gap:12px;
+                    padding:12px;
+                    border:1px solid #e5e7eb;
+                    border-radius:10px;
+                  "
+                >
+
+                  <div>
+
+                    <strong>
+                      Payment proof attached
+                    </strong>
+
+                    <div
+                      class="muted"
+                      style="margin-top:3px;"
+                    >
+                      Uploaded payment proof
+                    </div>
+
+                  </div>
+
+
+                  <a
+  href="${escapeHtml(proofFileUrl)}"
+  target="_blank"
+  rel="noopener noreferrer"
+  class="secondary-button"
+  style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;"
+>
+  View Proof
+</a>
+
+                </div>
+              `
+              : `
+                <div
+                  class="muted"
+                  style="
+                    margin-top:8px;
+                    padding:12px;
+                    border:1px dashed #e5e7eb;
+                    border-radius:10px;
+                  "
+                >
+                  No payment proof attached.
+                </div>
+              `
+          }
+
+        </div>
+
+
+        ${
+          payment.notes
+            ? `
+              <div
+                style="margin-top:20px;"
+              >
+
+                <div class="muted">
+                  Note
+                </div>
+
+                <div
+                  style="margin-top:4px;"
+                >
+                  ${escapeHtml(
+                    payment.notes
+                  )}
+                </div>
+
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+
+
+      <div
+        style="
+          display:flex;
+          gap:10px;
+          margin-top:20px;
+        "
+      >
+
+        <button
+          type="button"
+          class="secondary-button"
+          style="flex:1;"
+          onclick="openRejectPayment('${escapeHtml(
+            payment.paymentSubmissionId
+          )}')"
+        >
+          Reject
+        </button>
+
+
+        <button
+          type="button"
+          class="primary-button"
+          style="flex:1;"
+          onclick="confirmPaymentSubmission('${escapeHtml(
+            payment.paymentSubmissionId
+          )}')"
+        >
+          Confirm Payment
+        </button>
+
+      </div>
+
+    `);
+
+  } catch (error) {
+
+    toast(
+      error.message
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+async function confirmPaymentSubmission(paymentSubmissionId) {
+
+  try {
+
+    const id =
+      String(paymentSubmissionId || "").trim();
+
+    if (!id) {
+      toast("Payment submission not found.");
+      return;
+    }
+
+    await confirmSubmittedPayment(id);
+
+  } catch (error) {
+
+    console.error(
+      "CONFIRM PAYMENT SUBMISSION ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to open payment confirmation."
+    );
+
+  }
+
+}
+
+
+async function confirmSubmittedPayment(paymentSubmissionId) {
+
+  openModal(`
+    <div class="modal-confirmation">
+
+      <h2>Confirm Payment?</h2>
+
+      <p class="muted">
+        Confirm that you received this payment.
+        The settlement will be marked as paid.
+      </p>
+
+      <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+          margin-top:20px;
+        "
+      >
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="reviewPayment('${escapeHtml(paymentSubmissionId)}')"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          onclick="processConfirmPayment('${escapeHtml(paymentSubmissionId)}')"
+        >
+          Confirm Payment
+        </button>
+
+      </div>
+
+    </div>
+  `);
+}
+
+
+async function processConfirmPayment(paymentSubmissionId) {
+
+  try {
+
+    setLoading(
+      true,
+      "Confirming payment..."
+    );
+
+    await api(
+      "confirmPayment",
+      {
+        paymentSubmissionId:
+          paymentSubmissionId
+      }
+    );
+
+    closeModal();
+
+    toast(
+      "Payment confirmed."
+    );
+
+    await openSettlementsModal();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+  }
+}
+
+
+function openRejectPayment(paymentSubmissionId) {
+
+  openModal(`
+    <div class="modal-confirmation">
+
+      <h2>Reject Payment?</h2>
+
+      <p class="muted">
+        Please provide a reason so the payer knows
+        what needs to be corrected.
+      </p>
+
+      <label style="display:block;margin-top:16px;">
+        Reason
+        <textarea
+          id="paymentRejectionReason"
+          rows="4"
+          maxlength="500"
+          placeholder="e.g. Payment amount does not match, wrong account, or proof is unclear."
+          required
+        ></textarea>
+      </label>
+
+      <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+          margin-top:20px;
+        "
+      >
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="reviewPayment('${escapeHtml(paymentSubmissionId)}')"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          onclick="processRejectPayment('${escapeHtml(paymentSubmissionId)}')"
+        >
+          Reject Payment
+        </button>
+
+      </div>
+
+    </div>
+  `);
+}
+
+
+async function processRejectPayment(paymentSubmissionId) {
+
+  const reasonElement =
+    $("#paymentRejectionReason");
+
+  const rejectionReason =
+    reasonElement
+      ? reasonElement.value.trim()
+      : "";
+
+  if (!rejectionReason) {
+    toast("Please provide a reason for rejecting the payment.");
+    return;
+  }
+
+  try {
+
+    setLoading(
+      true,
+      "Rejecting payment..."
+    );
+
+    await api(
+      "rejectPayment",
+      {
+        paymentSubmissionId:
+          paymentSubmissionId,
+
+        rejectionReason:
+          rejectionReason
+      }
+    );
+
+    closeModal();
+
+    toast(
+      "Payment rejected."
+    );
+
+    await openSettlementsModal();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+  }
+}
+
+
+function renderSettlement(item) {
+
+  const isPaid =
+    String(item.status).toUpperCase() === "PAID";
+
+  const isPayer =
+    String(item.fromUserId) ===
+    String(state.user.userId);
+
+  return `
+    <div class="settlement-row">
+
+      <div>
+
+        <strong>
+          ${escapeHtml(item.fromUsername)}
+          →
+          ${escapeHtml(item.toUsername)}
+        </strong>
+
+        <div class="muted">
+          ${isPayer
+            ? `You owe ${escapeHtml(item.toUsername)}`
+            : `${escapeHtml(item.fromUsername)} owes you`
+          }
+        </div>
+
+        <div style="margin-top:6px;font-size:18px;font-weight:700;">
+          ₱${Number(item.amount).toLocaleString(
+            "en-PH",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          )}
+        </div>
+
+        <div class="muted" style="margin-top:4px;">
+          ${
+            isPaid
+              ? "Payment confirmed"
+              : "Suggested settlement"
+          }
+        </div>
+
+      </div>
+
+      ${
+        isPaid
+          ? `
+            <span class="muted">
+              Paid
+            </span>
+          `
+          : isPayer
+            ? `
+              <button
+                class="small-button green-button"
+                onclick="openSettlePayment('${escapeHtml(item.settlementId)}')"
+              >
+                Settle Up
+              </button>
+            `
+            : `
+              <span class="muted">
+                Awaiting payment
+              </span>
+            `
+      }
+
+    </div>
+  `;
+}
+
+
+async function openSettlePayment(settlementId) {
+
+  setLoading(true, "Loading settlement...");
+
+  try {
+
+    const settlementResult =
+      await api(
+        "getSettlements",
+        {
+          groupId:
+            state.currentGroup.group.groupId
+        },
+        "GET"
+      );
+
+    const settlements =
+      settlementResult.settlements ||
+      settlementResult.data?.settlements ||
+      [];
+
+    const settlement =
+      settlements.find(
+        item =>
+          String(item.settlementId) ===
+          String(settlementId)
+      );
+
+    if (!settlement) {
+
+      toast(
+        "Settlement not found."
+      );
+
+      return;
+    }
+
+    if (
+      String(settlement.fromUserId) !==
+      String(state.user.userId)
+    ) {
+
+      toast(
+        "You are not the payer for this settlement."
+      );
+
+      return;
+    }
+
+    if (
+      String(settlement.status).toUpperCase() ===
+      "PAID"
+    ) {
+
+      toast(
+        "This settlement has already been paid."
+      );
+
+      return;
+    }
+
+    const result =
+      await api(
+        "getUserPaymentDetails",
+        {
+          userId:
+            settlement.toUserId
+        },
+        "GET"
+      );
+
+    const paymentDetails =
+      result.paymentDetails ||
+      result.data?.paymentDetails ||
+      [];
+
+    /*
+     * Preserve the amount while the payment modal
+     * is being worked on.
+     *
+     * If the modal is opened for the first time,
+     * use the current settlement amount.
+     */
+    const existingAmount =
+      window.owemeSettlementDrafts &&
+      window.owemeSettlementDrafts[settlementId] &&
+      window.owemeSettlementDrafts[settlementId].amount;
+
+    const draftAmount =
+      existingAmount !== undefined &&
+      existingAmount !== null &&
+      existingAmount !== ""
+        ? existingAmount
+        : Number(settlement.amount).toFixed(2);
+
+
+    openModal(`
+
+      <h2>
+        Settle Up
+      </h2>
+
+      <p class="muted">
+
+        You owe
+
+        <strong>
+          ${escapeHtml(settlement.toUsername)}
+        </strong>
+
+      </p>
+
+
+      <div
+        class="card"
+        style="margin-top:16px;"
+      >
+
+        <div class="muted">
+          Amount Due
+        </div>
+
+        <div
+          style="
+            font-size:28px;
+            font-weight:700;
+            margin-top:4px;
+          "
+        >
+
+          ₱${Number(settlement.amount).toLocaleString(
+            "en-PH",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          )}
+
+        </div>
+
+      </div>
+
+
+      <div style="margin-top:18px;">
+
+        <h3>
+          Payment Method
+        </h3>
+
+
+        ${
+          paymentDetails.length
+            ? paymentDetails
+                .map(
+                  detail => `
+
+                    <label
+                      class="card"
+                      style="
+                        display:flex;
+                        align-items:flex-start;
+                        gap:12px;
+                        cursor:pointer;
+                        margin-top:10px;
+                      "
+                    >
+
+                      <input
+                        type="radio"
+                        name="settlePaymentMethod"
+                        value="${escapeHtml(detail.paymentDetailId)}"
+                        ${
+                          detail.isPreferred
+                            ? "checked"
+                            : ""
+                        }
+                        style="
+                          width:auto;
+                          margin-top:4px;
+                        "
+                      >
+
+                      <div style="flex:1;">
+
+                        <strong>
+                          ${escapeHtml(
+                            detail.paymentOption
+                          )}
+                        </strong>
+
+                        ${
+                          detail.accountNumber
+                            ? `
+                              <div class="muted">
+                                ${escapeHtml(
+                                  detail.accountNumber
+                                )}
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          detail.accountName
+                            ? `
+                              <div class="muted">
+                                ${escapeHtml(
+                                  detail.accountName
+                                )}
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          detail.isPreferred
+                            ? `
+                              <div
+                                class="muted"
+                                style="margin-top:4px;"
+                              >
+                                Preferred
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          detail.qrFileUrl
+                            ? `
+                              <div
+                                style="
+                                  margin-top:12px;
+                                  display:flex;
+                                  flex-direction:column;
+                                  align-items:flex-start;
+                                  gap:8px;
+                                "
+                              >
+
+                                <div
+                                  class="muted"
+                                  style="
+                                    font-weight:600;
+                                  "
+                                >
+                                  Payment QR Code
+                                </div>
+
+                                <a
+                                  href="${escapeHtml(
+                                    detail.qrFileUrl
+                                  )}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style="
+                                    display:inline-block;
+                                    text-decoration:none;
+                                  "
+                                >
+
+                                  <img
+                                    src="${escapeHtml(
+                                      detail.qrFileUrl
+                                    )}"
+                                    alt="Payment QR Code"
+                                    style="
+                                      width:180px;
+                                      height:180px;
+                                      object-fit:contain;
+                                      border:1px solid var(--border-color, #ddd);
+                                      border-radius:12px;
+                                      background:#fff;
+                                      padding:8px;
+                                      display:block;
+                                    "
+                                  >
+
+                                </a>
+
+                                <a
+                                  href="${escapeHtml(
+                                    detail.qrFileUrl
+                                  )}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  class="secondary-button"
+                                  style="
+                                    text-decoration:none;
+                                  "
+                                >
+                                  View QR Code
+                                </a>
+
+                              </div>
+                            `
+                            : ""
+                        }
+
+                      </div>
+
+                    </label>
+
+                  `
+                )
+                .join("")
+            : `
+
+              <div class="card empty">
+
+                ${escapeHtml(
+                  settlement.toUsername
+                )}
+
+                has not added any payment
+                details yet.
+
+              </div>
+
+            `
+        }
+
+      </div>
+
+
+      ${
+        paymentDetails.length
+          ? `
+
+            <form
+              id="submitPaymentForm"
+              style="margin-top:20px;"
+            >
+
+              <label>
+
+                Amount Paid
+
+                <input
+                  id="settleAmountPaid"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value="${escapeHtml(
+                    draftAmount
+                  )}"
+                  required
+                >
+
+              </label>
+
+
+              <label
+                style="margin-top:12px;"
+              >
+
+                Payment Proof
+
+                <input
+                  id="settlePaymentProof"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                >
+
+                <div class="muted">
+                  Optional for now.
+                </div>
+
+              </label>
+
+
+              <label
+                style="margin-top:12px;"
+              >
+
+                Notes
+
+                <textarea
+                  id="settlePaymentNotes"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="Optional note"
+                ></textarea>
+
+              </label>
+
+
+              <button
+                class="primary-button"
+                type="submit"
+                style="
+                  margin-top:16px;
+                  width:100%;
+                "
+              >
+
+                Submit Payment
+
+              </button>
+
+            </form>
+
+          `
+          : ""
+      }
+
+    `);
+
+
+    if (!window.owemeSettlementDrafts) {
+
+      window.owemeSettlementDrafts = {};
+
+    }
+
+
+    if (paymentDetails.length) {
+
+      const amountInput =
+        $("#settleAmountPaid");
+
+      const proofInput =
+        $("#settlePaymentProof");
+
+      const notesInput =
+        $("#settlePaymentNotes");
+
+
+      /*
+       * Save the amount immediately whenever
+       * the user changes it.
+       */
+      amountInput.addEventListener(
+        "input",
+        () => {
+
+          window.owemeSettlementDrafts[
+            settlementId
+          ] = {
+
+            ...(
+              window.owemeSettlementDrafts[
+                settlementId
+              ] || {}
+            ),
+
+            amount:
+              amountInput.value
+
+          };
+
+        }
+      );
+
+
+      /*
+       * Explicitly preserve the amount when
+       * the file picker changes focus.
+       */
+      proofInput.addEventListener(
+        "change",
+        () => {
+
+          window.owemeSettlementDrafts[
+            settlementId
+          ] = {
+
+            ...(
+              window.owemeSettlementDrafts[
+                settlementId
+              ] || {}
+            ),
+
+            amount:
+              amountInput.value,
+
+            proofFile:
+              proofInput.files &&
+              proofInput.files.length
+                ? proofInput.files[0]
+                : null
+
+          };
+
+        }
+      );
+
+
+      /*
+       * Preserve notes as well.
+       */
+      notesInput.addEventListener(
+        "input",
+        () => {
+
+          window.owemeSettlementDrafts[
+            settlementId
+          ] = {
+
+            ...(
+              window.owemeSettlementDrafts[
+                settlementId
+              ] || {}
+            ),
+
+            amount:
+              amountInput.value,
+
+            notes:
+              notesInput.value
+
+          };
+
+        }
+      );
+
+
+      $("#submitPaymentForm")
+        .addEventListener(
+          "submit",
+          event =>
+            submitSettlementPayment(
+              event,
+              settlement
+            )
+        );
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "OPEN SETTLE PAYMENT ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Something went wrong. Please try again."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+function preparePaymentProof(file) {
+
+  return new Promise(
+    (resolve, reject) => {
+
+      if (!file) {
+
+        reject(
+          new Error(
+            "Payment proof file is required."
+          )
+        );
+
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+
+        reject(
+          new Error(
+            "Payment proof must be 10 MB or smaller."
+          )
+        );
+
+        return;
+      }
+
+      const reader =
+        new FileReader();
+
+      reader.onload = () => {
+
+        try {
+
+          const result =
+            String(
+              reader.result || ""
+            );
+
+          const commaIndex =
+            result.indexOf(",");
+
+          if (
+            commaIndex === -1
+          ) {
+
+            reject(
+              new Error(
+                "Unable to read payment proof."
+              )
+            );
+
+            return;
+          }
+
+          const base64Data =
+            result.substring(
+              commaIndex + 1
+            );
+
+          if (!base64Data) {
+
+            reject(
+              new Error(
+                "Payment proof is empty."
+              )
+            );
+
+            return;
+          }
+
+          if (
+            !file.type.startsWith("image/") ||
+            file.size <= 2 * 1024 * 1024
+          ) {
+
+            resolve({
+              base64Data,
+              fileName: file.name,
+              mimeType: file.type
+            });
+
+            return;
+          }
+
+          const image = new Image();
+
+          image.onload = () => {
+
+            try {
+
+              const maxDimension = 1600;
+              const scale = Math.min(
+                1,
+                maxDimension / Math.max(
+                  image.naturalWidth,
+                  image.naturalHeight
+                )
+              );
+              const canvas = document.createElement("canvas");
+
+              canvas.width = Math.max(
+                1,
+                Math.round(image.naturalWidth * scale)
+              );
+              canvas.height = Math.max(
+                1,
+                Math.round(image.naturalHeight * scale)
+              );
+
+              canvas
+                .getContext("2d")
+                .drawImage(
+                  image,
+                  0,
+                  0,
+                  canvas.width,
+                  canvas.height
+                );
+
+              const compressed =
+                canvas.toDataURL("image/jpeg", 0.82);
+              const compressedCommaIndex =
+                compressed.indexOf(",");
+
+              resolve({
+                base64Data:
+                  compressed.substring(
+                    compressedCommaIndex + 1
+                  ),
+                fileName:
+                  file.name.replace(
+                    /\.[^.]+$/,
+                    ".jpg"
+                  ),
+                mimeType: "image/jpeg"
+              });
+
+            } catch (error) {
+
+              reject(
+                new Error(
+                  "Unable to prepare payment proof."
+                )
+              );
+
+            }
+
+          };
+
+          image.onerror = () => {
+
+            reject(
+              new Error(
+                "Unable to read payment proof."
+              )
+            );
+
+          };
+
+          image.src = result;
+
+        } catch (error) {
+
+          reject(error);
+
+        }
+
+      };
+
+      reader.onerror = () => {
+
+        reject(
+          new Error(
+            "Unable to read payment proof."
+          )
+        );
+
+      };
+
+      reader.onabort = () => {
+
+        reject(
+          new Error(
+            "Payment proof upload was cancelled."
+          )
+        );
+
+      };
+
+      reader.readAsDataURL(file);
+
+    }
+  );
+
+}
+
+
+async function submitSettlementPayment(event, settlement) {
+
+  event.preventDefault();
+
+  try {
+
+    const selected =
+      document.querySelector(
+        'input[name="settlePaymentMethod"]:checked'
+      );
+
+    if (!selected) {
+
+      toast(
+        "Please select a payment method."
+      );
+
+      return;
+    }
+
+    const paymentDetailId =
+      selected.value;
+
+    const amountInput =
+      $("#settleAmountPaid");
+
+    const amountPaid =
+      Number(
+        amountInput.value
+      );
+
+    const notesInput =
+      $("#settlePaymentNotes");
+
+    const notes =
+      notesInput
+        ? notesInput.value.trim()
+        : "";
+
+    const proofInput =
+      $("#settlePaymentProof");
+
+    const proofFile =
+      proofInput &&
+      proofInput.files &&
+      proofInput.files.length
+        ? proofInput.files[0]
+        : null;
+
+
+    if (
+      !Number.isFinite(amountPaid) ||
+      amountPaid <= 0
+    ) {
+
+      toast(
+        "Please enter a valid amount paid."
+      );
+
+      return;
+    }
+
+
+    if (
+      amountPaid >
+      Number(settlement.amount) + 0.01
+    ) {
+
+      toast(
+        "Amount paid cannot exceed the amount due."
+      );
+
+      return;
+    }
+
+
+    setLoading(
+      true,
+      "Checking payment..."
+    );
+
+
+    /*
+     * Check whether this settlement already
+     * has a payment awaiting confirmation.
+     */
+    const transactionResult =
+      await api(
+        "getGroupTransactions",
+        {
+          groupId:
+            settlement.groupId
+        },
+        "GET"
+      );
+
+
+    const transactions =
+      transactionResult.transactions ||
+      transactionResult.data?.transactions ||
+      [];
+
+
+    const existingPending =
+      transactions.find(
+        transaction =>
+
+          String(
+            transaction.type
+          ).toUpperCase() ===
+            "PAYMENT" &&
+
+          String(
+            transaction.status
+          ).toUpperCase() ===
+            "SUBMITTED" &&
+
+          String(
+            transaction.settlementId
+          ) ===
+            String(
+              settlement.settlementId
+            ) &&
+
+          String(
+            transaction.fromUserId
+          ) ===
+            String(
+              state.user.userId
+            )
+      );
+
+
+    /*
+     * --------------------------------------------------
+     * EXISTING PAYMENT
+     * --------------------------------------------------
+     *
+     * If a payment already exists, attach the
+     * payment proof instead of creating another
+     * payment submission.
+     */
+    if (existingPending) {
+
+      if (!proofFile) {
+
+        toast(
+          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
+        );
+
+        return;
+      }
+
+
+      setLoading(
+        true,
+        "Preparing payment proof..."
+      );
+
+
+      const proof =
+        await preparePaymentProof(
+          proofFile
+        );
+
+
+      setLoading(
+        true,
+        "Uploading payment proof..."
+      );
+
+
+      const uploadResult =
+        await api(
+          "uploadPaymentProof",
+          {
+            fileName:
+              proof.fileName,
+
+            mimeType:
+              proof.mimeType,
+
+            base64Data:
+              proof.base64Data
+          }
+        );
+
+
+      const proofFileUrl =
+        uploadResult.fileUrl ||
+        uploadResult.data?.fileUrl ||
+        "";
+
+
+      if (!proofFileUrl) {
+
+        throw new Error(
+          "Payment proof uploaded, but no file URL was returned."
+        );
+
+      }
+
+
+      setLoading(
+        true,
+        "Attaching payment proof..."
+      );
+
+
+      await api(
+        "updatePaymentProof",
+        {
+          paymentSubmissionId:
+            existingPending.paymentSubmissionId,
+
+          proofFileUrl:
+            proofFileUrl
+        }
+      );
+
+
+      if (
+        window.owemeSettlementDrafts &&
+        window.owemeSettlementDrafts[
+          settlement.settlementId
+        ]
+      ) {
+
+        delete window.owemeSettlementDrafts[
+          settlement.settlementId
+        ];
+
+      }
+
+
+      closeModal();
+
+
+      await refreshCurrentGroup();
+
+
+      toast(
+        "Payment proof attached successfully."
+      );
+
+      return;
+    }
+
+
+    /*
+     * --------------------------------------------------
+     * NEW PAYMENT
+     * --------------------------------------------------
+     */
+
+    let proofFileUrl = "";
+
+
+    if (proofFile) {
+
+      setLoading(
+        true,
+        "Preparing payment proof..."
+      );
+
+
+      const proof =
+        await preparePaymentProof(
+          proofFile
+        );
+
+
+      setLoading(
+        true,
+        "Uploading payment proof..."
+      );
+
+
+      const uploadResult =
+        await api(
+          "uploadPaymentProof",
+          {
+            fileName:
+              proof.fileName,
+
+            mimeType:
+              proof.mimeType,
+
+            base64Data:
+              proof.base64Data
+          }
+        );
+
+
+      proofFileUrl =
+        uploadResult.fileUrl ||
+        uploadResult.data?.fileUrl ||
+        "";
+
+
+      if (!proofFileUrl) {
+
+        throw new Error(
+          "Payment proof uploaded, but no file URL was returned."
+        );
+
+      }
+
+    }
+
+
+    /*
+     * --------------------------------------------------
+     * SUBMIT PAYMENT
+     * --------------------------------------------------
+     */
+
+    setLoading(
+      true,
+      "Submitting payment..."
+    );
+
+
+    await api(
+      "submitPayment",
+      {
+        settlementId:
+          settlement.settlementId,
+
+        groupId:
+          settlement.groupId,
+
+        recipientUserId:
+          settlement.toUserId,
+
+        paymentDetailId:
+          paymentDetailId,
+
+        amountDue:
+          Number(
+            settlement.amount
+          ),
+
+        amountPaid:
+          amountPaid,
+
+        proofFileUrl:
+          proofFileUrl,
+
+        notes:
+          notes
+      }
+    );
+
+
+    if (
+      window.owemeSettlementDrafts &&
+      window.owemeSettlementDrafts[
+        settlement.settlementId
+      ]
+    ) {
+
+      delete window.owemeSettlementDrafts[
+        settlement.settlementId
+      ];
+
+    }
+
+
+    /*
+     * IMPORTANT:
+     * Refresh the entire group after the payment
+     * has been successfully saved.
+     *
+     * This reloads:
+     * - balances
+     * - settlements
+     * - transactions
+     *
+     * so the new payment appears immediately
+     * in the Transactions section.
+     */
+
+    closeModal();
+
+
+    await refreshCurrentGroup();
+
+
+    toast(
+      "Payment submitted for confirmation."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "SUBMIT PAYMENT ERROR:",
+      error
+    );
+
+
+    toast(
+      error &&
+      error.message
+        ? error.message
+        : "Something went wrong. Please try again."
+    );
+
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+async function markSettlementPaid(settlementId) {
+
+  if (!confirm("Mark this settlement as paid?")) {
+    return;
+  }
+
+  try {
+
+    setLoading(true, "Saving settlement...");
+
+    const settlementResult = await api(
+      "getSettlements",
+      {
+        groupId: state.currentGroup.group.groupId
+      },
+      "GET"
+    );
+
+    const settlements =
+      settlementResult.settlements ||
+      settlementResult.data?.settlements ||
+      [];
+
+    const settlement =
+      settlements.find(
+        item => item.settlementId === settlementId
+      );
+
+    if (!settlement) {
+      toast("Settlement not found.");
+      return;
+    }
+
+    await api("markSettlementPaid", {
+      settlementId: settlement.settlementId,
+      groupId: settlement.groupId,
+      fromUserId: settlement.fromUserId,
+      toUserId: settlement.toUserId,
+      amount: settlement.amount
+    });
+
+    toast("Settlement marked as paid.");
+
+    await openSettlementsModal();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   MEMBERS
+   ========================================================= */
+
+function openMembersModal() {
+
+  const members = state.currentGroup.members;
+
+  openModal(`
+
+    <h2>Members</h2>
+
+    <div class="card">
+
+      ${members.map(member => `
+
+        <div class="member-row">
+
+          <div>
+
+            <div class="user-name">
+              @${escapeHtml(member.username)}
+            </div>
+
+            <div class="user-handle">
+              ${escapeHtml(member.displayName)}
+            </div>
+
+          </div>
+
+          <small class="muted">
+            ${escapeHtml(member.role)}
+          </small>
+
+        </div>
+
+      `).join("")}
+
+    </div>
+
+    <div class="section-title">
+      Add member
+    </div>
+
+    <form id="inviteMemberForm">
+
+      <label>
+        Username
+
+        <div class="username-input">
+
+          <span>@</span>
+
+          <input
+            id="inviteUsername"
+            placeholder="username"
+            required
+          >
+
+        </div>
+
+      </label>
+
+      <button
+        class="primary-button"
+        type="submit"
+      >
+        Send Invitation
+      </button>
+
+    </form>
+
+  `);
+
+  $("#inviteMemberForm").addEventListener(
+    "submit",
+    inviteMember
+  );
+}
+
+
+async function inviteMember(event) {
+
+  event.preventDefault();
+
+  const username =
+    $("#inviteUsername").value.trim();
+
+  try {
+
+    setLoading(true, "Sending invitation...");
+
+    await api("inviteMember", {
+      groupId: state.currentGroup.group.groupId,
+      username
+    });
+
+    closeModal();
+
+    toast("Invitation sent.");
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   INVITATIONS
+   ========================================================= */
+
+async function loadInvitations() {
+
+  $("#pageTitle").textContent = "Invites";
+
+  const result =
+    await api("getInvitations", {}, "GET");
+
+  state.invitations =
+    result.data.invitations || [];
+
+  $("#content").innerHTML = `
+
+    ${
+      state.invitations.length
+      ? state.invitations.map(renderInvitation).join("")
+      : `
+        <div class="card empty">
+          You have no pending invitations.
+        </div>
+      `
+    }
+
+  `;
+}
+
+
+function renderInvitation(invitation) {
+
+  const status =
+    String(invitation.status || "").toUpperCase();
+
+  const actions =
+    status === "PENDING"
+      ? `
+        <div class="action-row">
+
+          <button
+            class="action-button green-button"
+            onclick="respondInvitation(
+              '${escapeHtml(invitation.invitationId)}',
+              'accept'
+            )"
+          >
+            Accept
+          </button>
+
+          <button
+            class="action-button red-button"
+            onclick="respondInvitation(
+              '${escapeHtml(invitation.invitationId)}',
+              'decline'
+            )"
+          >
+            Decline
+          </button>
+
+        </div>
+      `
+      : `
+        <div class="invitation-status ${status === "ACCEPTED" ? "accepted" : "declined"}">
+          ${
+            status === "ACCEPTED"
+              ? "Invitation Accepted"
+              : "Invitation Declined"
+          }
+        </div>
+      `;
+
+  return `
+
+    <div class="card">
+
+      <div class="card-title">
+        You were invited to join
+        ${escapeHtml(invitation.groupName)}
+      </div>
+
+      <p class="muted">
+        Invited by
+        @${escapeHtml(invitation.invitedByUsername)}
+      </p>
+
+      ${actions}
+
+    </div>
+
+  `;
+}
+
+
+async function respondInvitation(
+  invitationId,
+  action
+) {
+
+  try {
+
+    setLoading(
+      true,
+      action === "accept"
+        ? "Joining group..."
+        : "Declining..."
+    );
+
+    await api(
+      action === "accept"
+        ? "acceptInvitation"
+        : "declineInvitation",
+      {
+        invitationId
+      }
+    );
+
+    await loadInvitations();
+
+    toast(
+      action === "accept"
+        ? "You're now a group member."
+        : "Invitation declined."
+    );
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+async function loadPaymentProviders() {
+
+  const result =
+    await api(
+      "getPaymentProviders",
+      {},
+      "GET"
+    );
+
+  return result.providers || [];
+}
+
+
+async function loadPaymentDetails() {
+
+  const result =
+    await api(
+      "getPaymentDetails",
+      {},
+      "GET"
+    );
+
+  return result.paymentDetails || [];
+}
+
+
+async function renderProfile() {
+
+  $("#pageTitle").textContent = "Profile";
+
+  $("#content").innerHTML = `
+
+    <div class="card">
+
+      <div class="card-title">
+        @${escapeHtml(state.user.username)}
+      </div>
+
+      <p class="muted">
+        ${escapeHtml(state.user.email)}
+      </p>
+
+      <form id="profileForm">
+
+        <label>
+          Display name
+
+          <input
+            id="profileDisplayName"
+            value="${escapeHtml(state.user.displayName)}"
+            maxlength="50"
+            required
+          >
+
+        </label>
+
+        <button
+          class="primary-button"
+          type="submit"
+        >
+          Save Changes
+        </button>
+
+      </form>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="card-title">
+        Change password
+      </div>
+
+      <br>
+
+      <form id="passwordForm">
+
+        <label>
+          Current password
+
+          <input
+            id="currentPassword"
+            type="password"
+            required
+          >
+
+        </label>
+
+        <label>
+          New password
+
+          <input
+            id="newPassword"
+            type="password"
+            minlength="8"
+            required
+          >
+
+        </label>
+
+        <label>
+          Confirm new password
+
+          <input
+            id="confirmNewPassword"
+            type="password"
+            minlength="8"
+            required
+          >
+
+        </label>
+
+        <button
+          class="secondary-button"
+          type="submit"
+        >
+          Change Password
+        </button>
+
+      </form>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="card-title">
+        Payment Details
+      </div>
+
+      <p class="muted">
+        Add payment details so other group members can easily pay you.
+      </p>
+
+      <div id="paymentDetailsList">
+
+        <div class="muted">
+          Loading payment details...
+        </div>
+
+      </div>
+
+      <button
+        class="primary-button"
+        type="button"
+        id="addPaymentDetailsButton"
+        style="margin-top:16px"
+      >
+        + Add Payment Details
+      </button>
+
+    </div>
+
+
+    <div class="card">
+
+      <button
+        class="danger-button"
+        onclick="logout()"
+      >
+        Log Out
+      </button>
+
+    </div>
+
+  `;
+
+
+  $("#profileForm").addEventListener(
+    "submit",
+    updateProfile
+  );
+
+
+  $("#passwordForm").addEventListener(
+    "submit",
+    changePassword
+  );
+
+
+  $("#addPaymentDetailsButton").addEventListener(
+    "click",
+    openPaymentDetailsForm
+  );
+
+
+  await renderSavedPaymentDetails();
+
+}
+
+function openPaymentDetailsForm() {
+
+  loadPaymentProviders()
+    .then(providers => {
+
+      const options = providers
+        .map(provider => `
+          <option
+            value="${escapeHtml(provider.providerName)}"
+          >
+            ${escapeHtml(provider.providerName)}
+          </option>
+        `)
+        .join("");
+
+      openModal(`
+
+        <h2>Payment Details</h2>
+
+        <p class="muted">
+          Add a payment option so other group members
+          can easily pay you.
+        </p>
+
+        <form id="paymentDetailsForm">
+
+          <label>
+            Payment Option
+
+            <select
+              id="paymentOption"
+              required
+            >
+              <option value="">
+                Select payment option
+              </option>
+
+              ${options}
+
+            </select>
+
+          </label>
+
+
+          <div id="paymentAccountFields">
+
+            <label>
+              Account Number / Mobile Number
+
+              <input
+                id="paymentAccountNumber"
+                type="text"
+                autocomplete="off"
+              >
+
+            </label>
+
+
+            <label>
+              Account Name
+
+              <input
+                id="paymentAccountName"
+                type="text"
+                maxlength="100"
+                autocomplete="off"
+              >
+
+            </label>
+
+
+            <label id="paymentQrGroup">
+
+              QR Code
+
+              <input
+                id="paymentQrFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+              >
+
+              <div class="muted">
+                Optional. Upload your payment QR code.
+              </div>
+
+            </label>
+
+          </div>
+
+
+          <label
+            style="
+              display:flex;
+              align-items:center;
+              gap:8px;
+              margin-top:12px;
+            "
+          >
+
+            <input
+              id="paymentIsPreferred"
+              type="checkbox"
+              style="width:auto"
+            >
+
+            <span>
+              Set as preferred payment option
+            </span>
+
+          </label>
+
+
+          <button
+            class="primary-button"
+            type="submit"
+            style="margin-top:16px"
+          >
+            Save Payment Details
+          </button>
+
+        </form>
+
+      `);
+
+
+      $("#paymentOption")
+        .addEventListener(
+          "change",
+          updatePaymentOptionFields
+        );
+
+
+      $("#paymentDetailsForm")
+        .addEventListener(
+          "submit",
+          savePaymentDetails
+        );
+
+      updatePaymentOptionFields();
+
+    })
+    .catch(error => {
+
+      toast(error.message);
+
+    })
+    .finally(() => {
+
+      setLoading(false);
+
+    });
+
+}
+
+function updatePaymentOptionFields() {
+
+  const paymentOption =
+    $("#paymentOption").value;
+
+  const fields =
+    $("#paymentAccountFields");
+
+  const qrGroup =
+    $("#paymentQrGroup");
+
+  const accountNumber =
+    $("#paymentAccountNumber");
+
+  const accountName =
+    $("#paymentAccountName");
+
+
+  const isCash =
+    paymentOption === "Cash";
+
+
+  fields.classList.toggle(
+    "hidden",
+    isCash
+  );
+
+
+  if (qrGroup) {
+
+    qrGroup.classList.toggle(
+      "hidden",
+      isCash
+    );
+
+  }
+
+
+  accountNumber.required =
+    !isCash;
+
+  accountName.required =
+    !isCash;
+
+
+  if (isCash) {
+
+    accountNumber.value = "";
+    accountName.value = "";
+
+    const qrFile =
+      $("#paymentQrFile");
+
+    if (qrFile) {
+      qrFile.value = "";
+    }
+
+  }
+
+}
+
+async function renderSavedPaymentDetails() {
+
+  const container =
+    $("#paymentDetailsList");
+
+  if (!container) {
+    return;
+  }
+
+
+  try {
+
+    const details =
+      await loadPaymentDetails();
+
+
+    if (!details.length) {
+
+      container.innerHTML = `
+        <div class="muted">
+          No payment details added yet.
+        </div>
+      `;
+
+      return;
+    }
+
+
+    container.innerHTML =
+      details
+        .map(detail => `
+
+          <div
+            class="card"
+            style="margin-top:12px"
+          >
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                gap:12px;
+                align-items:flex-start;
+              "
+            >
+
+              <div>
+
+                <div class="card-title">
+                  ${escapeHtml(detail.paymentOption)}
+                </div>
+
+                ${
+                  detail.paymentOption === "Cash"
+                    ? `
+                      <p class="muted">
+                        Cash payment
+                      </p>
+                    `
+                    : `
+                      <p class="muted">
+                        ${escapeHtml(detail.accountName)}
+                      </p>
+
+                      <p class="muted">
+                        ${escapeHtml(detail.accountNumber)}
+                      </p>
+                    `
+                }
+
+                ${
+                  detail.qrFileUrl
+                    ? `
+                      <div
+                        style="
+                          margin-top:12px;
+                          display:flex;
+                          flex-direction:column;
+                          align-items:flex-start;
+                          gap:8px;
+                        "
+                      >
+
+                        <div
+                          class="muted"
+                          style="font-weight:600;"
+                        >
+                          Payment QR Code
+                        </div>
+
+                        <a
+                          href="${escapeHtml(detail.qrFileUrl)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style="
+                            display:inline-block;
+                            text-decoration:none;
+                          "
+                        >
+
+                          <img
+                            src="${escapeHtml(detail.qrFileUrl)}"
+                            alt="Payment QR Code"
+                            style="
+                              width:180px;
+                              height:180px;
+                              object-fit:contain;
+                              border:1px solid var(--border-color, #ddd);
+                              border-radius:12px;
+                              background:#fff;
+                              padding:8px;
+                              display:block;
+                            "
+                          >
+
+                        </a>
+
+                        <a
+                          href="${escapeHtml(detail.qrFileUrl)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="secondary-button"
+                          style="text-decoration:none;"
+                        >
+                          View QR Code
+                        </a>
+
+                      </div>
+                    `
+                    : ""
+                }
+
+              </div>
+
+
+              <div
+                style="
+                  display:flex;
+                  flex-direction:column;
+                  align-items:flex-end;
+                  gap:8px;
+                "
+              >
+
+                ${
+                  detail.isPreferred
+                    ? `
+                      <span class="muted">
+                        Preferred
+                      </span>
+                    `
+                    : ""
+                }
+
+                <div
+                  style="
+                    display:flex;
+                    gap:8px;
+                  "
+                >
+
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    onclick="editPaymentDetails('${detail.paymentDetailId}')"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    onclick="deletePaymentDetails('${detail.paymentDetailId}')"
+                  >
+                    Delete
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        `)
+        .join("");
+
+
+  } catch (error) {
+
+    container.innerHTML = `
+      <div class="muted">
+        Unable to load payment details.
+      </div>
+    `;
+
+  }
+
+}
+
+async function editPaymentDetails(paymentDetailId) {
+
+  setLoading(true, "Loading payment details...");
+
+  try {
+
+    const details =
+      await loadPaymentDetails();
+
+    const detail =
+      details.find(
+        item =>
+          String(item.paymentDetailId) ===
+          String(paymentDetailId)
+      );
+
+    if (!detail) {
+      toast("Payment details not found.");
+      return;
+    }
+
+
+    const providers =
+      await loadPaymentProviders();
+
+    const options =
+      providers
+        .map(provider => `
+          <option
+            value="${escapeHtml(provider.providerName)}"
+            ${
+              provider.providerName === detail.paymentOption
+                ? "selected"
+                : ""
+            }
+          >
+            ${escapeHtml(provider.providerName)}
+          </option>
+        `)
+        .join("");
+
+
+    openModal(`
+
+      <h2>Edit Payment Details</h2>
+
+      <p class="muted">
+        Update your payment information.
+      </p>
+
+      <form id="paymentDetailsEditForm">
+
+        <label>
+          Payment Option
+
+          <select
+            id="paymentOption"
+            required
+          >
+
+            <option value="">
+              Select payment option
+            </option>
+
+            ${options}
+
+          </select>
+
+        </label>
+
+
+        <div id="paymentAccountFields">
+
+          <label>
+            Account Number / Mobile Number
+
+            <input
+              id="paymentAccountNumber"
+              type="text"
+              autocomplete="off"
+              value="${escapeHtml(detail.accountNumber || "")}"
+            >
+
+          </label>
+
+
+          <label>
+            Account Name
+
+            <input
+              id="paymentAccountName"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              value="${escapeHtml(detail.accountName || "")}"
+            >
+
+          </label>
+
+
+          <label id="paymentQrGroup">
+
+            QR Code
+
+            <input
+              id="paymentQrFile"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            >
+
+            <div class="muted">
+              Optional. Upload a new QR code to replace the current one.
+            </div>
+
+          </label>
+
+        </div>
+
+
+        <label
+          style="
+            display:flex;
+            align-items:center;
+            gap:8px;
+            margin-top:12px;
+          "
+        >
+
+          <input
+            id="paymentIsPreferred"
+            type="checkbox"
+            style="width:auto"
+            ${detail.isPreferred ? "checked" : ""}
+          >
+
+          <span>
+            Set as preferred payment option
+          </span>
+
+        </label>
+
+
+        <button
+          class="primary-button"
+          type="submit"
+          style="margin-top:16px"
+        >
+          Update Payment Details
+        </button>
+
+      </form>
+
+    `);
+
+
+    $("#paymentOption")
+      .addEventListener(
+        "change",
+        updatePaymentOptionFields
+      );
+
+
+    $("#paymentDetailsEditForm")
+      .addEventListener(
+        "submit",
+        event =>
+          updatePaymentDetails(
+            event,
+            paymentDetailId
+          )
+      );
+
+
+    updatePaymentOptionFields();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+  }
+
+}
+
+
+async function updatePaymentDetails(event, paymentDetailId) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Updating payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult=await api("uploadPaymentProof",{fileName:qr.fileName,mimeType:qr.mimeType,base64Data:qr.base64Data}); qrFileUrl=uploadResult.fileUrl||uploadResult.data?.fileUrl||""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file URL was returned.");} const payload={paymentDetailId,paymentOption,accountNumber,accountName,isPreferred}; if(qrFileUrl)payload.qrFileUrl=qrFileUrl; await api("updatePaymentDetails",payload); closeModal(); await renderSavedPaymentDetails(); toast("Payment details updated.");}catch(error){console.error("UPDATE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
+
+async function deletePaymentDetails(
+  paymentDetailId
+) {
+
+  openModal(`
+
+    <div class="modal-confirmation">
+
+      <h2>Delete Payment Method?</h2>
+
+      <p class="muted">
+        This payment method will be removed from
+        your active payment options.
+      </p>
+
+      <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+          margin-top:20px;
+        "
+      >
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="closeModal()"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          onclick="confirmDeletePaymentDetails('${paymentDetailId}')"
+        >
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+
+  `);
+
+}
+
+
+async function confirmDeletePaymentDetails(
+  paymentDetailId
+) {
+
+  try {
+
+    setLoading(
+      true,
+      "Deleting payment details..."
+    );
+
+    await api(
+      "deletePaymentDetails",
+      {
+        paymentDetailId
+      }
+    );
+
+    closeModal();
+
+    await renderSavedPaymentDetails();
+
+    toast(
+      "Payment method deleted."
+    );
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+async function savePaymentDetails(event) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Saving payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult=await api("uploadPaymentProof",{fileName:qr.fileName,mimeType:qr.mimeType,base64Data:qr.base64Data}); qrFileUrl=uploadResult.fileUrl||uploadResult.data?.fileUrl||""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file URL was returned.");} await api("savePaymentDetails",{paymentOption,accountNumber,accountName,qrFileUrl,isPreferred}); closeModal(); await renderSavedPaymentDetails(); toast("Payment details saved.");}catch(error){console.error("SAVE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
+
+async function updateProfile(event) {
+
+  event.preventDefault();
+
+  const displayName =
+    $("#profileDisplayName").value.trim();
+
+  try {
+
+    setLoading(true, "Saving...");
+
+    const result = await api(
+      "updateProfile",
+      { displayName }
+    );
+
+    state.user = result.user;
+
+    toast("Profile updated.");
+
+    renderProfile();
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+async function changePassword(event) {
+
+  event.preventDefault();
+
+  const currentPassword =
+    $("#currentPassword").value;
+
+  const newPassword =
+    $("#newPassword").value;
+
+  const confirmPassword =
+    $("#confirmNewPassword").value;
+
+  if (newPassword !== confirmPassword) {
+    toast("Passwords do not match.");
+    return;
+  }
+
+  try {
+
+    setLoading(true, "Changing password...");
+
+    await api("changePassword", {
+      currentPassword,
+      newPassword
+    });
+
+    $("#passwordForm").reset();
+
+    toast("Password changed.");
+
+  } catch (error) {
+
+    toast(error.message);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+}
+
+
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+
+function showAuth() {
+
+  $("#authView").classList.remove("hidden");
+  $("#mainApp").classList.add("hidden");
+
+}
+
+
+function showApp() {
+
+  $("#authView").classList.add("hidden");
+  $("#mainApp").classList.remove("hidden");
+
+}
+
+
+function openModal(html) {
+
+  $("#modalContent").innerHTML = html;
+
+  $("#modal").classList.remove("hidden");
+
+}
+
+
+function closeModal() {
+
+  $("#modal").classList.add("hidden");
+
+  $("#modalContent").innerHTML = "";
+
+}
+
+
+function setLoading(show, text = "Loading...") {
+
+  $("#loadingText").textContent = text;
+
+  $("#loading").classList.toggle(
+    "hidden",
+    !show
+  );
+
+}
+
+
+let toastTimer;
+
+function toast(message) {
+
+  const element = $("#toast");
+
+  element.textContent = message;
+
+  element.classList.add("show");
+
+  clearTimeout(toastTimer);
+
+  toastTimer = setTimeout(() => {
+    element.classList.remove("show");
+  }, 2800);
+
+}
+
+
+function formatMoney(value) {
+
+  return new Intl.NumberFormat(
+    "en-PH",
+    {
+      style: "currency",
+      currency: "PHP",
+      maximumFractionDigits: 2
+    }
+  ).format(Number(value || 0));
+
+}
+
+
+function formatBalance(value) {
+
+  const number = Number(value || 0);
+
+  if (Math.abs(number) < 0.005) {
+    return "₱0.00";
+  }
+
+  return number > 0
+    ? `+${formatMoney(number)}`
+    : `-${formatMoney(Math.abs(number))}`;
+
+}
+
+
+function balanceClass(value) {
+
+  const number = Number(value || 0);
+
+  if (number > 0.005) return "balance-positive";
+  if (number < -0.005) return "balance-negative";
+
+  return "";
+}
+
+
+function formatDate(value) {
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString(
+    "en-PH",
+    {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }
+  );
+
+}
+
+
+function formatTransactionDate(value) {
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }
+  );
+
+}
+
+
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+}
+
+/* =========================================================
+   GLOBAL ACTION HANDLERS
+   Make dynamically-rendered onclick buttons callable.
+   ========================================================= */
+
+window.openAddExpenseModal = openAddExpenseModal;
+window.openPayables = openPayables;
+window.openReceivables = openReceivables;
+window.openMembersModal = openMembersModal;
+window.openSettlePayment = openSettlePayment;
+window.openReceivableDetails = openReceivableDetails;
+window.openExpenseDetails = openExpenseDetails;
+window.deleteExpense = deleteExpense;
+window.reviewPayment = reviewPayment;
+window.openRejectPayment = openRejectPayment;
+window.processRejectPayment = processRejectPayment;
+window.confirmPaymentSubmission = confirmPaymentSubmission;
+window.confirmSubmittedPayment = confirmSubmittedPayment;
+window.processConfirmPayment = processConfirmPayment;
+window.openPaymentTransaction = openPaymentTransaction;
+function viewPaymentProof(proofFileUrl) {
+
+  const url =
+    String(proofFileUrl || "").trim();
+
+  if (!url) {
+    toast("Payment proof is not available.");
+    return;
+  }
+
+  try {
+
+    const decodedUrl =
+      decodeURIComponent(url);
+
+    window.open(
+      decodedUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "VIEW PAYMENT PROOF ERROR:",
+      error
+    );
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+}
+
+
+window.viewPaymentProof = viewPaymentProof;
+window.markSettlementPaid = markSettlementPaid;
