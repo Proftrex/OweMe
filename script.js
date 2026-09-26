@@ -7795,7 +7795,7 @@ async function submitSettlementPayment(event, settlement) {
     );
 
 
-    const { data: submission, error: submissionError } =
+    const { error: submissionError } =
       await supabaseClient
         .from("payment_submissions")
         .insert({
@@ -7812,50 +7812,20 @@ async function submitSettlementPayment(event, settlement) {
           payment_detail_id: paymentDetailId,
           amount_due: Number(settlement.amount),
           amount_paid: amountPaid,
-          proof_file_url: proofFileUrl,
+          proof_file_url: proofFileUrl || null,
           notes: notes || "",
           status: "SUBMITTED"
-        })
-        .select()
-        .single();
+        });
 
     if (submissionError) {
       throw submissionError;
     }
 
     /*
-     * Keep a settlement record so the payment is tied
-     * to the current debtor/creditor pair.
+     * The settlement returned by the balance calculation is
+     * already the source record for this payment. Do not create
+     * a second settlement row here.
      */
-    const { data: existingSettlement, error: settlementLookupError } =
-      await supabaseClient
-        .from("settlements")
-        .select("id")
-        .eq("group_id", settlement.groupId)
-        .eq("from_user_id", state.user.userId)
-        .eq("to_user_id", settlement.toUserId)
-        .maybeSingle();
-
-    if (settlementLookupError) {
-      throw settlementLookupError;
-    }
-
-    if (!existingSettlement) {
-      const { error: settlementInsertError } =
-        await supabaseClient
-          .from("settlements")
-          .insert({
-            group_id: settlement.groupId,
-            from_user_id: state.user.userId,
-            to_user_id: settlement.toUserId,
-            amount: Number(settlement.amount),
-            status: "PENDING"
-          });
-
-      if (settlementInsertError) {
-        throw settlementInsertError;
-      }
-    }
 
 
     if (
