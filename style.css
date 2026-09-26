@@ -2756,3 +2756,35 @@ body {
     box-sizing: border-box;
   }
 }
+
+
+/* =========================================
+   MOBILE MODAL — TRUE FLOATING CARD
+========================================= */
+
+@media (max-width: 700px) {
+  .modal {
+    align-items: center !important;
+    justify-content: center !important;
+    padding:
+      calc(env(safe-area-inset-top) + 24px)
+      20px
+      calc(env(safe-area-inset-bottom) + 24px)
+      20px !important;
+    box-sizing: border-box;
+  }
+
+  .modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(
+      100dvh
+      - env(safe-area-inset-top)
+      - env(safe-area-inset-bottom)
+      - 48px
+    ) !important;
+    margin: 0 !important;
+    border-radius: 28px !important;
+    box-shadow: 0 24px 60px rgba(38, 68, 58, 0.28) !important;
+  }
+}
