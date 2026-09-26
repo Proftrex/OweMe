@@ -1790,6 +1790,12 @@ input + button {
   display: none;
 }
 
+/* Keep transaction dates on one line on mobile */
+#transactionsTableBody tr td:first-child {
+  white-space: nowrap;
+  min-width: 105px;
+}
+
 /* =========================
    COMPACT ACTION BUTTONS
 ========================= */
