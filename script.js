@@ -3140,6 +3140,25 @@ async function openExpenseDetails(expenseId) {
         @${escapeHtml(expense.paidByUsername || "Unknown")}
       </div>
 
+      ${
+        expense.receiptFileUrl
+          ? `
+            <div class="muted" style="margin-top:18px;">
+              Receipt
+            </div>
+
+            <button
+              type="button"
+              class="secondary-button"
+              id="viewExpenseReceiptButton"
+              style="margin-top:8px;"
+            >
+              📎 View Receipt
+            </button>
+          `
+          : ""
+      }
+
     </div>
 
     <h3 style="margin-top:20px;">Participants</h3>
