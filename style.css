@@ -3007,3 +3007,154 @@ body > #modal .modal-backdrop {
   font-size: 14px;
 }
 
+
+/* Profile account details */
+.profile-account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.profile-account-details strong {
+  font-weight: 800;
+}
+
+.profile-account-card > button {
+  margin-top: 8px;
+}
+
+
+/* Saved payment details */
+.payment-detail-card {
+  margin-top: 12px;
+}
+
+.payment-detail-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.payment-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-detail-row {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  line-height: 1.4;
+}
+
+.payment-detail-row strong {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.payment-detail-row span {
+  word-break: break-word;
+}
+
+.payment-detail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.payment-detail-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.payment-detail-action-buttons button {
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+
+.payment-detail-qr {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.payment-detail-qr-label {
+  font-weight: 600;
+}
+
+.payment-detail-qr-image {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  display: block;
+}
+
+.payment-detail-qr-button {
+  width: auto !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 600px) {
+
+  .payment-detail-content {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .payment-detail-actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .payment-detail-action-buttons {
+    width: 100%;
+  }
+
+  .payment-detail-action-buttons button {
+    flex: 1;
+  }
+
+}
+
+
+.profile-account-card > button {
+  align-self: flex-start !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+
+/* Add breathing room before modal form buttons */
+#profileForm button[type="submit"],
+#passwordForm button[type="submit"] {
+  margin-top: 16px !important;
+}
+
+
+/* Delete confirmation modal */
+#modalContent .danger-button {
+  background: #f8dede !important;
+  color: #d96b6b !important;
+}
+
+
+/* Delete confirmation modal */
+#modalContent .danger-button {
+  background: #e57373 !important;
+  color: #ffffff !important;
+}
+

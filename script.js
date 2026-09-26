@@ -8802,188 +8802,151 @@ async function renderProfile() {
 
     $("#content").innerHTML = `
 
-    <div class="card">
+      <div class="card profile-account-card">
 
-      <div class="card-title">
-        @${escapeHtml(state.user.username)}
-      </div>
+        <div class="card-title">
+          My Account
+        </div>
 
-      <p class="muted">
-        ${escapeHtml(state.user.email)}
-      </p>
+        <div class="profile-account-details">
 
-      <form id="profileForm">
+          <div>
+            <strong>Username:</strong>
+            @${escapeHtml(state.user.username)}
+          </div>
 
-        <label>
-          Display name
+          <div>
+            <strong>Email:</strong>
+            ${escapeHtml(state.user.email)}
+          </div>
 
-          <input
-            id="profileDisplayName"
-            value="${escapeHtml(state.user.displayName)}"
-            maxlength="50"
-            required
-          >
+          <div>
+            <strong>Display Name:</strong>
+            ${escapeHtml(state.user.displayName)}
+          </div>
 
-        </label>
-
-        <button
-          class="primary-button"
-          type="submit"
-        >
-          Save Changes
-        </button>
-
-      </form>
-
-    </div>
-
-
-    <div class="card">
-
-      <div class="card-title">
-        Change password
-      </div>
-
-      <br>
-
-      <form id="passwordForm">
-
-        <label>
-          Current password
-
-          <input
-            id="currentPassword"
-            type="password"
-            required
-          >
-
-        </label>
-
-        <label>
-          New password
-
-          <input
-            id="newPassword"
-            type="password"
-            minlength="8"
-            required
-          >
-
-        </label>
-
-        <label>
-          Confirm new password
-
-          <input
-            id="confirmNewPassword"
-            type="password"
-            minlength="8"
-            required
-          >
-
-        </label>
+        </div>
 
         <button
           class="secondary-button"
-          type="submit"
+          type="button"
+          id="editDisplayNameButton"
         >
-          Change Password
+          Edit Display Name →
         </button>
 
-      </form>
+        <button
+          class="secondary-button"
+          type="button"
+          id="changePasswordButton"
+        >
+          Change Password →
+        </button>
 
-    </div>
-
-
-    <div class="card">
-
-      <div class="card-title">
-        Payment Details
       </div>
 
-      <p class="muted">
-        Add payment details so other group members can easily pay you.
-      </p>
 
-      <div id="paymentDetailsList">
+      <div class="card">
 
-        <div class="muted">
-          Loading payment details...
+        <div class="card-title">
+          Payment Details
         </div>
 
+        <p class="muted">
+          Add payment details so other group members can easily pay you.
+        </p>
+
+        <div id="paymentDetailsList">
+
+          <div class="muted">
+            Loading payment details...
+          </div>
+
+        </div>
+
+        <button
+          class="primary-button"
+          type="button"
+          id="addPaymentDetailsButton"
+          style="margin-top:16px"
+        >
+          + Add Payment Details
+        </button>
+
       </div>
 
-      <button
-        class="primary-button"
-        type="button"
-        id="addPaymentDetailsButton"
-        style="margin-top:16px"
-      >
-        + Add Payment Details
-      </button>
 
-    </div>
+      <div class="card">
 
+        <button
+          class="danger-button"
+          onclick="logout()"
+        >
+          Log Out
+        </button>
 
-    <div class="card">
+      </div>
 
-      <button
-        class="danger-button"
-        onclick="logout()"
-      >
-        Log Out
-      </button>
-
-    </div>
-
-  `;
+    `;
 
 
-  $("#profileForm").addEventListener(
-    "submit",
-    updateProfile
-  );
+    $("#editDisplayNameButton").addEventListener(
+      "click",
+      openEditDisplayNameModal
+    );
 
 
-  $("#passwordForm").addEventListener(
-    "submit",
-    changePassword
-  );
+    $("#changePasswordButton").addEventListener(
+      "click",
+      openChangePasswordModal
+    );
 
 
-  $("#addPaymentDetailsButton").addEventListener(
-    "click",
-    openPaymentDetailsForm
-  );
+    $("#addPaymentDetailsButton").addEventListener(
+      "click",
+      openPaymentDetailsForm
+    );
 
 
-  try {
-    await renderSavedPaymentDetails();
+    try {
+
+      await renderSavedPaymentDetails();
+
+    } catch (error) {
+
+      console.error(
+        "LOAD PAYMENT DETAILS ERROR:",
+        error
+      );
+
+      const container =
+        $("#paymentDetailsList");
+
+      if (container) {
+
+        container.innerHTML = `
+          <div class="muted">
+            No payment details added yet.
+          </div>
+        `;
+
+      }
+
+    }
+
   } catch (error) {
+
     console.error(
-      "LOAD PAYMENT DETAILS ERROR:",
+      "PROFILE RENDER ERROR:",
       error
     );
 
-    const container =
-      $("#paymentDetailsList");
-
-    if (container) {
-      container.innerHTML = `
-        <div class="muted">
-          No payment details added yet.
-        </div>
-      `;
-    }
-  }
-
-  } catch (error) {
-
-    console.error("PROFILE RENDER ERROR:", error);
-
     $("#content").innerHTML = `
       <div class="card">
-        <div class="card-title">Profile Error</div>
+        <div class="card-title">
+          Profile Error
+        </div>
+
         <p class="muted">
           ${escapeHtml(error.message || String(error))}
         </p>
@@ -8991,7 +8954,111 @@ async function renderProfile() {
     `;
 
     throw error;
+
   }
+
+}
+
+
+function openEditDisplayNameModal() {
+
+  openModal(`
+
+    <h2>Edit Display Name</h2>
+
+    <form id="profileForm">
+
+      <label>
+        Display Name
+
+        <input
+          id="profileDisplayName"
+          value="${escapeHtml(state.user.displayName)}"
+          maxlength="50"
+          required
+        >
+
+      </label>
+
+      <button
+        class="primary-button"
+        type="submit"
+      >
+        Save Changes
+      </button>
+
+    </form>
+
+  `);
+
+
+  $("#profileForm").addEventListener(
+    "submit",
+    updateProfile
+  );
+
+}
+
+
+function openChangePasswordModal() {
+
+  openModal(`
+
+    <h2>Change Password</h2>
+
+    <form id="passwordForm">
+
+      <label>
+        Current password
+
+        <input
+          id="currentPassword"
+          type="password"
+          required
+        >
+
+      </label>
+
+      <label>
+        New password
+
+        <input
+          id="newPassword"
+          type="password"
+          minlength="8"
+          required
+        >
+
+      </label>
+
+      <label>
+        Confirm new password
+
+        <input
+          id="confirmNewPassword"
+          type="password"
+          minlength="8"
+          required
+        >
+
+      </label>
+
+      <button
+        class="primary-button"
+        type="submit"
+      >
+        Change Password
+      </button>
+
+    </form>
+
+  `);
+
+
+  $("#passwordForm").addEventListener(
+    "submit",
+    changePassword
+  );
 
 }
 
@@ -9265,65 +9332,51 @@ async function renderSavedPaymentDetails() {
       }))
     );
 
+
     container.innerHTML =
       detailsWithQrUrls
         .map(detail => `
 
           <div
-            class="card"
-            style="margin-top:12px"
+            class="card payment-detail-card"
           >
 
-            <div
-              style="
-                display:flex;
-                justify-content:space-between;
-                gap:12px;
-                align-items:flex-start;
-              "
-            >
+            <div class="payment-detail-content">
 
-              <div>
+              <div class="payment-detail-info">
 
-                <div class="card-title">
-                  ${escapeHtml(detail.paymentOption)}
+                <div class="payment-detail-row">
+                  <strong>Payment Method:</strong>
+                  <span>${escapeHtml(detail.paymentOption)}</span>
                 </div>
 
                 ${
                   detail.paymentOption === "Cash"
                     ? `
-                      <p class="muted">
-                        Cash payment
-                      </p>
+                      <div class="payment-detail-row">
+                        <strong>Account Name:</strong>
+                        <span>Cash payment</span>
+                      </div>
                     `
                     : `
-                      <p class="muted">
-                        ${escapeHtml(detail.accountName)}
-                      </p>
+                      <div class="payment-detail-row">
+                        <strong>Account Name:</strong>
+                        <span>${escapeHtml(detail.accountName)}</span>
+                      </div>
 
-                      <p class="muted">
-                        ${escapeHtml(detail.accountNumber)}
-                      </p>
+                      <div class="payment-detail-row">
+                        <strong>Account Number:</strong>
+                        <span>${escapeHtml(detail.accountNumber)}</span>
+                      </div>
                     `
                 }
 
                 ${
                   detail.qrDisplayUrl
                     ? `
-                      <div
-                        style="
-                          margin-top:12px;
-                          display:flex;
-                          flex-direction:column;
-                          align-items:flex-start;
-                          gap:8px;
-                        "
-                      >
+                      <div class="payment-detail-qr">
 
-                        <div
-                          class="muted"
-                          style="font-weight:600;"
-                        >
+                        <div class="muted payment-detail-qr-label">
                           Payment QR Code
                         </div>
 
@@ -9331,25 +9384,12 @@ async function renderSavedPaymentDetails() {
                           href="${escapeHtml(detail.qrDisplayUrl)}"
                           target="_blank"
                           rel="noopener noreferrer"
-                          style="
-                            display:inline-block;
-                            text-decoration:none;
-                          "
                         >
 
                           <img
                             src="${escapeHtml(detail.qrDisplayUrl)}"
                             alt="Payment QR Code"
-                            style="
-                              width:180px;
-                              height:180px;
-                              object-fit:contain;
-                              border:1px solid var(--border-color, #ddd);
-                              border-radius:12px;
-                              background:#fff;
-                              padding:8px;
-                              display:block;
-                            "
+                            class="payment-detail-qr-image"
                           >
 
                         </a>
@@ -9358,7 +9398,7 @@ async function renderSavedPaymentDetails() {
                           href="${escapeHtml(detail.qrDisplayUrl)}"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="secondary-button"
+                          class="secondary-button payment-detail-qr-button"
                           style="text-decoration:none;"
                         >
                           View QR Code
@@ -9372,14 +9412,7 @@ async function renderSavedPaymentDetails() {
               </div>
 
 
-              <div
-                style="
-                  display:flex;
-                  flex-direction:column;
-                  align-items:flex-end;
-                  gap:8px;
-                "
-              >
+              <div class="payment-detail-actions">
 
                 ${
                   detail.isPreferred
@@ -9391,12 +9424,7 @@ async function renderSavedPaymentDetails() {
                     : ""
                 }
 
-                <div
-                  style="
-                    display:flex;
-                    gap:8px;
-                  "
-                >
+                <div class="payment-detail-action-buttons">
 
                   ${
                     detail.qrFileUrl
@@ -9740,7 +9768,7 @@ async function deletePaymentDetails(
 
         <button
           type="button"
-          class="primary-button"
+          class="danger-button"
           onclick="confirmDeletePaymentDetails('${paymentDetailId}')"
         >
           Delete
