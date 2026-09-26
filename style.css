@@ -2944,3 +2944,19 @@ body > #modal .modal-backdrop {
     ) !important;
   }
 }
+
+
+.table-action-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.table-action-buttons .table-action-button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}

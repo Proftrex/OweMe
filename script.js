@@ -132,6 +132,7 @@ async function getBalancesFromSupabase(groupId) {
       .select(`
         id,
         paid_by_user_id,
+        created_by,
         amount,
         expense_participants (
           user_id,
@@ -1760,6 +1761,7 @@ async function loadGroupsData(force = false) {
       .select(`
         id,
         paid_by_user_id,
+        created_by,
         amount,
         expense_participants (
           user_id,
@@ -2596,6 +2598,13 @@ async function openGroup(groupId) {
               payment.recipient_user_id
           );
 
+        if (
+          String(payment.status || "").toUpperCase() ===
+          "CANCELLED"
+        ) {
+          return null;
+        }
+
         return {
 
           transactionId:
@@ -2669,7 +2678,7 @@ async function openGroup(groupId) {
 
         };
 
-      });
+      }).filter(Boolean);
 
     const transactions =
       [
@@ -2955,6 +2964,11 @@ function expenseToTransaction(expense) {
     expenseId:
       expense.expenseId,
 
+    createdBy:
+      expense.createdBy ||
+      expense.created_by ||
+      "",
+
     participants:
       (expense.participants || []).map(participant => ({
         userId:
@@ -3041,16 +3055,38 @@ function renderTransactionRow(transaction) {
 
   if (isExpense) {
 
+    const canDeleteExpense =
+      String(transaction.createdBy || "") ===
+      currentUserId;
+
     actionHtml = `
-      <button
-        type="button"
-        class="table-action-button"
-        onclick="openExpenseDetails('${escapeHtml(
-          transaction.expenseId
-        )}')"
-      >
-        View
-      </button>
+      <div class="table-action-buttons">
+        <button
+          type="button"
+          class="table-action-button"
+          onclick="openExpenseDetails('${escapeHtml(
+            transaction.expenseId
+          )}')"
+        >
+          View
+        </button>
+
+        ${
+          canDeleteExpense
+            ? `
+              <button
+                type="button"
+                class="table-action-button"
+                onclick="deleteExpense('${escapeHtml(
+                  transaction.expenseId
+                )}')"
+              >
+                Delete
+              </button>
+            `
+            : ""
+        }
+      </div>
     `;
 
   } else if (isPayment) {
@@ -3058,7 +3094,38 @@ function renderTransactionRow(transaction) {
     const status =
       String(transaction.status || "").toUpperCase();
 
-    actionHtml =
+    const isPayer =
+      String(transaction.fromUserId || "") ===
+      currentUserId;
+
+    const viewButton = `
+      <button
+        type="button"
+        class="table-action-button"
+        onclick="openPaymentTransaction('${escapeHtml(
+          transaction.paymentSubmissionId
+        )}')"
+      >
+        View
+      </button>
+    `;
+
+    const cancelButton =
+      status === "SUBMITTED" && isPayer
+        ? `
+          <button
+            type="button"
+            class="table-action-button"
+            onclick="cancelPayment('${escapeHtml(
+              transaction.paymentSubmissionId
+            )}')"
+          >
+            Cancel
+          </button>
+        `
+        : "";
+
+    const reviewButton =
       status === "SUBMITTED" &&
       toUserId === currentUserId
         ? `
@@ -3072,17 +3139,17 @@ function renderTransactionRow(transaction) {
             Review
           </button>
         `
-        : `
-          <button
-            type="button"
-            class="table-action-button"
-            onclick="openPaymentTransaction('${escapeHtml(
-              transaction.paymentSubmissionId
-            )}')"
-          >
-            View
-          </button>
-        `;
+        : "";
+
+    actionHtml = `
+      <div class="table-action-buttons">
+        ${
+          reviewButton ||
+          viewButton
+        }
+        ${cancelButton}
+      </div>
+    `;
 
   }
 
@@ -6598,6 +6665,145 @@ async function confirmSubmittedPayment(paymentSubmissionId) {
 
     </div>
   `);
+}
+
+
+
+async function cancelPayment(paymentSubmissionId) {
+
+  openModal(`
+    <div class="modal-confirmation">
+
+      <h2>Cancel Payment?</h2>
+
+      <p class="muted">
+        Are you sure you want to cancel this payment submission?
+      </p>
+
+      <div class="close-group-confirmation-actions">
+
+        <button
+          type="button"
+          class="close-group-cancel-button"
+          onclick="closeModal()"
+        >
+          Keep Payment
+        </button>
+
+        <button
+          type="button"
+          class="close-group-confirm-button"
+          onclick="confirmCancelPayment('${escapeHtml(paymentSubmissionId)}')"
+        >
+          Cancel Payment
+        </button>
+
+      </div>
+
+    </div>
+  `);
+
+}
+
+
+async function confirmCancelPayment(paymentSubmissionId) {
+
+  closeModal();
+
+  setLoading(
+    true,
+    "Cancelling payment..."
+  );
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    const {
+      data: payment,
+      error: paymentError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        payer_user_id,
+        status
+      `)
+      .eq("id", paymentSubmissionId)
+      .single();
+
+    if (paymentError || !payment) {
+      throw new Error("Payment submission not found.");
+    }
+
+    if (
+      String(payment.payer_user_id) !==
+      String(user.id)
+    ) {
+      throw new Error(
+        "Only the person who submitted the payment can cancel it."
+      );
+    }
+
+    if (
+      String(payment.status).toUpperCase() !==
+      "SUBMITTED"
+    ) {
+      throw new Error(
+        "Only pending payments can be cancelled."
+      );
+    }
+
+    const {
+      error: updateError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .update({
+        status: "CANCELLED"
+      })
+      .eq("id", paymentSubmissionId)
+      .eq("payer_user_id", user.id)
+      .eq("status", "SUBMITTED");
+
+    if (updateError) {
+      console.error(
+        "CANCEL PAYMENT UPDATE ERROR:",
+        updateError
+      );
+      throw updateError;
+    }
+
+    toast("Payment cancelled.");
+
+    await refreshCurrentGroup();
+
+  } catch (error) {
+
+    console.error(
+      "CANCEL PAYMENT ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to cancel the payment."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
 }
 
 
