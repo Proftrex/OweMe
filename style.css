@@ -2788,3 +2788,68 @@ body {
     box-shadow: 0 24px 60px rgba(38, 68, 58, 0.28) !important;
   }
 }
+
+
+/* =========================================
+   MODAL FINAL LAYOUT — FLOATING VIEWPORT
+========================================= */
+
+#mainApp > .modal {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2000 !important;
+  overflow: hidden !important;
+}
+
+#mainApp > .modal .modal-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+}
+
+#mainApp > .modal .modal-card {
+  position: relative !important;
+  z-index: 1 !important;
+  width: min(560px, 100%) !important;
+  height: auto !important;
+  max-height: calc(100dvh - 48px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 28px !important;
+  overflow: hidden !important;
+}
+
+@media (max-width: 700px) {
+  #mainApp > .modal {
+    padding:
+      max(24px, env(safe-area-inset-top) + 16px)
+      16px
+      max(24px, env(safe-area-inset-bottom) + 16px)
+      16px !important;
+  }
+
+  #mainApp > .modal .modal-card {
+    width: 100% !important;
+    max-width: 398px !important;
+    max-height: calc(
+      100dvh
+      - env(safe-area-inset-top)
+      - env(safe-area-inset-bottom)
+      - 48px
+    ) !important;
+    border-radius: 28px !important;
+  }
+}
