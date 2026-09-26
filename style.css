@@ -2735,3 +2735,24 @@ body {
     padding-bottom: 12px;
   }
 }
+
+
+/* =========================================
+   MOBILE CARD INSET — BROWSER + PWA
+========================================= */
+
+@media (max-width: 430px) {
+  #mainApp #content .card,
+  #mainApp #content .group-card,
+  #mainApp #content .expense-card,
+  #mainApp #content .summary-card,
+  #mainApp #content .member-row,
+  #mainApp #content .settlement-row,
+  #mainApp #content .invitation-row {
+    width: calc(100% - 16px) !important;
+    max-width: none !important;
+    margin-left: 8px !important;
+    margin-right: 8px !important;
+    box-sizing: border-box;
+  }
+}
