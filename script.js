@@ -5093,9 +5093,38 @@ async function addExpense(event) {
 
 async function deleteExpense(expenseId) {
 
-  if (!confirm("Delete this expense?")) {
-    return;
-  }
+  openModal(`
+    <h2>Delete Expense</h2>
+
+    <p class="muted">
+      Are you sure you want to delete this expense?
+    </p>
+
+    <div
+      class="close-group-confirmation-actions"
+      style="margin-top:20px;"
+    >
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="closeModal()"
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        class="danger-button"
+        onclick="confirmDeleteExpense('${escapeHtml(expenseId)}')"
+      >
+        Delete
+      </button>
+    </div>
+  `);
+}
+
+
+async function confirmDeleteExpense(expenseId) {
 
   try {
 
