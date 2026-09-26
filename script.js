@@ -4041,7 +4041,7 @@ async function createGroup(event) {
 
 function openAddExpenseModal() {
 
-  const members = state.currentGroup.members;
+  const members = state.currentGroup.members || [];
 
   openModal(`
 
@@ -4051,7 +4051,6 @@ function openAddExpenseModal() {
 
       <label>
         Amount
-
         <input
           id="expenseAmount"
           class="amount-input"
@@ -4062,7 +4061,6 @@ function openAddExpenseModal() {
           placeholder="0.00"
           required
         >
-
       </label>
 
       <label>
@@ -4079,47 +4077,77 @@ function openAddExpenseModal() {
       </div>
 
       <div class="card" style="margin-bottom:16px">
-
-        <strong>
-          @${escapeHtml(state.user.username)}
-        </strong>
-
+        <strong>@${escapeHtml(state.user.username)}</strong>
         <div class="muted" style="font-size:12px">
           You are paying for this expense.
         </div>
-
       </div>
 
       <div class="section-title">
-        For
+        <div>
+          <strong>Who should share this?</strong>
+          <div class="muted" style="font-size:12px;margin-top:3px">
+            Select only the members included in this expense.
+          </div>
+        </div>
       </div>
 
       <div class="participant-list">
-
         ${members.map(member => `
-
           <label class="participant-option">
-
             <input
               type="checkbox"
               class="participant-checkbox"
               value="${escapeHtml(member.userId)}"
               checked
             >
-
             <div>
-              <div class="user-name">
-                @${escapeHtml(member.username)}
-              </div>
-
-              <div class="user-handle">
-                ${escapeHtml(member.displayName)}
-              </div>
+              <div class="user-name">@${escapeHtml(member.username)}</div>
+              <div class="user-handle">${escapeHtml(member.displayName)}</div>
             </div>
-
           </label>
-
         `).join("")}
+      </div>
+
+      <div class="expense-split-section">
+
+        <div class="section-title">
+          <div>
+            <strong>How should it be split?</strong>
+            <div class="muted" style="font-size:12px;margin-top:3px">
+              Choose equal shares or set a custom amount for each member.
+            </div>
+          </div>
+        </div>
+
+        <div class="split-mode-toggle">
+          <button
+            type="button"
+            class="split-mode-button active"
+            data-split-mode="EQUAL"
+          >Equal</button>
+
+          <button
+            type="button"
+            class="split-mode-button"
+            data-split-mode="CUSTOM"
+          >Custom</button>
+        </div>
+
+        <input type="hidden" id="expenseSplitMode" value="EQUAL">
+
+        <div id="expenseSplitEditor"></div>
+
+        <div id="expenseSplitSummary" class="expense-split-summary">
+          <div>
+            <span>Assigned</span>
+            <strong id="expenseAssignedAmount">₱0.00</strong>
+          </div>
+          <div>
+            <span>Remaining</span>
+            <strong id="expenseRemainingAmount">₱0.00</strong>
+          </div>
+        </div>
 
       </div>
 
@@ -4135,10 +4163,281 @@ function openAddExpenseModal() {
 
   `);
 
-  $("#addExpenseForm").addEventListener(
-    "submit",
-    addExpense
+  const form = $("#addExpenseForm");
+  const amountInput = $("#expenseAmount");
+  const splitModeInput = $("#expenseSplitMode");
+
+  function getSelectedMembers() {
+    return [...document.querySelectorAll(".participant-checkbox:checked")]
+      .map(input =>
+        members.find(
+          member => String(member.userId) === String(input.value)
+        )
+      )
+      .filter(Boolean);
+  }
+
+  function getExistingCustomValues() {
+    const values = {};
+
+    document.querySelectorAll(".custom-share-input").forEach(input => {
+      values[input.dataset.userId] = input.value;
+    });
+
+    return values;
+  }
+
+  function renderSplitEditor(existingValues = {}) {
+
+    const selectedMembers = getSelectedMembers();
+    const editor = $("#expenseSplitEditor");
+
+    if (!selectedMembers.length) {
+      editor.innerHTML = `
+        <div class="expense-empty-state">
+          Select at least one member to continue.
+        </div>
+      `;
+
+      updateExpenseSplitSummary();
+      return;
+    }
+
+    const amount = Number(amountInput.value || 0);
+    const amountCents = Math.round(amount * 100);
+    const count = selectedMembers.length;
+
+    const base =
+      count
+        ? Math.floor(amountCents / count)
+        : 0;
+
+    const remainder =
+      count
+        ? amountCents % count
+        : 0;
+
+    const isCustom =
+      splitModeInput.value === "CUSTOM";
+
+    editor.innerHTML =
+      selectedMembers.map((member, index) => {
+
+        const equalShare =
+          (base + (index < remainder ? 1 : 0)) / 100;
+
+        const previous =
+          existingValues[String(member.userId)];
+
+        const value =
+          isCustom
+            ? (
+                previous !== undefined
+                  ? previous
+                  : equalShare.toFixed(2)
+              )
+            : equalShare.toFixed(2);
+
+        return `
+          <div class="expense-share-row">
+
+            <div>
+              <div class="user-name">
+                @${escapeHtml(member.username)}
+              </div>
+
+              <div class="user-handle">
+                ${escapeHtml(member.displayName)}
+              </div>
+            </div>
+
+            <div class="expense-share-input-wrap">
+              <span>₱</span>
+
+              <input
+                class="custom-share-input"
+                data-user-id="${escapeHtml(member.userId)}"
+                type="number"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                value="${value}"
+                ${isCustom ? "" : "readonly"}
+              >
+            </div>
+
+          </div>
+        `;
+
+      }).join("");
+
+    updateExpenseSplitSummary();
+  }
+
+  function updateExpenseSplitSummary() {
+
+    const inputs =
+      [...document.querySelectorAll(".custom-share-input")];
+
+    const assigned =
+      inputs.reduce((sum, input) => {
+
+        const value =
+          Number(input.value || 0);
+
+        return sum +
+          (
+            Number.isFinite(value)
+              ? value
+              : 0
+          );
+
+      }, 0);
+
+    const total =
+      Number(amountInput.value || 0);
+
+    const remaining =
+      Math.round(
+        (total - assigned) * 100
+      ) / 100;
+
+    const assignedEl =
+      $("#expenseAssignedAmount");
+
+    const remainingEl =
+      $("#expenseRemainingAmount");
+
+    const summary =
+      $("#expenseSplitSummary");
+
+    if (!assignedEl || !remainingEl || !summary) {
+      return;
+    }
+
+    assignedEl.textContent =
+      formatMoney(assigned);
+
+    remainingEl.textContent =
+      formatMoney(
+        Math.abs(remaining) < 0.005
+          ? 0
+          : remaining
+      );
+
+    const valid =
+      Math.abs(remaining) < 0.005 &&
+      total > 0 &&
+      inputs.length > 0;
+
+    summary.classList.toggle(
+      "valid",
+      valid
+    );
+
+    summary.classList.toggle(
+      "invalid",
+      !valid
+    );
+
+    const submitButton =
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    if (submitButton) {
+      submitButton.disabled =
+        !getSelectedMembers().length ||
+        total <= 0 ||
+        Math.abs(remaining) >= 0.005;
+    }
+  }
+
+  document
+    .querySelectorAll(".split-mode-button")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const previousValues =
+            getExistingCustomValues();
+
+          splitModeInput.value =
+            button.dataset.splitMode;
+
+          document
+            .querySelectorAll(".split-mode-button")
+            .forEach(item => {
+
+              item.classList.toggle(
+                "active",
+                item.dataset.splitMode ===
+                  splitModeInput.value
+              );
+
+            });
+
+          renderSplitEditor(
+            previousValues
+          );
+
+        }
+      );
+
+    });
+
+  document
+    .querySelectorAll(".participant-checkbox")
+    .forEach(input => {
+
+      input.addEventListener(
+        "change",
+        () => {
+
+          const previousValues =
+            getExistingCustomValues();
+
+          renderSplitEditor(
+            previousValues
+          );
+
+        }
+      );
+
+    });
+
+  amountInput.addEventListener(
+    "input",
+    () => {
+
+      const previousValues =
+        getExistingCustomValues();
+
+      renderSplitEditor(
+        previousValues
+      );
+
+    }
   );
+
+  form.addEventListener(
+    "input",
+    event => {
+
+      if (
+        event.target.classList.contains(
+          "custom-share-input"
+        )
+      ) {
+        updateExpenseSplitSummary();
+      }
+
+    }
+  );
+
+  renderSplitEditor();
 }
 
 
@@ -4175,11 +4474,6 @@ async function addExpense(event) {
 
     setLoading(true, "Adding expense...");
 
-
-    /* ================================================
-       1. GET CURRENT USER
-       ================================================ */
-
     const {
       data: {
         user
@@ -4193,14 +4487,8 @@ async function addExpense(event) {
       );
     }
 
-
     const groupId =
       state.currentGroup.group.groupId;
-
-
-    /* ================================================
-       2. VERIFY PARTICIPANTS ARE ACTIVE MEMBERS
-       ================================================ */
 
     const uniqueParticipantIds =
       [...new Set(participantIds)];
@@ -4239,59 +4527,64 @@ async function addExpense(event) {
       );
     }
 
-
-    /* ================================================
-       3. CALCULATE EQUAL SHARES
-       ================================================ */
-
-    /*
-     * Work in cents to avoid floating-point rounding
-     * problems.
-     */
-
-    const amountCents =
-      Math.round(
-        amount * 100
-      );
-
-    const participantCount =
-      uniqueParticipantIds.length;
-
-    const baseShareCents =
-      Math.floor(
-        amountCents /
-        participantCount
-      );
-
-    const remainderCents =
-      amountCents %
-      participantCount;
+    const shareInputs =
+      [...document.querySelectorAll(".custom-share-input")];
 
     const shares =
-      uniqueParticipantIds.map(
-        (userId, index) => {
+      uniqueParticipantIds.map(userId => {
 
-          const shareCents =
-            baseShareCents +
-            (index < remainderCents ? 1 : 0);
+        const input =
+          shareInputs.find(
+            item =>
+              String(item.dataset.userId) ===
+              String(userId)
+          );
 
-          return {
-            user_id: userId,
-            share_amount:
-              Number(
-                (
-                  shareCents / 100
-                ).toFixed(2)
-              )
-          };
+        const shareAmount =
+          Number(input?.value || 0);
 
+        if (
+          !Number.isFinite(shareAmount) ||
+          shareAmount < 0
+        ) {
+          throw new Error(
+            "Each participant must have a valid share amount."
+          );
         }
+
+        return {
+          user_id: userId,
+          share_amount:
+            Math.round(
+              shareAmount * 100
+            ) / 100
+        };
+
+      });
+
+    const totalShares =
+      Math.round(
+        shares.reduce(
+          (sum, share) =>
+            sum + share.share_amount,
+          0
+        ) * 100
+      ) / 100;
+
+    const expenseTotal =
+      Number(amount.toFixed(2));
+
+    if (
+      Math.abs(
+        totalShares - expenseTotal
+      ) > 0.005
+    ) {
+      throw new Error(
+        `Participant shares must equal the expense amount. Remaining: ${formatMoney(
+          expenseTotal - totalShares
+        )}`
       );
-
-
-    /* ================================================
-       4. CREATE EXPENSE
-       ================================================ */
+    }
 
     const {
       data: expense,
@@ -4301,7 +4594,7 @@ async function addExpense(event) {
       .insert({
         group_id: groupId,
         paid_by_user_id: user.id,
-        amount: Number(amount.toFixed(2)),
+        amount: expenseTotal,
         description,
         created_by: user.id,
         status: "ACTIVE"
@@ -4315,11 +4608,6 @@ async function addExpense(event) {
         "Unable to add the expense."
       );
     }
-
-
-    /* ================================================
-       5. CREATE PARTICIPANT SHARES
-       ================================================ */
 
     const participantRows =
       shares.map(share => ({
@@ -4341,12 +4629,6 @@ async function addExpense(event) {
         participantError
       );
 
-      /*
-       * Remove the expense if its participant rows
-       * could not be created, so we don't leave behind
-       * an incomplete expense.
-       */
-
       await supabaseClient
         .from("expenses")
         .delete()
@@ -4357,11 +4639,6 @@ async function addExpense(event) {
         "The expense could not be saved."
       );
     }
-
-
-    /* ================================================
-       6. REFRESH GROUP
-       ================================================ */
 
     closeModal();
 
