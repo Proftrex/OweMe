@@ -9642,9 +9642,17 @@ function showApp() {
 
 function openModal(html) {
 
+  const modal = $("#modal");
+
+  // Keep the modal outside #mainApp so it cannot be trapped
+  // behind the fixed app header or another stacking context.
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
   $("#modalContent").innerHTML = html;
 
-  $("#modal").classList.remove("hidden");
+  modal.classList.remove("hidden");
 
 }
 
