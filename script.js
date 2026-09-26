@@ -4167,6 +4167,8 @@ function openAddExpenseModal() {
   const amountInput = $("#expenseAmount");
   const splitModeInput = $("#expenseSplitMode");
 
+  form.addEventListener("submit", addExpense);
+
   function getSelectedMembers() {
     return [...document.querySelectorAll(".participant-checkbox:checked")]
       .map(input =>
