@@ -2354,3 +2354,8 @@ body {
   min-width: 22px !important;
   min-height: 22px !important;
 }
+
+/* ===== HEADER PAGE TITLE ===== */
+#pageTitle {
+  display: none !important;
+}

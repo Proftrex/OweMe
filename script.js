@@ -7815,8 +7815,46 @@ async function loadInvitations() {
     throw error;
   }
 
+  const invitations = invitationRows || [];
+  const inviterMap = {};
+
+  /*
+   * Resolve each inviter through the dedicated profile RPC.
+   * The invited user is not an active group member yet,
+   * so get_group_members() cannot be used here.
+   */
+  for (const invitation of invitations) {
+
+    if (!invitation.invited_by_user_id) continue;
+
+    const { data: profileRows, error: profileError } =
+      await supabaseClient.rpc(
+        "get_profile_by_id",
+        {
+          lookup_user_id: invitation.invited_by_user_id
+        }
+      );
+
+    if (profileError) {
+      console.error(
+        "LOAD INVITER PROFILE ERROR:",
+        profileError
+      );
+      continue;
+    }
+
+    const profile = profileRows?.[0];
+
+    if (profile) {
+      inviterMap[String(invitation.invited_by_user_id)] =
+        profile.username ||
+        profile.display_name ||
+        "";
+    }
+  }
+
   state.invitations =
-    (invitationRows || []).map(invitation => ({
+    invitations.map(invitation => ({
       invitationId: invitation.id,
       groupId: invitation.group_id,
       invitedUserId: invitation.invited_user_id,
@@ -7824,7 +7862,9 @@ async function loadInvitations() {
       status: invitation.status,
       createdAt: invitation.created_at,
       respondedAt: invitation.responded_at,
-      groupName: invitation.groups?.group_name || "Group"
+      groupName: invitation.groups?.group_name || "Group",
+      invitedByUsername:
+        inviterMap[String(invitation.invited_by_user_id)] || ""
     }));
 
   updateNotificationBadge();
