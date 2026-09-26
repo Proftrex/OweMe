@@ -1062,9 +1062,29 @@ async function handleRegister(event) {
     }
 
     /*
-     * The database trigger on auth.users automatically
-     * creates the OweMe profile using the username and
-     * display name stored in Auth metadata.
+     * Save the Display Name entered during registration
+     * directly to the OweMe profile.
+     */
+    const {
+      data: savedProfile,
+      error: profileSaveError
+    } = await supabaseClient
+      .from("profiles")
+      .update({
+        display_name: displayName
+      })
+      .eq("id", data.user.id)
+      .select("id, username, display_name, status, created_at")
+      .single();
+
+    if (profileSaveError) {
+      throw new Error(
+        "Account was created, but the display name could not be saved."
+      );
+    }
+
+    /*
+     * The profile now contains the registration Display Name.
      */
 
     $("#registerForm").reset();
@@ -1087,7 +1107,7 @@ async function handleRegister(event) {
           data.user.email,
 
         displayName:
-          displayName,
+          savedProfile.display_name,
 
         status:
           "ACTIVE",
