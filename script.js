@@ -1203,6 +1203,11 @@ async function navigate(page) {
 
   state.currentPage = page;
 
+  const content = $("#content");
+  if (content) {
+    content.scrollTop = 0;
+  }
+
   setLoading(true, "Loading, please wait...");
 
   document.querySelectorAll(".nav-item").forEach(item => {
