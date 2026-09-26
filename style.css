@@ -2853,3 +2853,58 @@ body {
     border-radius: 28px !important;
   }
 }
+
+
+/* Modal lives directly under body; keep it above the entire app shell. */
+body > #modal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  overflow: hidden !important;
+}
+
+body > #modal .modal-card {
+  position: relative !important;
+  z-index: 100000 !important;
+  width: min(560px, 100%) !important;
+  max-width: 560px !important;
+  max-height: calc(100dvh - 48px) !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 28px !important;
+  overflow: hidden !important;
+}
+
+body > #modal .modal-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+}
+
+@media (max-width: 700px) {
+  body > #modal {
+    padding:
+      max(24px, env(safe-area-inset-top) + 16px)
+      16px
+      max(24px, env(safe-area-inset-bottom) + 16px)
+      16px !important;
+  }
+
+  body > #modal .modal-card {
+    width: 100% !important;
+    max-width: 398px !important;
+    max-height: calc(
+      100dvh
+      - env(safe-area-inset-top)
+      - env(safe-area-inset-bottom)
+      - 48px
+    ) !important;
+  }
+}
