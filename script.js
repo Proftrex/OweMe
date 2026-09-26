@@ -6925,7 +6925,7 @@ async function openSettlePayment(settlementId) {
                                   margin-top:12px;
                                   display:flex;
                                   flex-direction:column;
-                                  align-items:flex-start;
+                                  align-items:center;
                                   gap:8px;
                                 "
                               >
@@ -6978,6 +6978,9 @@ async function openSettlePayment(settlementId) {
                                   rel="noopener noreferrer"
                                   class="secondary-button"
                                   style="
+                                    display:block;
+                                    width:fit-content;
+                                    margin:12px auto 0;
                                     text-decoration:none;
                                   "
                                 >
@@ -7966,11 +7969,7 @@ function openMembersModal() {
     <form id="inviteMemberForm">
 
       <label>
-        Username
-
         <div class="username-input">
-
-          <span>@</span>
 
           <input
             id="inviteUsername"
