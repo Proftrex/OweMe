@@ -8075,7 +8075,7 @@ async function loadPaymentProviders() {
     .from("payment_providers")
     .select("*")
     .eq("status", "ACTIVE")
-    .order("provider_name");
+    .order("sort_order").order("provider_name");
 
   if (error) {
     throw error;
