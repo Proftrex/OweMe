@@ -3171,6 +3171,32 @@ async function openExpenseDetails(expenseId) {
     }
 
   `);
+
+  if (expense.receiptFileUrl) {
+    const viewReceiptButton = $("#viewExpenseReceiptButton");
+
+    if (viewReceiptButton) {
+      viewReceiptButton.addEventListener("click", async () => {
+        try {
+          setLoading(true, "Opening receipt...");
+
+          const receiptUrl = await getExpenseReceiptUrl(
+            expense.receiptFileUrl
+          );
+
+          if (!receiptUrl) {
+            throw new Error("Unable to open the receipt.");
+          }
+
+          window.open(receiptUrl, "_blank", "noopener,noreferrer");
+        } catch (error) {
+          toast(error.message || "Unable to open the receipt.");
+        } finally {
+          setLoading(false);
+        }
+      });
+    }
+  }
 }
 
 
