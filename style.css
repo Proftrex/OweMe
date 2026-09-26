@@ -2611,3 +2611,36 @@ body {
 .receipt-upload-icon {
   font-size: 18px;
 }
+
+
+/* =========================================
+   PWA VIEWPORT BREATHING ROOM
+   Keep the fixed header stable while giving
+   page content and the bottom nav clear space.
+========================================= */
+
+.topbar {
+  padding-top: max(18px, env(safe-area-inset-top));
+  padding-bottom: 18px;
+}
+
+#content {
+  padding-top: 34px !important;
+  padding-bottom: calc(
+    var(--nav-height) + 52px + env(safe-area-inset-bottom)
+  ) !important;
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    padding-top: max(17px, env(safe-area-inset-top));
+    padding-bottom: 17px;
+  }
+
+  #content {
+    padding-top: 32px !important;
+    padding-bottom: calc(
+      68px + 48px + env(safe-area-inset-bottom)
+    ) !important;
+  }
+}
