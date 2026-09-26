@@ -2988,3 +2988,22 @@ body > #modal .modal-backdrop {
   margin-top: 10px !important;
 }
 
+
+
+/* Larger OweMe header branding */
+.brand-logo {
+  width: 42px;
+  height: 42px;
+}
+
+.brand-header .app-name {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+
+.balance-message {
+  margin-top: 8px;
+  font-size: 14px;
+}
+

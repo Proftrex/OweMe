@@ -1330,11 +1330,10 @@ async function loadHome(initialGroups = null, force = false) {
           ${escapeHtml(
             state.user.displayName
           )}
-          👋
         </h2>
 
         <p class="muted">
-          Here's where things stand.
+          Keep track of every spend and payment, all in one place.
         </p>
 
       </div>
@@ -1343,7 +1342,13 @@ async function loadHome(initialGroups = null, force = false) {
       <div class="card balance-card">
 
         <div class="balance-label">
-          Your overall balance
+          ${
+            totalBalanceRounded < -0.009
+              ? "You still owe your group."
+              : totalBalanceRounded > 0.009
+                ? "Your group owes you."
+                : "All settled up!"
+          }
         </div>
 
         <div
@@ -1351,6 +1356,16 @@ async function loadHome(initialGroups = null, force = false) {
           ${balanceClass(totalBalanceRounded)}"
         >
           ${formatBalance(totalBalanceRounded)}
+        </div>
+
+        <div class="balance-message muted">
+          ${
+            totalBalanceRounded < -0.009
+              ? "Settle up when you're ready."
+              : totalBalanceRounded > 0.009
+                ? "Check if anything was missed."
+                : "Nothing outstanding right now."
+          }
         </div>
 
       </div>
