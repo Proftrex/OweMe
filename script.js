@@ -1044,6 +1044,7 @@ async function handleRegister(event) {
       email,
       password,
       options: {
+        emailRedirectTo: "https://arkhonstudio.com/oweme_app/",
         data: {
           username: username,
           display_name: displayName
