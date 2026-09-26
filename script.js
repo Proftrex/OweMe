@@ -525,6 +525,12 @@ function bindEvents() {
   if (refreshButton) {
     refreshButton.addEventListener("click", async function() {
       state.groupsLoadedAt = 0;
+
+      if (state.currentGroup?.group?.groupId) {
+        await refreshCurrentGroup();
+        return;
+      }
+
       await navigate(state.currentPage);
     });
   }
