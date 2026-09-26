@@ -5354,6 +5354,7 @@ async function openPayableDetails(settlementId) {
     const totalShare =
       relatedExpenses.reduce(
         (total, expense) => {
+
           const participant =
             (expense.participants || []).find(item =>
               String(item.userId) ===
@@ -5362,9 +5363,69 @@ async function openPayableDetails(settlementId) {
 
           return total +
             Number(participant?.shareAmount || 0);
+
         },
         0
       );
+
+
+    const paymentResult =
+      await supabaseClient
+        .from("payment_submissions")
+        .select("*")
+        .eq(
+          "settlement_id",
+          settlement.settlementId
+        )
+        .in(
+          "status",
+          ["CONFIRMED", "SUBMITTED"]
+        )
+        .order(
+          "submitted_at",
+          {
+            ascending: false
+          }
+        );
+
+    if (paymentResult.error) {
+      throw paymentResult.error;
+    }
+
+
+    const payments =
+      paymentResult.data || [];
+
+    const confirmedPayments =
+      payments.filter(payment =>
+        String(payment.status).toUpperCase() ===
+        "CONFIRMED"
+      );
+
+    const pendingPayments =
+      payments.filter(payment =>
+        String(payment.status).toUpperCase() ===
+        "SUBMITTED"
+      );
+
+
+    const paidAmount =
+      confirmedPayments.reduce(
+        (total, payment) =>
+          total +
+          Number(payment.amount_paid || 0),
+        0
+      );
+
+
+    const pendingAmount =
+      pendingPayments.reduce(
+        (total, payment) =>
+          total +
+          Number(payment.amount_paid || 0),
+        0
+      );
+
 
     const paymentRows =
       relatedExpenses.length
@@ -5401,7 +5462,9 @@ async function openPayableDetails(settlementId) {
 
                 <strong>
                   ${formatMoney(
-                    Number(participant?.shareAmount || 0)
+                    Number(
+                      participant?.shareAmount || 0
+                    )
                   )}
                 </strong>
 
@@ -5414,6 +5477,109 @@ async function openPayableDetails(settlementId) {
             No shared expenses found.
           </div>
         `;
+
+
+    const confirmedHistory =
+      confirmedPayments.length
+        ? confirmedPayments.map(payment => `
+
+            <div
+              class="balance-detail-row"
+              style="align-items:flex-start;"
+            >
+
+              <div style="flex:1;">
+
+                <div class="user-name">
+                  Payment
+                </div>
+
+                <div class="muted">
+                  ${
+                    payment.confirmed_at
+                      ? new Date(
+                          payment.confirmed_at
+                        ).toLocaleString()
+                      : "Confirmed"
+                  }
+                </div>
+
+              </div>
+
+              <div style="text-align:right;">
+
+                <strong>
+                  ${formatMoney(
+                    Number(payment.amount_paid || 0)
+                  )}
+                </strong>
+
+                <div class="muted">
+                  Confirmed
+                </div>
+
+              </div>
+
+            </div>
+
+          `).join("")
+        : `
+          <div class="muted">
+            No confirmed payments yet.
+          </div>
+        `;
+
+
+    const pendingHistory =
+      pendingPayments.length
+        ? pendingPayments.map(payment => `
+
+            <div
+              class="balance-detail-row"
+              style="align-items:flex-start;"
+            >
+
+              <div style="flex:1;">
+
+                <div class="user-name">
+                  Payment
+                </div>
+
+                <div class="muted">
+                  ${
+                    payment.submitted_at
+                      ? new Date(
+                          payment.submitted_at
+                        ).toLocaleString()
+                      : "Pending"
+                  }
+                </div>
+
+              </div>
+
+              <div style="text-align:right;">
+
+                <strong>
+                  ${formatMoney(
+                    Number(payment.amount_paid || 0)
+                  )}
+                </strong>
+
+                <div class="muted">
+                  Waiting for receiver approval
+                </div>
+
+              </div>
+
+            </div>
+
+          `).join("")
+        : `
+          <div class="muted">
+            No pending payments.
+          </div>
+        `;
+
 
     openModal(`
 
@@ -5429,25 +5595,32 @@ async function openPayableDetails(settlementId) {
         class="card"
         style="
           margin-top:16px;
-          text-align:center;
-          padding:24px;
+          padding:20px;
         "
       >
 
-        <div
-          style="
-            font-size:32px;
-            font-weight:700;
-          "
-        >
-          ${formatMoney(settlement.amount)}
+        <div class="balance-detail-row">
+          <span class="muted">
+            Remaining
+          </span>
+
+          <strong>
+            ${formatMoney(settlement.amount)}
+          </strong>
         </div>
 
-        <div class="muted">
-          Remaining to pay
+        <div class="balance-detail-row">
+          <span class="muted">
+            Pending approval
+          </span>
+
+          <strong>
+            ${formatMoney(pendingAmount)}
+          </strong>
         </div>
 
       </div>
+
 
       <div style="margin-top:24px;">
 
@@ -5483,6 +5656,33 @@ async function openPayableDetails(settlementId) {
 
       </div>
 
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Confirmed Payments
+        </div>
+
+        <div class="card">
+          ${confirmedHistory}
+        </div>
+
+      </div>
+
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Pending Payments
+        </div>
+
+        <div class="card">
+          ${pendingHistory}
+        </div>
+
+      </div>
+
+
       <button
         type="button"
         class="primary-button green-button"
@@ -5507,7 +5707,6 @@ async function openPayableDetails(settlementId) {
   }
 
 }
-
 
 async function openReceivables() {
 
@@ -5620,6 +5819,7 @@ async function openReceivableDetails(settlementId) {
         0
       );
 
+
     const paymentResult =
       await supabaseClient
         .from("payment_submissions")
@@ -5628,12 +5828,12 @@ async function openReceivableDetails(settlementId) {
           "settlement_id",
           settlement.settlementId
         )
-        .eq(
+        .in(
           "status",
-          "CONFIRMED"
+          ["CONFIRMED", "SUBMITTED"]
         )
         .order(
-          "confirmed_at",
+          "submitted_at",
           {
             ascending: false
           }
@@ -5643,8 +5843,22 @@ async function openReceivableDetails(settlementId) {
       throw paymentResult.error;
     }
 
-    const confirmedPayments =
+
+    const payments =
       paymentResult.data || [];
+
+    const confirmedPayments =
+      payments.filter(payment =>
+        String(payment.status).toUpperCase() ===
+        "CONFIRMED"
+      );
+
+    const pendingPayments =
+      payments.filter(payment =>
+        String(payment.status).toUpperCase() ===
+        "SUBMITTED"
+      );
+
 
     const paidAmount =
       confirmedPayments.reduce(
@@ -5653,6 +5867,16 @@ async function openReceivableDetails(settlementId) {
           Number(payment.amount_paid || 0),
         0
       );
+
+
+    const pendingAmount =
+      pendingPayments.reduce(
+        (total, payment) =>
+          total +
+          Number(payment.amount_paid || 0),
+        0
+      );
+
 
     const expenseRows =
       relatedExpenses.length
@@ -5707,7 +5931,8 @@ async function openReceivableDetails(settlementId) {
           </div>
         `;
 
-    const paymentHistory =
+
+    const confirmedHistory =
       confirmedPayments.length
         ? confirmedPayments.map(payment => `
 
@@ -5757,6 +5982,58 @@ async function openReceivableDetails(settlementId) {
           </div>
         `;
 
+
+    const pendingHistory =
+      pendingPayments.length
+        ? pendingPayments.map(payment => `
+
+            <div
+              class="balance-detail-row"
+              style="align-items:flex-start;"
+            >
+
+              <div style="flex:1;">
+
+                <div class="user-name">
+                  Payment
+                </div>
+
+                <div class="muted">
+                  ${
+                    payment.submitted_at
+                      ? new Date(
+                          payment.submitted_at
+                        ).toLocaleString()
+                      : "Pending"
+                  }
+                </div>
+
+              </div>
+
+              <div style="text-align:right;">
+
+                <strong>
+                  ${formatMoney(
+                    Number(payment.amount_paid || 0)
+                  )}
+                </strong>
+
+                <div class="muted">
+                  Waiting for your approval
+                </div>
+
+              </div>
+
+            </div>
+
+          `).join("")
+        : `
+          <div class="muted">
+            No pending payments.
+          </div>
+        `;
+
+
     openModal(`
 
       <h2>
@@ -5765,29 +6042,37 @@ async function openReceivableDetails(settlementId) {
         )} owes you
       </h2>
 
+
       <div
         class="card"
         style="
           margin-top:16px;
-          padding:24px;
+          padding:20px;
         "
       >
 
-        <div class="muted">
-          Remaining
+        <div class="balance-detail-row">
+          <span class="muted">
+            Remaining
+          </span>
+
+          <strong>
+            ${formatMoney(settlement.amount)}
+          </strong>
         </div>
 
-        <div
-          style="
-            font-size:32px;
-            font-weight:700;
-            margin-top:4px;
-          "
-        >
-          ${formatMoney(settlement.amount)}
+        <div class="balance-detail-row">
+          <span class="muted">
+            Pending approval
+          </span>
+
+          <strong>
+            ${formatMoney(pendingAmount)}
+          </strong>
         </div>
 
       </div>
+
 
       <div style="margin-top:24px;">
 
@@ -5837,6 +6122,7 @@ async function openReceivableDetails(settlementId) {
 
       </div>
 
+
       <div style="margin-top:24px;">
 
         <div class="section-title">
@@ -5849,14 +6135,28 @@ async function openReceivableDetails(settlementId) {
 
       </div>
 
+
       <div style="margin-top:24px;">
 
         <div class="section-title">
-          Payment history
+          Confirmed Payments
         </div>
 
         <div class="card">
-          ${paymentHistory}
+          ${confirmedHistory}
+        </div>
+
+      </div>
+
+
+      <div style="margin-top:24px;">
+
+        <div class="section-title">
+          Pending Payments
+        </div>
+
+        <div class="card">
+          ${pendingHistory}
         </div>
 
       </div>
@@ -5874,7 +6174,6 @@ async function openReceivableDetails(settlementId) {
   }
 
 }
-
 
 async function openSettlementsModal() {
 
@@ -7259,19 +7558,17 @@ async function openSettlePayment(settlementId) {
 
                       <div style="flex:1;">
 
-                        <strong>
-                          ${escapeHtml(
-                            detail.paymentOption
-                          )}
-                        </strong>
+                        <div>
+                          <strong>Payment Method:</strong>
+                          ${escapeHtml(detail.paymentOption)}
+                        </div>
 
                         ${
                           detail.accountNumber
                             ? `
                               <div class="muted">
-                                ${escapeHtml(
-                                  detail.accountNumber
-                                )}
+                                <strong>Account Number:</strong>
+                                ${escapeHtml(detail.accountNumber)}
                               </div>
                             `
                             : ""
@@ -7281,9 +7578,8 @@ async function openSettlePayment(settlementId) {
                           detail.accountName
                             ? `
                               <div class="muted">
-                                ${escapeHtml(
-                                  detail.accountName
-                                )}
+                                <strong>Account Name:</strong>
+                                ${escapeHtml(detail.accountName)}
                               </div>
                             `
                             : ""
@@ -7986,50 +8282,20 @@ async function submitSettlementPayment(event, settlement) {
       "Checking payment..."
     );
 
-
     /*
-     * Check whether this settlement already
-     * has a payment awaiting confirmation.
+     * Use the already-loaded group transactions instead of
+     * querying payment_submissions again.
      */
-      const { data: transactionPayments, error: transactionError } =
-        await supabaseClient
-          .from("payment_submissions")
-          .select("*")
-          .eq("group_id", settlement.groupId);
 
-      if (transactionError) {
-        throw transactionError;
-      }
-
-      const transactions =
-        (transactionPayments || []).map(payment => ({
-          type: "PAYMENT",
-          status: payment.status,
-          settlementId: payment.settlement_id,
-          fromUserId: payment.payer_user_id,
-          toUserId: payment.recipient_user_id,
-          paymentSubmissionId: payment.id,
-          amountPaid: Number(payment.amount_paid || 0)
-        }));
-
-
-    /*
-     * --------------------------------------------------
-     * PARTIAL PAYMENT CHECK
-     * --------------------------------------------------
-     *
-     * A settlement may be paid through multiple
-     * partial payment submissions.
-     *
-     * Calculate the amount already covered by
-     * confirmed and pending payments before allowing
-     * another submission.
-     */
+    const transactions =
+      (state.currentGroup?.transactions || [])
+        .filter(transaction =>
+          String(transaction.type || "").toUpperCase() === "PAYMENT"
+        );
 
     const settlementPayments =
       transactions.filter(
         transaction =>
-          String(transaction.type).toUpperCase() === "PAYMENT" &&
           String(transaction.settlementId) ===
             String(settlement.settlementId) &&
           String(transaction.fromUserId) ===
@@ -8040,7 +8306,7 @@ async function submitSettlementPayment(event, settlement) {
       settlementPayments
         .filter(
           transaction =>
-            String(transaction.status).toUpperCase() ===
+            String(transaction.status || "").toUpperCase() ===
             "CONFIRMED"
         )
         .reduce(
@@ -8053,7 +8319,7 @@ async function submitSettlementPayment(event, settlement) {
       settlementPayments
         .filter(
           transaction =>
-            String(transaction.status).toUpperCase() ===
+            String(transaction.status || "").toUpperCase() ===
             "SUBMITTED"
         )
         .reduce(
@@ -8073,34 +8339,130 @@ async function submitSettlementPayment(event, settlement) {
           pendingPaid
       );
 
-    /*
-     * If the amount entered would exceed what is
-     * still unpaid, stop the submission.
-     */
     if (
       amountPaid >
       remainingAmount + 0.01
     ) {
-
       toast(
         `Amount paid cannot exceed the remaining balance of ${formatMoney(
           remainingAmount
         )}.`
       );
-
       return;
     }
 
-
     /*
-     * If there is already a pending payment, allow
-     * another submission only when there is still
-     * remaining balance.
+     * --------------------------------------------------
+     * EXISTING PENDING PAYMENT
+     * --------------------------------------------------
      *
-     * Existing pending payments are left untouched.
-     * Their proof can still be attached through the
-     * existing payment-review flow.
+     * If this payer already has a pending payment for
+     * this settlement, do not create another payment
+     * for the same pending submission.
+     *
+     * If they provide proof, attach it to the existing
+     * pending payment.
      */
+
+    const existingPending =
+      settlementPayments.find(
+        transaction =>
+          String(transaction.status).toUpperCase() ===
+            "SUBMITTED"
+      );
+
+    if (existingPending) {
+
+      if (!proofFile) {
+
+        toast(
+          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
+        );
+
+        return;
+      }
+
+
+      setLoading(
+        true,
+        "Preparing payment proof..."
+      );
+
+
+      const proof =
+        await preparePaymentProof(
+          proofFile
+        );
+
+
+      setLoading(
+        true,
+        "Uploading payment proof..."
+      );
+
+
+      const proofFileUrl =
+        await uploadPaymentProofToSupabase(
+          proof,
+          settlement.groupId,
+          settlement.settlementId
+        );
+
+
+      setLoading(
+        true,
+        "Attaching payment proof..."
+      );
+
+
+      const { error: proofUpdateError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .update({
+            proof_file_url: proofFileUrl
+          })
+          .eq(
+            "id",
+            existingPending.paymentSubmissionId
+          )
+          .eq(
+            "payer_user_id",
+            state.user.userId
+          );
+
+
+      if (proofUpdateError) {
+        throw proofUpdateError;
+      }
+
+
+      if (
+        window.owemeSettlementDrafts &&
+        window.owemeSettlementDrafts[
+          settlement.settlementId
+        ]
+      ) {
+
+        delete window.owemeSettlementDrafts[
+          settlement.settlementId
+        ];
+
+      }
+
+
+      closeModal();
+
+
+      await refreshCurrentGroup();
+
+
+      toast(
+        "Payment proof attached successfully."
+      );
+
+
+      return;
+    }
 
 
     /*
