@@ -2425,3 +2425,9 @@ body {
   height: 22px;
 }
 
+
+
+/* Add breathing room before Create Account */
+#registerForm > button[type="submit"] {
+  margin-top: 18px !important;
+}
