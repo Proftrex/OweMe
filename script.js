@@ -2082,6 +2082,7 @@ async function openGroup(groupId) {
         created_at,
         created_by,
         status,
+        receipt_file_url,
         expense_participants (
           expense_id,
           user_id,
@@ -2155,6 +2156,9 @@ async function openGroup(groupId) {
 
           status:
             expense.status,
+
+          receiptFileUrl:
+            expense.receipt_file_url || "",
 
           participants:
             (expense.expense_participants || [])
@@ -4151,6 +4155,22 @@ function openAddExpenseModal() {
 
       </div>
 
+      <div class="expense-receipt-section">
+        <div class="section-title">
+          <div>
+            <strong>Receipt</strong>
+            <div class="muted" style="font-size:12px;margin-top:3px">
+              Optional. Attach a photo or PDF of the receipt.
+            </div>
+          </div>
+        </div>
+        <label class="receipt-upload-box" for="expenseReceipt">
+          <span class="receipt-upload-icon">📎</span>
+          <span id="expenseReceiptLabel">Upload receipt</span>
+          <input id="expenseReceipt" type="file" accept="image/*,application/pdf" hidden>
+        </label>
+      </div>
+
       <button
         class="primary-button"
         type="submit"
@@ -4439,7 +4459,88 @@ function openAddExpenseModal() {
     }
   );
 
+  const receiptInput = $("#expenseReceipt");
+  const receiptLabel = $("#expenseReceiptLabel");
+
+  if (receiptInput && receiptLabel) {
+    receiptInput.addEventListener("change", () => {
+      const file = receiptInput.files?.[0];
+      if (!file) {
+        receiptLabel.textContent = "Upload receipt";
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        receiptInput.value = "";
+        receiptLabel.textContent = "Upload receipt";
+        toast("Receipt must be 10 MB or smaller.");
+        return;
+      }
+      receiptLabel.textContent = file.name;
+    });
+  }
+
   renderSplitEditor();
+}
+
+
+async function uploadExpenseReceiptToSupabase(file, groupId, expenseId) {
+  if (!file) return "";
+
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/pdf"
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error("Receipt must be an image or PDF.");
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("Receipt must be 10 MB or smaller.");
+  }
+
+  const extensionMap = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "application/pdf": "pdf"
+  };
+
+  const extension = extensionMap[file.type] || "bin";
+  const filePath = groupId + "/" + expenseId + "/" + crypto.randomUUID() + "." + extension;
+
+  const { error } = await supabaseClient.storage
+    .from("expense-receipts")
+    .upload(filePath, file, {
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (error) {
+    throw new Error(error.message || "Unable to upload receipt.");
+  }
+
+  return filePath;
+}
+
+
+async function getExpenseReceiptUrl(storagePath) {
+  if (!storagePath) return "";
+
+  const { data, error } = await supabaseClient.storage
+    .from("expense-receipts")
+    .createSignedUrl(storagePath, 3600);
+
+  if (error) {
+    console.error("EXPENSE RECEIPT URL ERROR:", error);
+    return "";
+  }
+
+  return data?.signedUrl || "";
 }
 
 
@@ -4452,6 +4553,12 @@ async function addExpense(event) {
 
   const description =
     $("#expenseDescription").value.trim();
+
+  const receiptInput = $("#expenseReceipt");
+  const receiptFile =
+    receiptInput?.files?.length
+      ? receiptInput.files[0]
+      : null;
 
   const participantIds =
     [...document.querySelectorAll(".participant-checkbox:checked")]
@@ -4609,6 +4716,41 @@ async function addExpense(event) {
         expenseError.message ||
         "Unable to add the expense."
       );
+    }
+
+    let receiptFileUrl = "";
+
+    if (receiptFile) {
+      try {
+        receiptFileUrl =
+          await uploadExpenseReceiptToSupabase(
+            receiptFile,
+            groupId,
+            expense.id
+          );
+
+        const { error: receiptSaveError } =
+          await supabaseClient
+            .from("expenses")
+            .update({
+              receipt_file_url: receiptFileUrl
+            })
+            .eq("id", expense.id);
+
+        if (receiptSaveError) {
+          throw receiptSaveError;
+        }
+      } catch (receiptError) {
+        await supabaseClient
+          .from("expenses")
+          .delete()
+          .eq("id", expense.id);
+
+        throw new Error(
+          receiptError.message ||
+          "The receipt could not be uploaded."
+        );
+      }
     }
 
     const participantRows =
