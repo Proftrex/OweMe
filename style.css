@@ -3563,3 +3563,37 @@ body > #modal .modal-backdrop {
 .receivable-action-buttons {
   margin-top: 10px !important;
 }
+
+.payment-detail-payme-button {
+  width: auto !important;
+  min-width: 0 !important;
+  margin-top: 12px !important;
+}
+
+.payme-link-card {
+  margin-top: 16px;
+}
+
+.payme-link-url {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.payme-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.payme-link-actions button {
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}

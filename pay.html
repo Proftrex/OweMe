@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>PayMe — OweMe</title>
+
+  <link
+    rel="stylesheet"
+    href="style.css?v=payme1"
+  >
+
+  <style>
+    html,
+    body {
+      min-height: 100%;
+      height: auto;
+      margin: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--background);
+    }
+
+    .payme-page {
+      width: min(100%, 520px);
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+      box-sizing: border-box;
+    }
+
+    .payme-brand {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .payme-brand img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+
+    .payme-brand-name {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .payme-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-sizing: border-box;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .payme-title {
+      text-align: center;
+      margin: 0 0 6px;
+      font-size: 26px;
+    }
+
+    .payme-subtitle {
+      text-align: center;
+      margin: 0 0 24px;
+    }
+
+    .payme-payment-method {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 22px;
+    }
+
+    .payme-detail {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .payme-detail:last-of-type {
+      border-bottom: 0;
+    }
+
+    .payme-detail-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .payme-detail-value {
+      font-size: 16px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .payme-copy-button {
+      width: auto !important;
+      min-width: 0 !important;
+      margin-top: 8px !important;
+      font-size: 12px !important;
+      padding: 6px 10px !important;
+    }
+
+    .payme-qr-section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .payme-qr-label {
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .payme-qr-image {
+      display: block;
+      width: min(100%, 300px);
+      max-height: 300px;
+      object-fit: contain;
+      margin: 0 auto;
+      border-radius: 12px;
+    }
+
+    .payme-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .payme-actions button {
+      width: 100%;
+      margin: 0 !important;
+    }
+
+    .payme-status {
+      text-align: center;
+      padding: 32px 20px;
+    }
+
+    .payme-error {
+      color: var(--red);
+    }
+
+    @media (max-width: 500px) {
+      .payme-page {
+        padding: 20px 14px 36px;
+      }
+
+      .payme-card {
+        padding: 20px 16px;
+      }
+    }
+
+    /* Standalone PayMe page: restore normal document scrolling */
+    html,
+    body {
+      width: 100% !important;
+      height: auto !important;
+      min-height: 100vh !important;
+      margin: 0 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      position: static !important;
+    }
+
+    body {
+      display: block !important;
+      overscroll-behavior: auto !important;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <main class="payme-page">
+
+    <div class="payme-brand">
+
+      <img
+        src="assets/owelogo.png"
+        alt="OweMe"
+      >
+
+      <div class="payme-brand-name">
+        OweMe
+      </div>
+
+    </div>
+
+    <div id="paymeContent">
+
+      <div class="payme-card payme-status">
+        <div class="muted">
+          Loading payment details...
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL =
+      "https://khrawdzhvfdfrvbhbhge.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable_diLxiZhI5gM-L_WrCh2Hfg_er9qLNtB";
+
+    const supabaseClient =
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function getToken() {
+      return new URLSearchParams(
+        window.location.search
+      ).get("token");
+    }
+
+    function setContent(html) {
+      document.getElementById(
+        "paymeContent"
+      ).innerHTML = html;
+    }
+
+    async function copyText(value, message) {
+      try {
+        await navigator.clipboard.writeText(value);
+
+        const button =
+          document.getElementById("copyAccountButton");
+
+        if (button) {
+          button.textContent = "Copied ✓";
+
+          setTimeout(() => {
+            button.textContent = "Copy Account Number";
+          }, 1800);
+        }
+
+      } catch (error) {
+        alert("Unable to copy.");
+      }
+    }
+
+    async function sharePayMe() {
+      const url = window.location.href;
+
+      try {
+
+        if (navigator.share) {
+
+          await navigator.share({
+            title: "PayMe — OweMe",
+            text: "Here's my OweMe PayMe link.",
+            url
+          });
+
+          return;
+        }
+
+        await navigator.clipboard.writeText(url);
+
+        alert("PayMe link copied!");
+
+      } catch (error) {
+
+        if (error?.name !== "AbortError") {
+          alert("Unable to share the link.");
+        }
+
+      }
+    }
+
+    async function loadPayMePage() {
+
+      const token = getToken();
+
+      if (!token) {
+
+        setContent(`
+          <div class="payme-card payme-status">
+            <h2>Invalid PayMe Link</h2>
+            <p class="muted">
+              This link is missing a PayMe token.
+            </p>
+          </div>
+        `);
+
+        return;
+      }
+
+      try {
+
+        const {
+          data,
+          error
+        } = await supabaseClient.rpc(
+          "get_public_payme_link",
+          {
+            link_token: token
+          }
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data || !data.length) {
+
+          setContent(`
+            <div class="payme-card payme-status">
+              <h2>PayMe Link Unavailable</h2>
+              <p class="muted">
+                This PayMe link may have been disabled
+                or expired.
+              </p>
+            </div>
+          `);
+
+          return;
+        }
+
+        const detail = data[0];
+
+        let qrHtml = "";
+
+        if (detail.qr_public_path) {
+
+          const qrPublicUrl =
+            `${SUPABASE_URL}/storage/v1/object/public/payme-qrs/${detail.qr_public_path}`;
+
+          qrHtml = `
+            <div class="payme-qr-section">
+
+              <div class="payme-qr-label">
+                Scan to Pay
+              </div>
+
+              <img
+                src="${escapeHtml(qrPublicUrl)}"
+                alt="Payment QR Code"
+                class="payme-qr-image"
+              >
+
+            </div>
+          `;
+
+        }
+
+        const accountNumber =
+          detail.account_number || "";
+
+        setContent(`
+
+          <div class="payme-card">
+
+            <h1 class="payme-title">
+              PayMe
+            </h1>
+
+            <p class="muted payme-subtitle">
+              Send payment using the details below.
+            </p>
+
+            <div class="payme-payment-method">
+              ${escapeHtml(detail.payment_option)}
+            </div>
+
+            <div class="payme-detail">
+
+              <div class="payme-detail-label">
+                Account Name
+              </div>
+
+              <div class="payme-detail-value">
+                ${escapeHtml(detail.account_name)}
+              </div>
+
+            </div>
+
+            <div class="payme-detail">
+
+              <div class="payme-detail-label">
+                Account Number
+              </div>
+
+              <div class="payme-detail-value">
+                ${escapeHtml(accountNumber)}
+              </div>
+
+              ${
+                accountNumber
+                  ? `
+                    <button
+                      type="button"
+                      id="copyAccountButton"
+                      class="secondary-button payme-copy-button"
+                      onclick="copyText(
+                        '${escapeHtml(accountNumber)}',
+                        'Account number copied!'
+                      )"
+                    >
+                      Copy Account Number
+                    </button>
+                  `
+                  : ""
+              }
+
+            </div>
+
+            ${qrHtml}
+
+            <div class="payme-actions">
+
+              <button
+                type="button"
+                class="primary-button"
+                onclick="sharePayMe()"
+              >
+                Share PayMe Link
+              </button>
+
+            </div>
+
+          </div>
+
+        `);
+
+      } catch (error) {
+
+        console.error(
+          "PAYME PAGE ERROR:",
+          error
+        );
+
+        setContent(`
+          <div class="payme-card payme-status">
+
+            <h2>
+              Unable to load PayMe
+            </h2>
+
+            <p class="muted">
+              Please check the link and try again.
+            </p>
+
+          </div>
+        `);
+
+      }
+
+    }
+
+    loadPayMePage();
+  </script>
+
+</body>
+</html>

@@ -9912,6 +9912,14 @@ async function renderSavedPaymentDetails() {
 
                 </div>
 
+                <button
+                  type="button"
+                  class="secondary-button payment-detail-payme-button"
+                  onclick="createPayMeLink('${detail.paymentDetailId}')"
+                >
+                  Create PayMe Link →
+                </button>
+
               </div>
 
             </div>
@@ -11260,4 +11268,169 @@ function formatNudgeTime(createdAt) {
   }
 
   return timestamp.toLocaleDateString();
+}
+
+async function createPayMeLink(paymentDetailId) {
+  setLoading(true, "Creating PayMe link...");
+
+  try {
+    const details = await loadPaymentDetails();
+
+    const detail = details.find(
+      item =>
+        String(item.paymentDetailId) ===
+        String(paymentDetailId)
+    );
+
+    if (!detail) {
+      throw new Error("Payment details not found.");
+    }
+
+    const tokenBytes = new Uint8Array(24);
+    crypto.getRandomValues(tokenBytes);
+
+    const token = Array.from(tokenBytes)
+      .map(byte => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    let qrPublicPath = "";
+
+    if (detail.qrFileUrl) {
+      const { data: qrFile, error: downloadError } =
+        await supabaseClient.storage
+          .from("payment-proofs")
+          .download(detail.qrFileUrl);
+
+      if (downloadError) {
+        throw downloadError;
+      }
+
+      const originalPath = String(detail.qrFileUrl);
+      const extensionMatch = originalPath.match(/\.([a-zA-Z0-9]+)$/);
+      const extension = extensionMatch
+        ? extensionMatch[1].toLowerCase()
+        : "png";
+
+      qrPublicPath =
+        `${state.user.userId}/${token}.${extension}`;
+
+      const { error: uploadError } =
+        await supabaseClient.storage
+          .from("payme-qrs")
+          .upload(qrPublicPath, qrFile, {
+            contentType: qrFile.type || "image/png",
+            upsert: false
+          });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+    }
+
+    const { data, error } = await supabaseClient
+      .from("payme_links")
+      .insert({
+        token,
+        owner_user_id: state.user.userId,
+        payment_detail_id: detail.paymentDetailId,
+        qr_public_path: qrPublicPath || null,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const paymeUrl =
+      new URL(
+        `pay.html?token=${encodeURIComponent(data.token)}`,
+        window.location.href
+      ).href;
+
+    openModal(`
+      <h2>PayMe Link Ready</h2>
+
+      <p class="muted">
+        Anyone with this link can view the payment details
+        you selected.
+      </p>
+
+      <div class="card payme-link-card">
+        <div class="muted">Payment Method</div>
+        <strong>${escapeHtml(detail.paymentOption)}</strong>
+
+        <div class="muted" style="margin-top:12px;">
+          PayMe Link
+        </div>
+
+        <div class="payme-link-url">
+          ${escapeHtml(paymeUrl)}
+        </div>
+      </div>
+
+      <div class="payme-link-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="copyPayMeLink('${escapeHtml(paymeUrl)}')"
+        >
+          Copy Link
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          onclick="sharePayMeLink('${escapeHtml(paymeUrl)}')"
+        >
+          Share
+        </button>
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="window.open('${escapeHtml(paymeUrl)}', '_blank', 'noopener,noreferrer')"
+        >
+          View PayMe Page
+        </button>
+      </div>
+    `);
+
+  } catch (error) {
+    console.error("CREATE PAYME LINK ERROR:", error);
+    toast(error.message || "Unable to create PayMe link.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function copyPayMeLink(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("PayMe link copied!");
+  } catch (error) {
+    toast("Unable to copy the PayMe link.");
+  }
+}
+
+
+async function sharePayMeLink(url) {
+  try {
+    if (!navigator.share) {
+      await copyPayMeLink(url);
+      return;
+    }
+
+    await navigator.share({
+      title: "PayMe",
+      text: "Here's my OweMe PayMe link.",
+      url
+    });
+
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      toast("Unable to share the PayMe link.");
+    }
+  }
 }
