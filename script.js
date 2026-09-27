@@ -3084,7 +3084,7 @@ function renderTransactionRow(transaction) {
       <div class="table-action-buttons">
         <button
           type="button"
-          class="table-action-button"
+          class="table-action-button view-action-button"
           onclick="openExpenseDetails('${escapeHtml(
             transaction.expenseId
           )}')"
@@ -3097,7 +3097,7 @@ function renderTransactionRow(transaction) {
             ? `
               <button
                 type="button"
-                class="table-action-button"
+                class="table-action-button delete-action-button"
                 onclick="deleteExpense('${escapeHtml(
                   transaction.expenseId
                 )}')"
@@ -3122,7 +3122,7 @@ function renderTransactionRow(transaction) {
     const viewButton = `
       <button
         type="button"
-        class="table-action-button"
+        class="table-action-button view-action-button"
         onclick="openPaymentTransaction('${escapeHtml(
           transaction.paymentSubmissionId
         )}')"
@@ -3152,7 +3152,7 @@ function renderTransactionRow(transaction) {
         ? `
           <button
             type="button"
-            class="table-action-button"
+            class="table-action-button review-action-button"
             onclick="reviewPayment('${escapeHtml(
               transaction.paymentSubmissionId
             )}')"
@@ -3907,7 +3907,7 @@ function renderGroup() {
     >
 
       <button
-        class="action-button"
+        class="action-button members-button"
         onclick="openMembersModal()"
       >
         Members
@@ -3933,11 +3933,7 @@ function renderGroup() {
 
           </div>
         `
-        : `
-          <div class="group-closed-banner">
-            ✓ This group is closed and saved in History.
-          </div>
-        `
+        : ""
     }
 
   `;
