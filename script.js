@@ -1263,10 +1263,6 @@ async function navigate(page) {
       await loadGroups();
     }
 
-    if (page === "contacts") {
-      await loadContacts();
-    }
-
     if (page === "invites") {
       await loadInvitations();
     }
@@ -1460,7 +1456,7 @@ async function loadHome(initialGroups = null, force = false) {
 
 async function loadContacts() {
 
-  $("#pageTitle").textContent = "Contacts";
+  $("#pageTitle").textContent = "Invites";
 
   try {
 
@@ -1519,7 +1515,7 @@ async function loadContacts() {
         }));
 
     if (!myGroups.length) {
-      $("#content").innerHTML = `
+      $("#content").innerHTML = renderInvitesTabs() + `
         <div class="history-intro page-intro">
           <h2>Your contacts</h2>
           <p>People you've shared groups with.</p>
@@ -1634,7 +1630,7 @@ async function loadContacts() {
        6. RENDER CONTACTS
        ===================================================== */
 
-    $("#content").innerHTML = `
+    $("#content").innerHTML = renderInvitesTabs() + `
       <div class="history-intro page-intro">
         <h2>Your contacts</h2>
         <p>People you've shared groups with.</p>
@@ -10612,7 +10608,7 @@ async function loadInvitations() {
         inviterMap[String(invitation.invited_by_user_id)] || ""
     }));
 
-  $("#content").innerHTML = `
+  $("#content").innerHTML = renderInvitesTabs() + `
 
     <div class="history-intro page-intro">
       <h2>Your invitations</h2>
@@ -13476,7 +13472,7 @@ function switchGroupTab(tab) {
 
   const target = tab.dataset.groupTab;
 
-  document.querySelectorAll(".group-page-tab").forEach(button => {
+  document.querySelectorAll(".history-tab").forEach(button => {
     button.classList.toggle(
       "active",
       button === tab
@@ -13494,6 +13490,50 @@ function switchGroupTab(tab) {
 
   if (target === "pending") {
     loadPendingPayments();
+  }
+
+}
+
+/* =========================================================
+   INVITES PAGE TABS
+   Invitations | Contacts
+========================================================= */
+
+let invitesActiveTab = "invitations";
+
+function renderInvitesTabs() {
+  return `
+    <div class="groups-tab-container invites-tab-container">
+      <button
+        type="button"
+        class="groups-tab ${invitesActiveTab === "invitations" ? "active" : ""}"
+        onclick="switchInvitesTab('invitations')"
+      >
+        Invitations
+      </button>
+
+      <button
+        type="button"
+        class="groups-tab ${invitesActiveTab === "contacts" ? "active" : ""}"
+        onclick="switchInvitesTab('contacts')"
+      >
+        Contacts
+      </button>
+    </div>
+  `;
+}
+
+async function switchInvitesTab(tab) {
+
+  invitesActiveTab =
+    tab === "contacts"
+      ? "contacts"
+      : "invitations";
+
+  if (invitesActiveTab === "contacts") {
+    await loadContacts();
+  } else {
+    await loadInvitations();
   }
 
 }
