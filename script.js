@@ -1267,10 +1267,6 @@ async function navigate(page) {
       await loadInvitations();
     }
 
-    if (page === "history") {
-      await loadHistory();
-    }
-
     if (page === "profile") {
       renderProfile();
     }
@@ -2050,7 +2046,7 @@ async function loadGroups() {
 
   window.owemeGroupTab = "mine";
 
-  const renderGroupsTab = () => {
+  const renderGroupsList = () => {
 
     const activeGroups =
       window.owemeGroupTab === "mine"
@@ -2072,6 +2068,37 @@ async function loadGroups() {
       `;
   };
 
+  const renderGroupsTabs = () => `
+    <div class="groups-tab-container">
+      <button
+        type="button"
+        class="groups-tab ${window.owemeGroupTab === "mine" ? "active" : ""}"
+        data-group-tab="mine"
+        onclick="switchGroupsPageTab('mine')"
+      >
+        My Groups
+      </button>
+
+      <button
+        type="button"
+        class="groups-tab ${window.owemeGroupTab === "other" ? "active" : ""}"
+        data-group-tab="other"
+        onclick="switchGroupsPageTab('other')"
+      >
+        Other Groups
+      </button>
+
+      <button
+        type="button"
+        class="groups-tab ${window.owemeGroupTab === "history" ? "active" : ""}"
+        data-group-tab="history"
+        onclick="switchGroupsPageTab('history')"
+      >
+        History
+      </button>
+    </div>
+  `;
+
   $("#content").innerHTML = `
 
     <div class="groups-page-create-section">
@@ -2086,77 +2113,371 @@ async function loadGroups() {
 
     </div>
 
-    <div
-      class="groups-tabs"
-      style="
-        display:flex;
-        gap:8px;
-        margin-bottom:20px;
-      "
-    >
-
-      <button
-        type="button"
-        class="groups-tab active"
-        data-group-tab="mine"
-      >
-        My Groups
-      </button>
-
-      <button
-        type="button"
-        class="groups-tab"
-        data-group-tab="other"
-      >
-        Other Groups
-      </button>
-
-    </div>
+    ${renderGroupsTabs()}
 
     <div id="groupsTabContent">
-      ${renderGroupsTab()}
+      ${renderGroupsList()}
     </div>
 
   `;
-
-  document
-    .querySelectorAll(".groups-tab")
-    .forEach(button => {
-
-      button.addEventListener("click", () => {
-
-        window.owemeGroupTab =
-          button.dataset.groupTab;
-
-        document
-          .querySelectorAll(".groups-tab")
-          .forEach(tab => {
-            tab.classList.toggle(
-              "active",
-              tab === button
-            );
-          });
-
-        const container =
-          document.querySelector(
-            "#groupsTabContent"
-          );
-
-        if (container) {
-          container.innerHTML =
-            renderGroupsTab();
-        }
-
-        bindGroupCards();
-
-      });
-
-    });
 
   bindGroupCards();
 
 }
 
+
+async function switchGroupsPageTab(tab) {
+
+  window.owemeGroupTab =
+    ["mine", "other", "history"].includes(tab)
+      ? tab
+      : "mine";
+
+  const tabs =
+    document.querySelectorAll(
+      ".groups-tab-container .groups-tab"
+    );
+
+  tabs.forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.groupTab ===
+      window.owemeGroupTab
+    );
+  });
+
+  const container =
+    document.querySelector(
+      "#groupsTabContent"
+    );
+
+  if (!container) return;
+
+  if (window.owemeGroupTab === "history") {
+
+    container.innerHTML =
+      `<div class="groups-tab-loading">Loading history...</div>`;
+
+    await renderGroupsHistoryTab(container);
+
+    return;
+  }
+
+  const groups =
+    window.owemeGroupTab === "mine"
+      ? state.groups.filter(
+          group =>
+            String(group.createdBy) ===
+            String(state.user.userId)
+        )
+      : state.groups.filter(
+          group =>
+            String(group.createdBy) !==
+            String(state.user.userId)
+        );
+
+  container.innerHTML =
+    groups.length
+      ? groups.map(renderGroupCard).join("")
+      : `
+        <div class="card empty">
+          ${
+            window.owemeGroupTab === "mine"
+              ? "You haven't created any groups yet."
+              : "You aren't part of any groups created by your contacts yet."
+          }
+        </div>
+      `;
+
+  bindGroupCards();
+
+}
+
+
+async function renderGroupsHistoryTab(container) {
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    const {
+      data: memberships,
+      error: membershipError
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        status,
+        groups (
+          id,
+          group_name,
+          created_by,
+          created_at,
+          status
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+
+    if (membershipError) {
+      throw new Error(
+        membershipError.message ||
+        "Unable to load your group history."
+      );
+    }
+
+    const closedGroups =
+      (memberships || [])
+        .filter(row =>
+          row.groups &&
+          String(row.groups.status).toUpperCase() === "CLOSED"
+        )
+        .map(row => ({
+          groupId: row.groups.id,
+          groupName: row.groups.group_name,
+          createdBy: row.groups.created_by,
+          createdAt: row.groups.created_at,
+          status: row.groups.status,
+          memberCount: 0
+        }));
+
+    for (const group of closedGroups) {
+
+      const {
+        data: memberRows
+      } = await supabaseClient
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", group.groupId)
+        .eq("status", "ACTIVE");
+
+      group.memberCount =
+        (memberRows || []).length;
+    }
+
+    let historyTab = "mine";
+
+    const renderHistoryList = () => {
+
+      const groups =
+        historyTab === "mine"
+          ? closedGroups.filter(
+              group =>
+                String(group.createdBy) ===
+                String(user.id)
+            )
+          : closedGroups.filter(
+              group =>
+                String(group.createdBy) !==
+                String(user.id)
+            );
+
+      if (!groups.length) {
+        return `
+          <div class="history-empty-message">
+            ${
+              historyTab === "mine"
+                ? "You haven't closed any groups you created yet."
+                : "No closed groups from your contacts yet."
+            }
+          </div>
+        `;
+      }
+
+      return groups
+        .map(group => `
+          <div
+            class="history-list-item"
+            data-group-id="${escapeHtml(group.groupId)}"
+          >
+
+            <div class="history-list-info">
+
+              <div class="history-list-name">
+                ${escapeHtml(group.groupName)}
+              </div>
+
+              <div class="history-list-meta">
+                ${Number(group.memberCount || 0)}
+                member${group.memberCount === 1 ? "" : "s"}
+                · Closed
+              </div>
+
+            </div>
+
+            <div class="history-list-actions">
+
+              <button
+                type="button"
+                class="history-list-icon history-view-button"
+                aria-label="View group"
+                title="View group"
+                onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="2.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="history-list-icon history-delete-button"
+                aria-label="Delete group"
+                title="Delete group"
+                onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 7h16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M9 7V4h6v3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M6 7l1 13h10l1-13"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M10 11v5M14 11v5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+
+            </div>
+
+          </div>
+        `)
+        .join("");
+    };
+
+    container.innerHTML = `
+
+      <div class="history-intro">
+
+        <h2>Your history</h2>
+
+        <p>
+          Groups you've closed and kept for the records.
+        </p>
+
+      </div>
+
+      <div class="history-tabs">
+
+        <button
+          type="button"
+          class="history-tab active"
+          data-history-tab="mine"
+        >
+          My Groups
+        </button>
+
+        <button
+          type="button"
+          class="history-tab"
+          data-history-tab="other"
+        >
+          Other Groups
+        </button>
+
+      </div>
+
+      <div id="historyList">
+        ${renderHistoryList()}
+      </div>
+
+    `;
+
+    container
+      .querySelectorAll(".history-tab")
+      .forEach(button => {
+
+        button.addEventListener("click", () => {
+
+          historyTab =
+            button.dataset.historyTab;
+
+          container
+            .querySelectorAll(".history-tab")
+            .forEach(tab => {
+              tab.classList.toggle(
+                "active",
+                tab === button
+              );
+            });
+
+          const list =
+            container.querySelector(
+              "#historyList"
+            );
+
+          if (list) {
+            list.innerHTML =
+              renderHistoryList();
+          }
+
+        });
+
+      });
+
+  } catch (error) {
+
+    console.error(
+      "LOAD GROUP HISTORY TAB ERROR:",
+      error
+    );
+
+    container.innerHTML = `
+      <div class="card empty">
+        ${escapeHtml(
+          error.message ||
+          "Unable to load your group history."
+        )}
+      </div>
+    `;
+
+  }
+
+}
 
 async function loadGroupsData(force = false) {
 
