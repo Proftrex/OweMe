@@ -4276,7 +4276,7 @@ function bindExpenseCards() {
    CREATE GROUP
    ========================================================= */
 
-function openCreateGroupModal() {
+async function openCreateGroupModal() {
 
   openModal(`
 
@@ -4286,27 +4286,58 @@ function openCreateGroupModal() {
 
       <label>
         Group name
+
         <input
           id="newGroupName"
           maxlength="80"
           required
           placeholder="Boracay Trip"
         >
+
       </label>
 
-      <label>
+      <div class="section-title">
         Add members
-        <textarea
-          id="newGroupMembers"
-          placeholder="@ben90&#10;@carla21&#10;@dan88"
-        ></textarea>
-      </label>
+      </div>
+
+      <div class="contacts-search create-group-member-search">
+
+        <input
+          type="search"
+          id="newGroupMemberSearch"
+          placeholder="Search contacts or enter username..."
+          autocomplete="off"
+        >
+
+      </div>
+
+      <div
+        id="newGroupMemberSuggestions"
+        class="invite-contact-suggestions"
+      ></div>
+
+      <div class="selected-members-title">
+        Selected members
+      </div>
+
+      <div
+        id="newGroupSelectedMembers"
+        class="selected-members-list"
+      ></div>
+
+      <textarea
+        id="newGroupMembers"
+        hidden
+      ></textarea>
 
       <small class="field-help">
-        One username per line.
+        Select one or more members before creating the group.
       </small>
 
-      <button class="primary-button" type="submit">
+      <button
+        class="primary-button"
+        type="submit"
+      >
         Create Group
       </button>
 
@@ -4314,10 +4345,415 @@ function openCreateGroupModal() {
 
   `);
 
+  const searchInput =
+    $("#newGroupMemberSearch");
+
+  const suggestions =
+    $("#newGroupMemberSuggestions");
+
+  const selectedList =
+    $("#newGroupSelectedMembers");
+
+  const hiddenMembers =
+    $("#newGroupMembers");
+
+  const selectedMembers = [];
+
+  let contacts = [];
+
+  try {
+
+    contacts =
+      await loadContactSuggestions();
+
+  } catch (error) {
+
+    console.error(
+      "LOAD CREATE GROUP CONTACTS ERROR:",
+      error
+    );
+
+  }
+
+  function syncSelectedMembers() {
+
+    hiddenMembers.value =
+      selectedMembers
+        .map(member => member.username)
+        .join("\n");
+
+  }
+
+  function renderSelectedMembers() {
+
+    if (!selectedMembers.length) {
+
+      selectedList.innerHTML = `
+        <div class="selected-members-empty">
+          No members selected yet.
+        </div>
+      `;
+
+      syncSelectedMembers();
+
+      return;
+    }
+
+    selectedList.innerHTML =
+      selectedMembers.map(member => `
+
+        <div
+          class="selected-member-row"
+          data-selected-user-id="${escapeHtml(String(member.userId))}"
+        >
+
+          <div>
+
+            <div class="user-name">
+              @${escapeHtml(member.username)}
+            </div>
+
+            ${
+              member.displayName
+                ? `
+                  <div class="muted selected-member-display-name">
+                    ${escapeHtml(member.displayName)}
+                  </div>
+                `
+                : ""
+            }
+
+          </div>
+
+          <button
+            type="button"
+            class="selected-member-remove"
+            data-remove-user-id="${escapeHtml(String(member.userId))}"
+            aria-label="Remove ${escapeHtml(member.username)}"
+          >
+            ×
+          </button>
+
+        </div>
+
+      `).join("");
+
+    selectedList
+      .querySelectorAll(
+        ".selected-member-remove"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const userId =
+              String(
+                button.dataset.removeUserId || ""
+              );
+
+            const index =
+              selectedMembers.findIndex(
+                member =>
+                  String(member.userId) === userId
+              );
+
+            if (index !== -1) {
+              selectedMembers.splice(index, 1);
+            }
+
+            renderSelectedMembers();
+
+            renderMemberSuggestions(
+              searchInput.value
+            );
+
+          }
+        );
+
+      });
+
+    syncSelectedMembers();
+
+  }
+
+  function addSelectedMember(member) {
+
+    const userId =
+      String(member.userId);
+
+    const username =
+      String(member.username || "")
+        .trim()
+        .replace(/^@/, "");
+
+    if (!username) {
+      return;
+    }
+
+    const alreadySelected =
+      selectedMembers.some(
+        selected =>
+          String(selected.userId) === userId ||
+          String(selected.username).toLowerCase() ===
+            username.toLowerCase()
+      );
+
+    if (alreadySelected) {
+      toast("That member is already selected.");
+      return;
+    }
+
+    selectedMembers.push({
+      userId,
+      username,
+      displayName:
+        member.displayName || ""
+    });
+
+    searchInput.value = "";
+
+    suggestions.innerHTML = "";
+
+    renderSelectedMembers();
+
+    searchInput.focus();
+
+  }
+
+  function addManualUsername(username) {
+
+    const normalizedUsername =
+      String(username || "")
+        .trim()
+        .replace(/^@/, "");
+
+    if (!normalizedUsername) {
+      return;
+    }
+
+    const alreadySelected =
+      selectedMembers.some(
+        selected =>
+          String(selected.username).toLowerCase() ===
+          normalizedUsername.toLowerCase()
+      );
+
+    if (alreadySelected) {
+      toast("That member is already selected.");
+      return;
+    }
+
+    selectedMembers.push({
+      userId:
+        `manual-${normalizedUsername.toLowerCase()}`,
+      username: normalizedUsername,
+      displayName: ""
+    });
+
+    searchInput.value = "";
+
+    suggestions.innerHTML = "";
+
+    renderSelectedMembers();
+
+    searchInput.focus();
+
+  }
+
+  function renderMemberSuggestions(query = "") {
+
+    const normalizedQuery =
+      String(query || "")
+        .trim()
+        .replace(/^@/, "")
+        .toLowerCase();
+
+    if (!normalizedQuery) {
+
+      suggestions.innerHTML = "";
+
+      return;
+    }
+
+    const selectedUserIds =
+      new Set(
+        selectedMembers.map(member =>
+          String(member.userId)
+        )
+      );
+
+    const selectedUsernames =
+      new Set(
+        selectedMembers.map(member =>
+          String(member.username).toLowerCase()
+        )
+      );
+
+    const filtered =
+      contacts.filter(contact => {
+
+        const userId =
+          String(contact.userId);
+
+        const username =
+          String(contact.username || "")
+            .toLowerCase();
+
+        if (
+          selectedUserIds.has(userId) ||
+          selectedUsernames.has(username)
+        ) {
+          return false;
+        }
+
+        return (
+          username.includes(normalizedQuery) ||
+          String(contact.displayName || "")
+            .toLowerCase()
+            .includes(normalizedQuery)
+        );
+
+      });
+
+    suggestions.innerHTML =
+      filtered.length
+        ? filtered.map(contact => `
+
+            <button
+              type="button"
+              class="invite-contact-suggestion"
+              data-contact-user-id="${escapeHtml(String(contact.userId))}"
+            >
+
+              <span>
+
+                <strong>
+                  @${escapeHtml(contact.username)}
+                </strong>
+
+                ${
+                  contact.displayName
+                    ? `
+                      <small>
+                        ${escapeHtml(contact.displayName)}
+                      </small>
+                    `
+                    : ""
+                }
+
+              </span>
+
+              <small class="muted">
+                ${contact.sharedGroups.length}
+                ${
+                  contact.sharedGroups.length === 1
+                    ? "shared group"
+                    : "shared groups"
+                }
+              </small>
+
+            </button>
+
+          `).join("")
+        : `
+            <div class="invite-contact-empty">
+              No matching contacts.
+              Press Enter to add this username.
+            </div>
+          `;
+
+    suggestions
+      .querySelectorAll(
+        ".invite-contact-suggestion"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const userId =
+              String(
+                button.dataset.contactUserId || ""
+              );
+
+            const contact =
+              contacts.find(
+                item =>
+                  String(item.userId) === userId
+              );
+
+            if (contact) {
+              addSelectedMember(contact);
+            }
+
+          }
+        );
+
+      });
+
+  }
+
+  searchInput.addEventListener(
+    "input",
+    event => {
+
+      renderMemberSuggestions(
+        event.target.value
+      );
+
+    }
+  );
+
+  searchInput.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter" &&
+        String(searchInput.value || "").trim()
+      ) {
+
+        event.preventDefault();
+
+        const query =
+          String(searchInput.value || "")
+            .trim()
+            .replace(/^@/, "")
+            .toLowerCase();
+
+        const exactContact =
+          contacts.find(contact =>
+            String(contact.username || "")
+              .toLowerCase() === query
+          );
+
+        if (exactContact) {
+
+          addSelectedMember(exactContact);
+
+        } else {
+
+          addManualUsername(
+            searchInput.value
+          );
+
+        }
+
+      }
+
+    }
+  );
+
+  renderSelectedMembers();
+
   $("#createGroupForm").addEventListener(
     "submit",
     createGroup
   );
+
 }
 
 
@@ -9108,25 +9544,31 @@ async function openMembersModal() {
 
     <h2>Members</h2>
 
-    <div class="card">
+    <div class="card members-list-card">
 
       ${members.map(member => `
 
         <div class="member-row">
 
-          <div>
+          <div class="member-identity">
 
-            <div class="user-name">
+            <span class="member-username">
               @${escapeHtml(member.username)}
-            </div>
+            </span>
 
-            <div class="user-handle">
-              ${escapeHtml(member.displayName)}
-            </div>
+            ${
+              member.displayName
+                ? `
+                  <span class="member-display-name">
+                    ${escapeHtml(member.displayName)}
+                  </span>
+                `
+                : ""
+            }
 
           </div>
 
-          <small class="muted">
+          <small class="member-role">
             ${escapeHtml(member.role)}
           </small>
 
@@ -9137,7 +9579,7 @@ async function openMembersModal() {
     </div>
 
     <div class="section-title">
-      Add member
+      Add members
     </div>
 
     <form id="inviteMemberForm">
@@ -9146,18 +9588,31 @@ async function openMembersModal() {
 
         <input
           type="search"
-          id="inviteUsername"
+          id="inviteMemberSearch"
           placeholder="Search contacts or enter username..."
           autocomplete="off"
-          required
         >
 
       </div>
 
       <div
-        id="inviteContactSuggestions"
+        id="inviteMemberSuggestions"
         class="invite-contact-suggestions"
       ></div>
+
+      <div class="selected-members-title">
+        Selected members
+      </div>
+
+      <div
+        id="inviteSelectedMembers"
+        class="selected-members-list"
+      ></div>
+
+      <input
+        type="hidden"
+        id="inviteMemberUsernames"
+      >
 
       <button
         class="primary-button"
@@ -9171,10 +9626,18 @@ async function openMembersModal() {
   `);
 
   const searchInput =
-    $("#inviteUsername");
+    $("#inviteMemberSearch");
 
   const suggestions =
-    $("#inviteContactSuggestions");
+    $("#inviteMemberSuggestions");
+
+  const selectedList =
+    $("#inviteSelectedMembers");
+
+  const hiddenUsernames =
+    $("#inviteMemberUsernames");
+
+  const selectedMembers = [];
 
   let contacts = [];
 
@@ -9186,13 +9649,200 @@ async function openMembersModal() {
   } catch (error) {
 
     console.error(
-      "LOAD CONTACT SUGGESTIONS ERROR:",
+      "LOAD MEMBER CONTACTS ERROR:",
       error
     );
 
   }
 
-  function renderInviteSuggestions(query = "") {
+  function syncSelectedMembers() {
+
+    hiddenUsernames.value =
+      selectedMembers
+        .map(member => member.username)
+        .join("\n");
+
+  }
+
+  function renderSelectedMembers() {
+
+    if (!selectedMembers.length) {
+
+      selectedList.innerHTML = `
+        <div class="selected-members-empty">
+          No members selected yet.
+        </div>
+      `;
+
+      syncSelectedMembers();
+
+      return;
+    }
+
+    selectedList.innerHTML =
+      selectedMembers.map(member => `
+
+        <div
+          class="selected-member-row"
+          data-selected-user-id="${escapeHtml(String(member.userId))}"
+        >
+
+          <div>
+
+            <div class="user-name">
+              @${escapeHtml(member.username)}
+            </div>
+
+            ${
+              member.displayName
+                ? `
+                  <div class="muted selected-member-display-name">
+                    ${escapeHtml(member.displayName)}
+                  </div>
+                `
+                : ""
+            }
+
+          </div>
+
+          <button
+            type="button"
+            class="selected-member-remove"
+            data-remove-user-id="${escapeHtml(String(member.userId))}"
+            aria-label="Remove ${escapeHtml(member.username)}"
+          >
+            ×
+          </button>
+
+        </div>
+
+      `).join("");
+
+    selectedList
+      .querySelectorAll(
+        ".selected-member-remove"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const userId =
+              String(
+                button.dataset.removeUserId || ""
+              );
+
+            const index =
+              selectedMembers.findIndex(
+                member =>
+                  String(member.userId) === userId
+              );
+
+            if (index !== -1) {
+              selectedMembers.splice(index, 1);
+            }
+
+            renderSelectedMembers();
+
+            renderMemberSuggestions(
+              searchInput.value
+            );
+
+          }
+        );
+
+      });
+
+    syncSelectedMembers();
+
+  }
+
+  function addSelectedMember(member) {
+
+    const userId =
+      String(member.userId);
+
+    const username =
+      String(member.username || "")
+        .trim()
+        .replace(/^@/, "");
+
+    if (!username) {
+      return;
+    }
+
+    const alreadySelected =
+      selectedMembers.some(
+        selected =>
+          String(selected.userId) === userId ||
+          String(selected.username).toLowerCase() ===
+            username.toLowerCase()
+      );
+
+    if (alreadySelected) {
+      toast("That member is already selected.");
+      return;
+    }
+
+    selectedMembers.push({
+      userId,
+      username,
+      displayName:
+        member.displayName || ""
+    });
+
+    searchInput.value = "";
+
+    suggestions.innerHTML = "";
+
+    renderSelectedMembers();
+
+    searchInput.focus();
+
+  }
+
+  function addManualUsername(username) {
+
+    const normalizedUsername =
+      String(username || "")
+        .trim()
+        .replace(/^@/, "");
+
+    if (!normalizedUsername) {
+      return;
+    }
+
+    const alreadySelected =
+      selectedMembers.some(
+        selected =>
+          String(selected.username).toLowerCase() ===
+          normalizedUsername.toLowerCase()
+      );
+
+    if (alreadySelected) {
+      toast("That member is already selected.");
+      return;
+    }
+
+    selectedMembers.push({
+      userId:
+        `manual-${normalizedUsername.toLowerCase()}`,
+      username: normalizedUsername,
+      displayName: ""
+    });
+
+    searchInput.value = "";
+
+    suggestions.innerHTML = "";
+
+    renderSelectedMembers();
+
+    searchInput.focus();
+
+  }
+
+  function renderMemberSuggestions(query = "") {
 
     const normalizedQuery =
       String(query || "")
@@ -9207,23 +9857,54 @@ async function openMembersModal() {
       return;
     }
 
-    const filtered =
-      contacts.filter(contact =>
-        String(contact.username || "")
-          .toLowerCase()
-          .includes(normalizedQuery) ||
-        String(contact.displayName || "")
-          .toLowerCase()
-          .includes(normalizedQuery)
+    const selectedUserIds =
+      new Set(
+        selectedMembers.map(member =>
+          String(member.userId)
+        )
       );
+
+    const selectedUsernames =
+      new Set(
+        selectedMembers.map(member =>
+          String(member.username).toLowerCase()
+        )
+      );
+
+    const filtered =
+      contacts.filter(contact => {
+
+        const userId =
+          String(contact.userId);
+
+        const username =
+          String(contact.username || "")
+            .toLowerCase();
+
+        if (
+          selectedUserIds.has(userId) ||
+          selectedUsernames.has(username)
+        ) {
+          return false;
+        }
+
+        return (
+          username.includes(normalizedQuery) ||
+          String(contact.displayName || "")
+            .toLowerCase()
+            .includes(normalizedQuery)
+        );
+
+      });
 
     suggestions.innerHTML =
       filtered.length
         ? filtered.map(contact => `
+
             <button
               type="button"
               class="invite-contact-suggestion"
-              data-contact-username="${escapeHtml(contact.username)}"
+              data-contact-user-id="${escapeHtml(String(contact.userId))}"
             >
 
               <span>
@@ -9254,10 +9935,12 @@ async function openMembersModal() {
               </small>
 
             </button>
+
           `).join("")
         : `
             <div class="invite-contact-empty">
               No matching contacts.
+              Press Enter to add this username.
             </div>
           `;
 
@@ -9271,15 +9954,20 @@ async function openMembersModal() {
           "click",
           () => {
 
-            const username =
-              button.dataset.contactUsername || "";
+            const userId =
+              String(
+                button.dataset.contactUserId || ""
+              );
 
-            searchInput.value =
-              username;
+            const contact =
+              contacts.find(
+                item =>
+                  String(item.userId) === userId
+              );
 
-            suggestions.innerHTML = "";
-
-            searchInput.focus();
+            if (contact) {
+              addSelectedMember(contact);
+            }
 
           }
         );
@@ -9292,12 +9980,54 @@ async function openMembersModal() {
     "input",
     event => {
 
-      renderInviteSuggestions(
+      renderMemberSuggestions(
         event.target.value
       );
 
     }
   );
+
+  searchInput.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter" &&
+        String(searchInput.value || "").trim()
+      ) {
+
+        event.preventDefault();
+
+        const query =
+          String(searchInput.value || "")
+            .trim()
+            .replace(/^@/, "")
+            .toLowerCase();
+
+        const exactContact =
+          contacts.find(contact =>
+            String(contact.username || "")
+              .toLowerCase() === query
+          );
+
+        if (exactContact) {
+
+          addSelectedMember(exactContact);
+
+        } else {
+
+          addManualUsername(
+            searchInput.value
+          );
+
+        }
+
+      }
+
+    }
+  );
+
+  renderSelectedMembers();
 
   $("#inviteMemberForm").addEventListener(
     "submit",
@@ -9311,81 +10041,181 @@ async function inviteMember(event) {
 
   event.preventDefault();
 
-  const username =
-    $("#inviteUsername").value.trim();
+  const rawUsernames =
+    String(
+      $("#inviteMemberUsernames")?.value || ""
+    );
+
+  const usernames =
+    [...new Set(
+      rawUsernames
+        .split("\n")
+        .map(username =>
+          username.trim().replace(/^@/, "")
+        )
+        .filter(Boolean)
+        .map(username =>
+          username.toLowerCase()
+        )
+    )];
+
+  if (!usernames.length) {
+    toast("Please select at least one member.");
+    return;
+  }
 
   try {
 
-    setLoading(true, "Sending invitation...");
+    setLoading(true, "Sending invitations...");
 
     const {
-      data: invitedProfile,
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error(
+        "Your session has expired. Please log in again."
+      );
+    }
+
+    /* ================================================
+       1. FIND ALL INVITED USERS
+       ================================================ */
+
+    const {
+      data: invitedProfiles,
       error: profileError
     } = await supabaseClient
-      .rpc("find_profile_by_username", {
-        lookup_username: username
-      });
+      .from("profiles")
+      .select(
+        "id, username, username_normalized"
+      )
+      .in(
+        "username_normalized",
+        usernames
+      );
 
     if (profileError) {
       throw profileError;
     }
 
-    const targetProfile =
-      Array.isArray(invitedProfile)
-        ? invitedProfile[0]
-        : invitedProfile;
+    const profiles =
+      invitedProfiles || [];
 
-    if (!targetProfile) {
-      throw new Error("User not found.");
+    if (!profiles.length) {
+      throw new Error(
+        "None of the selected usernames were found."
+      );
     }
 
-    if (targetProfile.id === state.user.userId) {
-      throw new Error("You cannot invite yourself.");
-    }
+    /* ================================================
+       2. VALIDATE ALL USERS
+       ================================================ */
 
-    const { data: existingMember, error: memberError } =
-      await supabaseClient
+    const invitations = [];
+    const skipped = [];
+
+    for (const profile of profiles) {
+
+      if (String(profile.id) === String(user.id)) {
+        skipped.push(profile.username);
+        continue;
+      }
+
+      const {
+        data: existingMember,
+        error: memberError
+      } = await supabaseClient
         .from("group_members")
         .select("user_id")
-        .eq("group_id", state.currentGroup.group.groupId)
-        .eq("user_id", targetProfile.id)
-        .eq("status", "ACTIVE")
+        .eq(
+          "group_id",
+          state.currentGroup.group.groupId
+        )
+        .eq(
+          "user_id",
+          profile.id
+        )
+        .eq(
+          "status",
+          "ACTIVE"
+        )
         .maybeSingle();
 
-    if (memberError) {
-      throw memberError;
-    }
+      if (memberError) {
+        throw memberError;
+      }
 
-    if (existingMember) {
-      throw new Error("This user is already a member of this group.");
-    }
+      if (existingMember) {
+        skipped.push(profile.username);
+        continue;
+      }
 
-    const { data: existingInvitation, error: existingInvitationError } =
-      await supabaseClient
+      const {
+        data: existingInvitation,
+        error: existingInvitationError
+      } = await supabaseClient
         .from("invitations")
         .select("id")
-        .eq("group_id", state.currentGroup.group.groupId)
-        .eq("invited_user_id", targetProfile.id)
-        .eq("status", "PENDING")
+        .eq(
+          "group_id",
+          state.currentGroup.group.groupId
+        )
+        .eq(
+          "invited_user_id",
+          profile.id
+        )
+        .eq(
+          "status",
+          "PENDING"
+        )
         .maybeSingle();
 
-    if (existingInvitationError) {
-      throw existingInvitationError;
+      if (existingInvitationError) {
+        throw existingInvitationError;
+      }
+
+      if (existingInvitation) {
+        skipped.push(profile.username);
+        continue;
+      }
+
+      invitations.push({
+        group_id:
+          state.currentGroup.group.groupId,
+
+        invited_user_id:
+          profile.id,
+
+        invited_by_user_id:
+          user.id,
+
+        status:
+          "PENDING"
+      });
+
     }
 
-    if (existingInvitation) {
-      throw new Error("An invitation is already pending.");
+    /* ================================================
+       3. CREATE ALL INVITATIONS
+       ================================================ */
+
+    if (!invitations.length) {
+
+      throw new Error(
+        "No new invitations could be sent. The selected users may already be members or have pending invitations."
+      );
+
     }
 
-    const { error: invitationError } =
-      await supabaseClient
-        .from("invitations")
-        .insert({
-          group_id: state.currentGroup.group.groupId,
-          invited_user_id: targetProfile.id,
-          invited_by_user_id: state.user.userId,
-          status: "PENDING"
-        });
+    const {
+      error: invitationError
+    } = await supabaseClient
+      .from("invitations")
+      .insert(invitations);
 
     if (invitationError) {
       throw invitationError;
@@ -9393,11 +10223,26 @@ async function inviteMember(event) {
 
     closeModal();
 
-    toast("Invitation sent.");
+    const sentCount =
+      invitations.length;
+
+    toast(
+      sentCount === 1
+        ? "Invitation sent."
+        : `${sentCount} invitations sent.`
+    );
 
   } catch (error) {
 
-    toast(error.message);
+    console.error(
+      "INVITE MEMBERS ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to send invitations."
+    );
 
   } finally {
 
@@ -9405,6 +10250,7 @@ async function inviteMember(event) {
 
   }
 }
+
 
 
 /* =========================================================

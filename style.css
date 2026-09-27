@@ -3725,3 +3725,267 @@ body > #modal .modal-backdrop {
   color: var(--muted);
 }
 
+
+/* =========================================================
+   INVITATION ACTIONS
+   ========================================================= */
+
+.action-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.action-row .action-button {
+  flex: 1 1 0;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 500px) {
+
+  .action-row {
+    gap: 10px;
+  }
+
+  .action-row .action-button {
+    flex: 1 1 0;
+    min-width: 0 !important;
+    white-space: nowrap;
+  }
+
+}
+
+
+/* =========================================================
+   CREATE GROUP MEMBER SELECTOR
+   ========================================================= */
+
+.create-group-member-search {
+  margin-bottom: 8px;
+}
+
+.selected-members-title {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.selected-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.selected-members-empty {
+  padding: 10px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.selected-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.selected-member-display-name {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.selected-member-remove {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px;
+  background: var(--primary-soft) !important;
+  color: var(--primary) !important;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 500px) {
+
+  .selected-member-row {
+    padding: 10px 12px;
+  }
+
+}
+
+
+/* =========================================================
+   COMPACT MEMBERS LIST
+   ========================================================= */
+
+.members-list-card {
+  padding: 6px 14px;
+}
+
+.members-list-card .member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.members-list-card .member-row:last-child {
+  border-bottom: 0;
+}
+
+.member-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.member-username {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.member-display-name {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-role {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+@media (max-width: 500px) {
+
+  .members-list-card {
+    padding: 4px 12px;
+  }
+
+  .members-list-card .member-row {
+    gap: 8px;
+    padding: 13px 2px;
+  }
+
+  .member-identity {
+    gap: 6px;
+  }
+
+  .member-display-name {
+    max-width: 110px;
+  }
+
+  .member-role {
+    font-size: 11px;
+  }
+
+}
+
+
+/* =========================================================
+   MEMBERS — SIMPLE ONE-LINE LIST
+   ========================================================= */
+
+.members-list-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.members-list-card .member-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+
+  width: 100% !important;
+  box-sizing: border-box !important;
+
+  padding: 14px 16px !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.members-list-card .member-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.members-list-card .member-identity {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: baseline !important;
+  justify-content: flex-start !important;
+  gap: 7px !important;
+
+  min-width: 0 !important;
+  flex: 1 !important;
+}
+
+.members-list-card .member-username {
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+.members-list-card .member-display-name {
+  color: var(--muted) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.members-list-card .member-role {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  color: var(--text) !important;
+}
+
+@media (max-width: 500px) {
+
+  .members-list-card .member-row {
+    padding: 13px 14px !important;
+  }
+
+  .members-list-card .member-identity {
+    gap: 6px !important;
+  }
+
+  .members-list-card .member-display-name {
+    max-width: 130px !important;
+  }
+
+  .members-list-card .member-role {
+    font-size: 11px !important;
+  }
+
+}
+
