@@ -2018,6 +2018,15 @@ async function loadGroupsData(force = false) {
           0,
 
         amountSpent:
+          0,
+
+        amountYouSpent:
+          0,
+
+        payables:
+          0,
+
+        receivables:
           0
 
       }));
@@ -2141,6 +2150,11 @@ async function loadGroupsData(force = false) {
         amountSpent.toFixed(2)
       );
 
+    group.amountYouSpent =
+      Number(
+        totalPaid.toFixed(2)
+      );
+
 
     const {
       data: paymentRows,
@@ -2214,6 +2228,16 @@ async function loadGroupsData(force = false) {
         ).toFixed(2)
       );
 
+    group.payables =
+      group.myBalance < 0
+        ? Math.abs(group.myBalance)
+        : 0;
+
+    group.receivables =
+      group.myBalance > 0
+        ? group.myBalance
+        : 0;
+
   }
 
 
@@ -2249,18 +2273,39 @@ function renderGroupCard(group) {
           members
         </p>
 
-        <p style="margin-top:8px;">
-          <strong>Amount Spent:</strong>
-          ${formatMoney(group.amountSpent || 0)}
-        </p>
+        <div style="margin-top:8px;">
+          <div>
+            <strong>Amount Spent</strong>
+            ${formatMoney(group.amountSpent || 0)}
+          </div>
 
-        <p style="margin-top:4px;">
-          <strong>For Settlement:</strong>
-          ${formatMoney(Math.abs(group.myBalance || 0))}
-        </p>
+          <div style="margin-top:4px;">
+            <strong>Amount You Spent</strong>
+            ${formatMoney(group.amountYouSpent || 0)}
+          </div>
+        </div>
+
+        <div
+          style="
+            margin-top:10px;
+            font-size:13px;
+            line-height:1.7;
+            color:var(--muted);
+          "
+        >
+          <div>
+            Your Payables:
+            ${formatMoney(group.payables || 0)}
+          </div>
+
+          <div>
+            Your Receivables:
+            ${formatMoney(group.receivables || 0)}
+          </div>
+        </div>
       </div>
 
-      <div class="arrow">›</div>
+
 
     </div>
   `;
