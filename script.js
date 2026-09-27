@@ -9809,8 +9809,8 @@ async function openMembersModal() {
 
         } else {
 
-          addManualUsername(
-            searchInput.value
+          toast(
+            "No OweMe user found with that username."
           );
 
         }
