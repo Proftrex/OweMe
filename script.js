@@ -8964,8 +8964,6 @@ async function loadInvitations() {
         inviterMap[String(invitation.invited_by_user_id)] || ""
     }));
 
-  updateNotificationBadge();
-
   $("#content").innerHTML = `
 
     <div class="history-intro page-intro">
@@ -10607,54 +10605,387 @@ window.markSettlementPaid = markSettlementPaid;
 
 /* ===== NOTIFICATION BADGE ===== */
 
-function updateNotificationBadge() {
-  const badge = document.getElementById("notificationBadge");
-  if (!badge) return;
+/* ===== LOAD NOTIFICATION COUNT ===== */
 
-  const pendingCount = (state.invitations || []).filter(
-    invitation => String(invitation.status || "").toUpperCase() === "PENDING"
-  ).length;
+async function loadNotificationCount() {
 
-  if (pendingCount > 0) {
-    badge.textContent = pendingCount > 99 ? "99+" : String(pendingCount);
-    badge.classList.remove("hidden");
-  } else {
-    badge.textContent = "0";
-    badge.classList.add("hidden");
+  if (!state.user?.userId) {
+    return;
+  }
+
+  try {
+
+    const {
+      count,
+      error
+    } = await supabaseClient
+      .from("notifications")
+      .select("id", {
+        count: "exact",
+        head: true
+      })
+      .eq("user_id", state.user.userId)
+      .eq("is_read", false);
+
+    if (error) {
+      throw error;
+    }
+
+    const badge =
+      document.getElementById("notificationBadge");
+
+    if (!badge) {
+      return;
+    }
+
+    const unreadCount =
+      Number(count || 0);
+
+    if (unreadCount > 0) {
+
+      badge.textContent =
+        unreadCount > 99
+          ? "99+"
+          : String(unreadCount);
+
+      badge.classList.remove("hidden");
+
+    } else {
+
+      badge.textContent = "0";
+      badge.classList.add("hidden");
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "LOAD NOTIFICATION COUNT ERROR:",
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   NOTIFICATIONS
+   ========================================================= */
+
+async function loadNotifications() {
+
+  if (!state.user?.userId) {
+    return [];
+  }
+
+  const {
+    data,
+    error
+  } = await supabaseClient
+    .from("notifications")
+    .select(`
+      id,
+      user_id,
+      actor_user_id,
+      type,
+      title,
+      message,
+      group_id,
+      expense_id,
+      settlement_id,
+      payment_submission_id,
+      invitation_id,
+      is_read,
+      created_at
+    `)
+    .eq("user_id", state.user.userId)
+    .order("created_at", {
+      ascending: false
+    })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+
+function formatNotificationTime(value) {
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const diff =
+    Math.floor(
+      (Date.now() - date.getTime()) / 1000
+    );
+
+  if (diff < 60) {
+    return "Just now";
+  }
+
+  if (diff < 3600) {
+    const minutes = Math.floor(diff / 60);
+    return `${minutes}m ago`;
+  }
+
+  if (diff < 86400) {
+    const hours = Math.floor(diff / 3600);
+    return `${hours}h ago`;
+  }
+
+  if (diff < 604800) {
+    const days = Math.floor(diff / 86400);
+    return `${days}d ago`;
+  }
+
+  return date.toLocaleDateString();
+}
+
+
+async function openNotifications() {
+
+  try {
+
+    setLoading(true, "Loading notifications...");
+
+    const notifications =
+      await loadNotifications();
+
+    openModal(`
+
+      <div class="notifications-panel">
+
+        <div class="notifications-header">
+
+          <div>
+            <h2>Notifications</h2>
+            <p class="muted">
+              Updates about your groups, expenses, and payments.
+            </p>
+          </div>
+
+          ${
+            notifications.some(
+              notification => !notification.is_read
+            )
+              ? `
+                <button
+                  type="button"
+                  class="secondary-button"
+                  onclick="markAllNotificationsRead()"
+                >
+                  Mark all as read
+                </button>
+              `
+              : ""
+          }
+
+        </div>
+
+        <div class="notifications-list">
+
+          ${
+            notifications.length
+              ? notifications.map(notification => `
+
+                <button
+                  type="button"
+                  class="
+                    notification-item
+                    ${notification.is_read ? "" : "unread"}
+                  "
+                  onclick="openNotification('${escapeHtml(notification.id)}')"
+                >
+
+                  <div class="notification-item-content">
+
+                    <div class="notification-item-title">
+                      ${escapeHtml(notification.title)}
+                    </div>
+
+                    <div class="notification-item-message">
+                      ${escapeHtml(notification.message)}
+                    </div>
+
+                    <div class="notification-item-time">
+                      ${formatNotificationTime(notification.created_at)}
+                    </div>
+
+                  </div>
+
+                  ${
+                    !notification.is_read
+                      ? `<span class="notification-unread-dot"></span>`
+                      : ""
+                  }
+
+                </button>
+
+              `).join("")
+              : `
+                <div class="card empty">
+                  You're all caught up.
+                </div>
+              `
+          }
+
+        </div>
+
+      </div>
+
+    `);
+
+  } catch (error) {
+
+    console.error(
+      "LOAD NOTIFICATIONS ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load notifications."
+    );
+
+  } finally {
+
+    setLoading(false);
+
   }
 }
 
 
-/* ===== LOAD NOTIFICATION COUNT ===== */
-
-async function loadNotificationCount() {
-  if (!state.user?.userId) return;
+async function openNotification(notificationId) {
 
   try {
-    const { count, error } = await supabaseClient
-      .from("invitations")
-      .select("id", { count: "exact", head: true })
-      .eq("invited_user_id", state.user.userId)
-      .eq("status", "PENDING");
 
-    if (error) throw error;
+    const {
+      data: notification,
+      error
+    } = await supabaseClient
+      .from("notifications")
+      .select("*")
+      .eq("id", notificationId)
+      .eq("user_id", state.user.userId)
+      .single();
 
-    const badge = document.getElementById("notificationBadge");
-    if (!badge) return;
+    if (error) {
+      throw error;
+    }
 
-    const pendingCount = Number(count || 0);
+    if (!notification) {
+      return;
+    }
 
-    if (pendingCount > 0) {
-      badge.textContent =
-        pendingCount > 99 ? "99+" : String(pendingCount);
-      badge.classList.remove("hidden");
-    } else {
-      badge.textContent = "0";
-      badge.classList.add("hidden");
+    if (!notification.is_read) {
+
+      const {
+        error: updateError
+      } = await supabaseClient
+        .from("notifications")
+        .update({
+          is_read: true
+        })
+        .eq("id", notificationId)
+        .eq("user_id", state.user.userId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+    }
+
+    await loadNotificationCount();
+
+    closeModal();
+
+    const notificationType =
+      String(notification.type || "").toUpperCase();
+
+    /*
+     * Invitations
+     */
+    if (
+      notificationType.startsWith("INVITATION_")
+    ) {
+      await navigate("invites");
+      return;
+    }
+
+    /*
+     * Group, member, expense, payment,
+     * and settlement notifications all
+     * belong to a specific group.
+     */
+    if (notification.group_id) {
+
+      await openGroup(
+        notification.group_id
+      );
+
+      return;
+
     }
 
   } catch (error) {
-    console.error("LOAD NOTIFICATION COUNT ERROR:", error);
+
+    console.error(
+      "OPEN NOTIFICATION ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to open notification."
+    );
+
+  }
+
+}
+
+async function markAllNotificationsRead() {
+
+  try {
+
+    const {
+      error
+    } = await supabaseClient
+      .from("notifications")
+      .update({
+        is_read: true
+      })
+      .eq("user_id", state.user.userId)
+      .eq("is_read", false);
+
+    if (error) {
+      throw error;
+    }
+
+    await loadNotificationCount();
+
+    closeModal();
+
+    toast("All notifications marked as read.");
+
+  } catch (error) {
+
+    console.error(
+      "MARK ALL NOTIFICATIONS READ ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to update notifications."
+    );
+
   }
 }
 
