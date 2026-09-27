@@ -3220,3 +3220,205 @@ body > #modal .modal-backdrop {
   border: 1px solid #f0df91 !important;
 }
 
+
+/* Members button — pastel yellow */
+.members-button {
+  background: var(--yellow-soft) !important;
+  color: #8a7420 !important;
+  border: 1px solid #f0df91 !important;
+}
+
+/* Transaction action button colors */
+.table-action-button.view-action-button {
+  background: var(--green-soft) !important;
+  color: var(--green) !important;
+  border: 1px solid #cce8d7 !important;
+}
+
+.table-action-button.delete-action-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1cccc !important;
+}
+
+.table-action-button.review-action-button {
+  background: var(--yellow-soft) !important;
+  color: #8a7420 !important;
+  border: 1px solid #f0df91 !important;
+}
+
+/* Saved payment detail buttons — compact and centered */
+.payment-detail-action-buttons {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.payment-detail-action-buttons button {
+  flex: 0 1 85px !important;
+  width: 85px !important;
+  min-width: 0 !important;
+  max-width: 85px !important;
+  height: 42px !important;
+  padding: 8px 6px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 600px) {
+  .payment-detail-action-buttons {
+    width: 100% !important;
+    padding: 0 8px !important;
+    gap: 8px !important;
+  }
+
+  .payment-detail-action-buttons button {
+    flex: 0 1 85px !important;
+    width: 85px !important;
+    min-width: 0 !important;
+    max-width: 85px !important;
+  }
+}
+
+
+/* Payment detail buttons — smaller fixed width */
+.payment-detail-action-buttons {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+.payment-detail-action-buttons button {
+  flex: 0 0 72px !important;
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  height: 40px !important;
+  padding: 6px 4px !important;
+  margin: 0 !important;
+  font-size: 13px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 600px) {
+  .payment-detail-action-buttons {
+    gap: 7px !important;
+    padding: 0 !important;
+  }
+
+  .payment-detail-action-buttons button {
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+    height: 38px !important;
+    padding: 5px 3px !important;
+    font-size: 12px !important;
+  }
+}
+
+
+/* Payment detail buttons — extra narrow */
+.payment-detail-action-buttons {
+  gap: 6px !important;
+  justify-content: center !important;
+}
+
+.payment-detail-action-buttons button {
+  flex: 0 0 60px !important;
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  height: 36px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+}
+
+@media (max-width: 600px) {
+  .payment-detail-action-buttons {
+    gap: 6px !important;
+    padding: 0 !important;
+  }
+
+  .payment-detail-action-buttons button {
+    flex: 0 0 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    height: 34px !important;
+    padding: 3px 2px !important;
+    font-size: 11px !important;
+  }
+}
+
+
+/* Payment detail buttons — force compact width */
+.payment-detail-actions .payment-detail-action-buttons {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.payment-detail-actions .payment-detail-action-buttons > button {
+  flex: 0 0 60px !important;
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  height: 34px !important;
+  padding: 4px 2px !important;
+  margin: 0 !important;
+  font-size: 11px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 600px) {
+  .payment-detail-actions .payment-detail-action-buttons > button {
+    flex: 0 0 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    height: 34px !important;
+    padding: 3px 2px !important;
+    font-size: 11px !important;
+  }
+}
+
+
+.payment-detail-button {
+  width: 58px !important;
+  min-width: 58px !important;
+  max-width: 58px !important;
+  flex: 0 0 58px !important;
+  padding: 8px 2px !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+
+.payment-detail-button {
+  width: 58px !important;
+  min-width: 58px !important;
+  max-width: 58px !important;
+}
+
+

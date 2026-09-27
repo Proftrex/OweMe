@@ -9818,7 +9818,7 @@ async function renderSavedPaymentDetails() {
                       ? `
                         <button
                           type="button"
-                          class="secondary-button"
+                          class="secondary-button payment-detail-button"
                           onclick="viewPaymentQr('${detail.paymentDetailId}')"
                         >
                           View
@@ -9829,7 +9829,7 @@ async function renderSavedPaymentDetails() {
 
                   <button
                     type="button"
-                    class="secondary-button"
+                    class="secondary-button payment-detail-button"
                     onclick="editPaymentDetails('${detail.paymentDetailId}')"
                   >
                     Edit
@@ -9837,7 +9837,7 @@ async function renderSavedPaymentDetails() {
 
                   <button
                     type="button"
-                    class="danger-button"
+                    class="danger-button payment-detail-button"
                     onclick="deletePaymentDetails('${detail.paymentDetailId}')"
                   >
                     Delete
