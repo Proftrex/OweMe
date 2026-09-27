@@ -1234,6 +1234,10 @@ async function navigate(page) {
       await loadGroups();
     }
 
+    if (page === "contacts") {
+      await loadContacts();
+    }
+
     if (page === "invites") {
       await loadInvitations();
     }
@@ -1462,6 +1466,267 @@ async function loadGroups() {
 }
 
 
+
+async function loadContacts() {
+
+  $("#pageTitle").textContent = "Contacts";
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    /* =====================================================
+       1. GET MY ACTIVE GROUPS
+       ===================================================== */
+
+    const {
+      data: memberships,
+      error: membershipError
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        role,
+        status,
+        joined_at,
+        groups (
+          id,
+          group_name,
+          created_by,
+          created_at,
+          status
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+
+    if (membershipError) {
+      throw membershipError;
+    }
+
+    const myGroups =
+      (memberships || [])
+        .filter(row =>
+          row.groups &&
+          String(row.groups.status).toUpperCase() === "ACTIVE"
+        )
+        .map(row => ({
+          groupId: row.groups.id,
+          groupName: row.groups.group_name,
+          groupCreatedAt: row.groups.created_at,
+          groupStatus: row.groups.status,
+          myJoinedAt: row.joined_at
+        }));
+
+    if (!myGroups.length) {
+      $("#content").innerHTML = `
+        <div class="history-intro page-intro">
+          <h2>Your contacts</h2>
+          <p>People you've shared groups with.</p>
+        </div>
+
+        <div class="card empty">
+          Debug: no active groups found.<br><br>
+          Membership rows: ${memberships ? memberships.length : 0}
+        </div>
+      `;
+
+      return;
+    }
+
+    /* =====================================================
+       2. GET MEMBERS FROM THOSE GROUPS
+       ===================================================== */
+
+    const contactMap = {};
+
+    for (const group of myGroups) {
+
+      const {
+        data: groupMembers,
+        error: groupMembersError
+      } = await supabaseClient.rpc(
+        "get_group_members",
+        {
+          lookup_group_id: group.groupId
+        }
+      );
+
+      if (groupMembersError) {
+        throw groupMembersError;
+      }
+
+      (groupMembers || []).forEach(member => {
+
+        const userId = String(member.user_id);
+
+        if (userId === String(user.id)) {
+          return;
+        }
+
+        if (!contactMap[userId]) {
+          contactMap[userId] = {
+            userId,
+            username: member.username || "",
+            displayName: member.display_name || "",
+            sharedGroups: []
+          };
+        }
+
+        contactMap[userId].sharedGroups.push({
+          groupId: group.groupId,
+          groupName: group.groupName,
+          groupCreatedAt: group.groupCreatedAt,
+          joinedAt: member.joined_at
+        });
+
+      });
+
+    }
+
+    /* =====================================================
+       3. BUILD UNIQUE CONTACT LIST
+       ===================================================== */
+
+    const contactUserIds =
+      Object.keys(contactMap);
+
+
+    /* =====================================================
+       4. BUILD CONTACT OBJECTS
+       ===================================================== */
+
+    const contacts =
+      contactUserIds
+        .map(userId => {
+
+          const contact =
+            contactMap[userId];
+
+          if (!contact) {
+            return null;
+          }
+
+          const sharedGroups =
+            contactMap[userId].sharedGroups
+              .slice()
+              .sort((a, b) =>
+                new Date(b.groupCreatedAt || 0) -
+                new Date(a.groupCreatedAt || 0)
+              );
+
+          return {
+            userId,
+            username: contact.username || "",
+            displayName: contact.displayName || "",
+            sharedGroups
+          };
+
+        })
+        .filter(Boolean)
+        .sort((a, b) =>
+          String(a.username).localeCompare(
+            String(b.username)
+          )
+        );
+
+    /* =====================================================
+       6. RENDER CONTACTS
+       ===================================================== */
+
+    $("#content").innerHTML = `
+      <div class="history-intro page-intro">
+        <h2>Your contacts</h2>
+        <p>People you've shared groups with.</p>
+      </div>
+
+      <div class="contacts-search">
+        <input
+          type="search"
+          id="contactsSearchInput"
+          placeholder="Search contacts..."
+          autocomplete="off"
+        >
+      </div>
+
+      ${
+        contacts.length
+          ? `
+            <div class="contacts-list" id="contactsList">
+              ${contacts.map(renderContactCard).join("")}
+            </div>
+          `
+          : `
+            <div class="card empty">
+              You don't have any contacts yet.
+            </div>
+          `
+      }
+    `;
+
+    const searchInput =
+      document.getElementById("contactsSearchInput");
+
+    if (searchInput) {
+
+      searchInput.addEventListener("input", event => {
+
+        const query =
+          String(event.target.value || "")
+            .trim()
+            .toLowerCase();
+
+        const filtered =
+          contacts.filter(contact =>
+            String(contact.username || "")
+              .toLowerCase()
+              .includes(query) ||
+            String(contact.displayName || "")
+              .toLowerCase()
+              .includes(query)
+          );
+
+        const list =
+          document.getElementById("contactsList");
+
+        if (!list) {
+          return;
+        }
+
+        list.innerHTML =
+          filtered.length
+            ? filtered.map(renderContactCard).join("")
+            : `
+              <div class="card empty">
+                No contacts found.
+              </div>
+            `;
+
+      });
+
+    }
+
+  } catch (error) {
+
+    console.error("LOAD CONTACTS ERROR:", error);
+
+    toast(
+      error.message ||
+      "Unable to load contacts."
+    );
+
+  }
+
+}
 
 async function loadHistory() {
 
@@ -8765,9 +9030,79 @@ async function markSettlementPaid(settlementId) {
    MEMBERS
    ========================================================= */
 
-function openMembersModal() {
+async function loadContactSuggestions() {
 
-  const members = state.currentGroup.members;
+  const currentUserId =
+    String(state.user.userId);
+
+  const groups =
+    Array.isArray(state.groups)
+      ? state.groups
+      : [];
+
+  const contactMap = {};
+
+  for (const group of groups) {
+
+    if (!group?.groupId) {
+      continue;
+    }
+
+    const {
+      data: groupMembers,
+      error
+    } = await supabaseClient.rpc(
+      "get_group_members",
+      {
+        lookup_group_id: group.groupId
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    (groupMembers || []).forEach(member => {
+
+      const userId =
+        String(member.user_id);
+
+      if (userId === currentUserId) {
+        return;
+      }
+
+      if (!contactMap[userId]) {
+        contactMap[userId] = {
+          userId,
+          username: member.username || "",
+          displayName: member.display_name || "",
+          sharedGroups: []
+        };
+      }
+
+      contactMap[userId].sharedGroups.push({
+        groupId: group.groupId,
+        groupName: group.groupName
+      });
+
+    });
+
+  }
+
+  return Object.values(contactMap)
+    .filter(contact => contact.username)
+    .sort((a, b) =>
+      String(a.username).localeCompare(
+        String(b.username)
+      )
+    );
+}
+
+
+async function openMembersModal() {
+
+  const members =
+    state.currentGroup.members || [];
 
   openModal(`
 
@@ -8807,18 +9142,22 @@ function openMembersModal() {
 
     <form id="inviteMemberForm">
 
-      <label>
-        <div class="username-input">
+      <div class="contacts-search invite-contacts-search">
 
-          <input
-            id="inviteUsername"
-            placeholder="username"
-            required
-          >
+        <input
+          type="search"
+          id="inviteUsername"
+          placeholder="Search contacts or enter username..."
+          autocomplete="off"
+          required
+        >
 
-        </div>
+      </div>
 
-      </label>
+      <div
+        id="inviteContactSuggestions"
+        class="invite-contact-suggestions"
+      ></div>
 
       <button
         class="primary-button"
@@ -8831,10 +9170,140 @@ function openMembersModal() {
 
   `);
 
+  const searchInput =
+    $("#inviteUsername");
+
+  const suggestions =
+    $("#inviteContactSuggestions");
+
+  let contacts = [];
+
+  try {
+
+    contacts =
+      await loadContactSuggestions();
+
+  } catch (error) {
+
+    console.error(
+      "LOAD CONTACT SUGGESTIONS ERROR:",
+      error
+    );
+
+  }
+
+  function renderInviteSuggestions(query = "") {
+
+    const normalizedQuery =
+      String(query || "")
+        .trim()
+        .replace(/^@/, "")
+        .toLowerCase();
+
+    if (!normalizedQuery) {
+
+      suggestions.innerHTML = "";
+
+      return;
+    }
+
+    const filtered =
+      contacts.filter(contact =>
+        String(contact.username || "")
+          .toLowerCase()
+          .includes(normalizedQuery) ||
+        String(contact.displayName || "")
+          .toLowerCase()
+          .includes(normalizedQuery)
+      );
+
+    suggestions.innerHTML =
+      filtered.length
+        ? filtered.map(contact => `
+            <button
+              type="button"
+              class="invite-contact-suggestion"
+              data-contact-username="${escapeHtml(contact.username)}"
+            >
+
+              <span>
+
+                <strong>
+                  @${escapeHtml(contact.username)}
+                </strong>
+
+                ${
+                  contact.displayName
+                    ? `
+                      <small>
+                        ${escapeHtml(contact.displayName)}
+                      </small>
+                    `
+                    : ""
+                }
+
+              </span>
+
+              <small class="muted">
+                ${contact.sharedGroups.length}
+                ${
+                  contact.sharedGroups.length === 1
+                    ? "shared group"
+                    : "shared groups"
+                }
+              </small>
+
+            </button>
+          `).join("")
+        : `
+            <div class="invite-contact-empty">
+              No matching contacts.
+            </div>
+          `;
+
+    suggestions
+      .querySelectorAll(
+        ".invite-contact-suggestion"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const username =
+              button.dataset.contactUsername || "";
+
+            searchInput.value =
+              username;
+
+            suggestions.innerHTML = "";
+
+            searchInput.focus();
+
+          }
+        );
+
+      });
+
+  }
+
+  searchInput.addEventListener(
+    "input",
+    event => {
+
+      renderInviteSuggestions(
+        event.target.value
+      );
+
+    }
+  );
+
   $("#inviteMemberForm").addEventListener(
     "submit",
     inviteMember
   );
+
 }
 
 
@@ -11700,4 +12169,69 @@ async function sharePayMeLink(url) {
       toast("Unable to share the PayMe link.");
     }
   }
+}
+
+function renderContactCard(contact) {
+
+  const sharedGroups =
+    Array.isArray(contact.sharedGroups)
+      ? contact.sharedGroups
+      : [];
+
+  const lastSharedGroup =
+    sharedGroups.length
+      ? sharedGroups
+          .slice()
+          .sort((a, b) =>
+            new Date(b.groupCreatedAt || 0) -
+            new Date(a.groupCreatedAt || 0)
+          )[0]
+      : null;
+
+  return `
+    <div
+      class="card contact-card"
+      data-contact-user-id="${escapeHtml(String(contact.userId))}"
+      onclick="openContactDetails('${escapeHtml(String(contact.userId))}')"
+    >
+      <div class="contact-card-main">
+
+        <div>
+          <div class="user-name">
+            @${escapeHtml(contact.username || "Unknown")}
+          </div>
+
+          ${
+            contact.displayName
+              ? `
+                <div class="muted contact-display-name">
+                  ${escapeHtml(contact.displayName)}
+                </div>
+              `
+              : ""
+          }
+        </div>
+
+      </div>
+
+      <div class="contact-card-meta">
+
+        <div>
+          ${sharedGroups.length}
+          ${sharedGroups.length === 1 ? "shared group" : "shared groups"}
+        </div>
+
+        ${
+          lastSharedGroup
+            ? `
+              <div>
+                Last shared: ${escapeHtml(lastSharedGroup.groupName || "Group")}
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+    </div>
+  `;
 }

@@ -3604,3 +3604,124 @@ body > #modal .modal-backdrop {
   border: 1px solid #f0df91 !important;
 }
 
+
+/* =========================================================
+   CONTACTS
+   ========================================================= */
+
+.contacts-search {
+  margin-bottom: 14px;
+}
+
+.contacts-search input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contact-card {
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.contact-card:active {
+  transform: scale(0.99);
+}
+
+.contact-card-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contact-card-main .user-name {
+  margin-bottom: 4px;
+}
+
+.contact-display-name {
+  font-size: 14px;
+}
+
+.contact-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 500px) {
+
+  .contact-card {
+    padding: 14px;
+  }
+
+  .contact-card-meta {
+    font-size: 11px;
+  }
+
+}
+
+
+/* =========================================================
+   INVITE CONTACT SEARCH
+   ========================================================= */
+
+.invite-contacts-search {
+  margin-bottom: 8px;
+}
+
+.invite-contact-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.invite-contact-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  margin: 0 !important;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.invite-contact-suggestion span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.invite-contact-suggestion small {
+  font-size: 12px;
+}
+
+.invite-contact-empty {
+  padding: 10px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.invite-manual-label {
+  margin: 8px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
