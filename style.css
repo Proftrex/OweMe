@@ -4058,3 +4058,36 @@ input[type="checkbox"] {
   accent-color: #4f8f68 !important;
 }
 
+
+/* =========================================================
+   ICON-ONLY BOTTOM NAVIGATION
+   ========================================================= */
+
+.bottom-nav .nav-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.bottom-nav .nav-item svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+
+.bottom-nav .nav-item small {
+  display: none !important;
+}
+
+/* Notification bell */
+.notification-bell svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+}
+
