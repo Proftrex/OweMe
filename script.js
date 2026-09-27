@@ -1429,6 +1429,268 @@ async function loadHome(initialGroups = null, force = false) {
 
 }
 
+async function loadContacts() {
+
+  $("#pageTitle").textContent = "Contacts";
+
+  try {
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    /* =====================================================
+       1. GET MY ACTIVE GROUPS
+       ===================================================== */
+
+    const {
+      data: memberships,
+      error: membershipError
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        role,
+        status,
+        joined_at,
+        groups (
+          id,
+          group_name,
+          created_by,
+          created_at,
+          status
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+
+    if (membershipError) {
+      throw membershipError;
+    }
+
+    const myGroups =
+      (memberships || [])
+        .filter(row =>
+          row.groups &&
+          String(row.groups.status).toUpperCase() === "ACTIVE"
+        )
+        .map(row => ({
+          groupId: row.groups.id,
+          groupName: row.groups.group_name,
+          groupCreatedAt: row.groups.created_at,
+          groupStatus: row.groups.status,
+          myJoinedAt: row.joined_at
+        }));
+
+    if (!myGroups.length) {
+      $("#content").innerHTML = `
+        <div class="history-intro page-intro">
+          <h2>Your contacts</h2>
+          <p>People you've shared groups with.</p>
+        </div>
+
+        <div class="card empty">
+          Debug: no active groups found.<br><br>
+          Membership rows: ${memberships ? memberships.length : 0}
+        </div>
+      `;
+
+      return;
+    }
+
+    /* =====================================================
+       2. GET MEMBERS FROM THOSE GROUPS
+       ===================================================== */
+
+    const contactMap = {};
+
+    for (const group of myGroups) {
+
+      const {
+        data: groupMembers,
+        error: groupMembersError
+      } = await supabaseClient.rpc(
+        "get_group_members",
+        {
+          lookup_group_id: group.groupId
+        }
+      );
+
+      if (groupMembersError) {
+        throw groupMembersError;
+      }
+
+      (groupMembers || []).forEach(member => {
+
+        const userId = String(member.user_id);
+
+        if (userId === String(user.id)) {
+          return;
+        }
+
+        if (!contactMap[userId]) {
+          contactMap[userId] = {
+            userId,
+            username: member.username || "",
+            displayName: member.display_name || "",
+            sharedGroups: []
+          };
+        }
+
+        contactMap[userId].sharedGroups.push({
+          groupId: group.groupId,
+          groupName: group.groupName,
+          groupCreatedAt: group.groupCreatedAt,
+          joinedAt: member.joined_at
+        });
+
+      });
+
+    }
+
+    /* =====================================================
+       3. BUILD UNIQUE CONTACT LIST
+       ===================================================== */
+
+    const contactUserIds =
+      Object.keys(contactMap);
+
+
+    /* =====================================================
+       4. BUILD CONTACT OBJECTS
+       ===================================================== */
+
+    const contacts =
+      contactUserIds
+        .map(userId => {
+
+          const contact =
+            contactMap[userId];
+
+          if (!contact) {
+            return null;
+          }
+
+          const sharedGroups =
+            contactMap[userId].sharedGroups
+              .slice()
+              .sort((a, b) =>
+                new Date(b.groupCreatedAt || 0) -
+                new Date(a.groupCreatedAt || 0)
+              );
+
+          return {
+            userId,
+            username: contact.username || "",
+            displayName: contact.displayName || "",
+            sharedGroups
+          };
+
+        })
+        .filter(Boolean)
+        .sort((a, b) =>
+          String(a.username).localeCompare(
+            String(b.username)
+          )
+        );
+
+    /* =====================================================
+       6. RENDER CONTACTS
+       ===================================================== */
+
+    $("#content").innerHTML = `
+      <div class="history-intro page-intro">
+        <h2>Your contacts</h2>
+        <p>People you've shared groups with.</p>
+      </div>
+
+      <div class="contacts-search">
+        <input
+          type="search"
+          id="contactsSearchInput"
+          placeholder="Search contacts..."
+          autocomplete="off"
+        >
+      </div>
+
+      ${
+        contacts.length
+          ? `
+            <div class="contacts-list" id="contactsList">
+              ${contacts.map(renderContactCard).join("")}
+            </div>
+          `
+          : `
+            <div class="card empty">
+              You don't have any contacts yet.
+            </div>
+          `
+      }
+    `;
+
+    const searchInput =
+      document.getElementById("contactsSearchInput");
+
+    if (searchInput) {
+
+      searchInput.addEventListener("input", event => {
+
+        const query =
+          String(event.target.value || "")
+            .trim()
+            .toLowerCase();
+
+        const filtered =
+          contacts.filter(contact =>
+            String(contact.username || "")
+              .toLowerCase()
+              .includes(query) ||
+            String(contact.displayName || "")
+              .toLowerCase()
+              .includes(query)
+          );
+
+        const list =
+          document.getElementById("contactsList");
+
+        if (!list) {
+          return;
+        }
+
+        list.innerHTML =
+          filtered.length
+            ? filtered.map(renderContactCard).join("")
+            : `
+              <div class="card empty">
+                No contacts found.
+              </div>
+            `;
+
+      });
+
+    }
+
+  } catch (error) {
+
+    console.error("LOAD CONTACTS ERROR:", error);
+
+    toast(
+      error.message ||
+      "Unable to load contacts."
+    );
+
+  }
+
+}
+
+
 async function loadHistory() {
 
   $("#pageTitle").textContent = "History";
@@ -10182,32 +10444,61 @@ function renderInvitation(invitation) {
   const actions =
     status === "PENDING"
       ? `
-        <div class="action-row">
+        <div class="invitation-icon-actions">
 
           <button
-            class="action-button green-button"
-            onclick="respondInvitation(
+            type="button"
+            class="invitation-icon-button invitation-accept-button"
+            aria-label="Accept invitation"
+            title="Accept invitation"
+            onclick="event.stopPropagation(); respondInvitation(
               '${escapeHtml(invitation.invitationId)}',
               'accept'
             )"
           >
-            Accept
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M5 12.5l4 4L19 6.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </button>
 
           <button
-            class="action-button red-button"
-            onclick="respondInvitation(
+            type="button"
+            class="invitation-icon-button invitation-decline-button"
+            aria-label="Decline invitation"
+            title="Decline invitation"
+            onclick="event.stopPropagation(); respondInvitation(
               '${escapeHtml(invitation.invitationId)}',
               'decline'
             )"
           >
-            Decline
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
           </button>
 
         </div>
       `
       : `
-        <div class="invitation-status ${status === "ACCEPTED" ? "accepted" : "declined"}">
+        <div
+          class="invitation-status ${
+            status === "ACCEPTED"
+              ? "accepted"
+              : "declined"
+          }"
+        >
           ${
             status === "ACCEPTED"
               ? "Invitation Accepted"
@@ -10218,19 +10509,24 @@ function renderInvitation(invitation) {
 
   return `
 
-    <div class="card">
+    <div class="invitation-list-item">
 
-      <div class="card-title">
-        You were invited to join
-        ${escapeHtml(invitation.groupName)}
+      <div class="invitation-list-info">
+
+        <div class="invitation-list-title">
+          ${escapeHtml(invitation.groupName)}
+        </div>
+
+        <div class="invitation-list-meta">
+          Invited by
+          @${escapeHtml(invitation.invitedByUsername)}
+        </div>
+
       </div>
 
-      <p class="muted">
-        Invited by
-        @${escapeHtml(invitation.invitedByUsername)}
-      </p>
-
-      ${actions}
+      <div class="invitation-list-actions">
+        ${actions}
+      </div>
 
     </div>
 
@@ -12923,48 +13219,54 @@ function renderContactCard(contact) {
 
   return `
     <div
-      class="card contact-card"
+      class="contact-list-item"
       data-contact-user-id="${escapeHtml(String(contact.userId))}"
       onclick="openContactDetails('${escapeHtml(String(contact.userId))}')"
     >
-      <div class="contact-card-main">
 
-        <div>
-          <div class="user-name">
+      <div class="contact-list-main">
+
+        <div class="contact-list-primary">
+
+          <span class="contact-list-username">
             @${escapeHtml(contact.username || "Unknown")}
-          </div>
+          </span>
 
           ${
             contact.displayName
               ? `
-                <div class="muted contact-display-name">
+                <span class="contact-list-display-name">
                   ${escapeHtml(contact.displayName)}
-                </div>
+                </span>
               `
               : ""
           }
+
+        </div>
+
+        <div class="contact-list-secondary">
+
+          <span>
+            ${sharedGroups.length}
+            ${sharedGroups.length === 1 ? "shared group" : "shared groups"}
+          </span>
+
+          ${
+            lastSharedGroup
+              ? `
+                <span class="contact-list-separator">·</span>
+                <span>
+                  Last shared:
+                  ${escapeHtml(lastSharedGroup.groupName || "Group")}
+                </span>
+              `
+              : ""
+          }
+
         </div>
 
       </div>
 
-      <div class="contact-card-meta">
-
-        <div>
-          ${sharedGroups.length}
-          ${sharedGroups.length === 1 ? "shared group" : "shared groups"}
-        </div>
-
-        ${
-          lastSharedGroup
-            ? `
-              <div>
-                Last shared: ${escapeHtml(lastSharedGroup.groupName || "Group")}
-              </div>
-            `
-            : ""
-        }
-
-      </div>
     </div>
   `;
 }

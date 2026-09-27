@@ -4584,3 +4584,261 @@ input[type="checkbox"] {
   height: 18px !important;
   display: block;
 }
+
+/* Invitation list spacing */
+.invitation-list-item {
+  padding: 16px 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.invitation-list-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.invitation-list-actions {
+  margin-left: 12px !important;
+}
+
+.invitation-icon-actions {
+  gap: 12px !important;
+}
+
+.invitation-icon-button {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+/* Invitation icons — override old action-button styles */
+.invitation-list-actions .invitation-icon-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.invitation-list-actions .invitation-icon-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 5px !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.invitation-list-actions .invitation-icon-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
+.invitation-list-actions .invitation-accept-button {
+  color: var(--primary) !important;
+}
+
+.invitation-list-actions .invitation-decline-button {
+  color: var(--red) !important;
+}
+
+.invitation-list-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 14px 2px !important;
+  margin-bottom: 8px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.invitation-list-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+.invitation-list-meta {
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  color: var(--muted) !important;
+}
+
+.invitation-list-actions {
+  flex-shrink: 0 !important;
+  margin-left: 10px !important;
+}
+
+.invitation-list-actions .invitation-status {
+  font-size: 11px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 500px) {
+  .invitation-list-actions .invitation-icon-actions {
+    gap: 7px !important;
+  }
+
+  .invitation-list-actions .invitation-icon-button {
+    width: 30px !important;
+    min-width: 30px !important;
+    max-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+
+  .invitation-list-actions .invitation-icon-button svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+}
+
+/* Invitation status colors */
+.invitation-list-actions .invitation-status.accepted {
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+}
+
+.invitation-list-actions .invitation-status.declined {
+  color: var(--red) !important;
+  font-weight: 600 !important;
+}
+
+/* Compact Contacts list */
+.contact-list-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 2px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.contact-list-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.contact-list-main {
+  min-width: 0;
+  width: 100%;
+}
+
+.contact-list-primary {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  line-height: 1.35;
+}
+
+.contact-list-primary strong {
+  font-size: 15px;
+}
+
+.contact-list-display-name {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.contact-list-secondary {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.contact-list-separator {
+  margin: 0 4px;
+}
+
+@media (max-width: 500px) {
+  .contact-list-item {
+    padding: 13px 2px;
+  }
+
+  .contact-list-primary strong {
+    font-size: 14px;
+  }
+
+  .contact-list-display-name {
+    font-size: 13px;
+  }
+
+  .contact-list-secondary {
+    font-size: 11px;
+  }
+}
+
+/* Contacts — compact two-line list */
+.contact-list-item {
+  display: block !important;
+  width: 100% !important;
+  padding: 14px 2px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  box-sizing: border-box !important;
+}
+
+.contact-list-item:last-child {
+  border-bottom: none !important;
+}
+
+.contact-list-main {
+  width: 100% !important;
+}
+
+.contact-list-primary {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 7px !important;
+  line-height: 1.3 !important;
+}
+
+.contact-list-username {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+.contact-list-display-name {
+  font-size: 14px !important;
+  color: var(--muted) !important;
+}
+
+.contact-list-secondary {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  color: var(--muted) !important;
+}
+
+.contact-list-separator {
+  margin: 0 2px !important;
+}
+
+@media (max-width: 500px) {
+  .contact-list-item {
+    padding: 13px 2px !important;
+  }
+
+  .contact-list-username {
+    font-size: 14px !important;
+  }
+
+  .contact-list-display-name {
+    font-size: 13px !important;
+  }
+
+  .contact-list-secondary {
+    font-size: 11px !important;
+  }
+}
