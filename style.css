@@ -3553,3 +3553,13 @@ body > #modal .modal-backdrop {
 
 }
 
+
+.nudge-last-sent {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.receivable-action-buttons {
+  margin-top: 10px !important;
+}

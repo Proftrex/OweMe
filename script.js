@@ -5758,6 +5758,33 @@ async function openReceivables() {
         String(state.user.userId)
       );
 
+    const settlementIds =
+      receivables.map(item => item.settlementId);
+
+    let nudgeMap = {};
+
+    if (settlementIds.length) {
+      const { data: nudgeRows, error: nudgeError } =
+        await supabaseClient
+          .from("nudges")
+          .select("settlement_id, created_at")
+          .in("settlement_id", settlementIds)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (nudgeError) {
+        throw nudgeError;
+      }
+
+      (nudgeRows || []).forEach(nudge => {
+        if (!nudgeMap[nudge.settlement_id]) {
+          nudgeMap[nudge.settlement_id] =
+            nudge.created_at;
+        }
+      });
+    }
+
     openModal(`
       <h2>Receivables</h2>
       <p class="muted">What others still need to pay you.</p>
@@ -5774,14 +5801,36 @@ async function openReceivables() {
                   <div class="muted">
                     ${formatMoney(item.amount)}
                   </div>
+
+                  ${
+                    nudgeMap[item.settlementId]
+                      ? `
+                        <div class="nudge-last-sent">
+                          Last nudged ${formatNudgeTime(
+                            nudgeMap[item.settlementId]
+                          )}
+                        </div>
+                      `
+                      : ""
+                  }
                 </div>
-                <button
-                  type="button"
-                  class="small-button"
-                  onclick="openReceivableDetails('${escapeHtml(item.settlementId)}')"
-                >
-                  Details
-                </button>
+                <div class="receivable-action-buttons">
+                  <button
+                    type="button"
+                    class="small-button"
+                    onclick="openReceivableDetails('${escapeHtml(item.settlementId)}')"
+                  >
+                    Details
+                  </button>
+
+                  <button
+                    type="button"
+                    class="small-button nudge-button"
+                    onclick="openNudgeConfirmation('${escapeHtml(item.settlementId)}')"
+                  >
+                    Nudge
+                  </button>
+                </div>
               </div>
             `).join("")}
           </div>
@@ -10989,3 +11038,226 @@ async function markAllNotificationsRead() {
   }
 }
 
+
+
+/* Nudge feature */
+
+async function openNudgeConfirmation(settlementId) {
+  setLoading(true, "Checking outstanding balance...");
+
+  try {
+    const settlements = await loadCurrentSettlements();
+
+    const settlement = settlements.find(item =>
+      String(item.settlementId) === String(settlementId) &&
+      String(item.toUserId) === String(state.user.userId)
+    );
+
+    if (!settlement) {
+      toast("Receivable not found.");
+      return;
+    }
+
+    const { data: payments, error } = await supabaseClient
+      .from("payment_submissions")
+      .select("amount_paid, status")
+      .eq("settlement_id", settlementId)
+      .in("status", ["CONFIRMED", "SUBMITTED"]);
+
+    if (error) throw error;
+
+    const confirmed = (payments || [])
+      .filter(p => p.status === "CONFIRMED")
+      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+
+    const pending = (payments || [])
+      .filter(p => p.status === "SUBMITTED")
+      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+
+    const remaining = Math.max(
+      0,
+      Number(settlement.amount || 0) - confirmed
+    );
+
+    const availableToNudge = Math.max(0, remaining - pending);
+
+    if (remaining < 0.01) {
+      toast("This receivable is already settled.");
+      return;
+    }
+
+    if (availableToNudge < 0.01) {
+      toast("The remaining amount is awaiting payment approval.");
+      return;
+    }
+
+    const username = escapeHtml(settlement.fromUsername);
+
+    openModal(`
+      <h2>Nudge @${username}</h2>
+
+      <p class="muted">
+        Send a friendly payment reminder?
+      </p>
+
+      <div class="card">
+        <div class="user-name">@${username}</div>
+        <div style="margin-top: 8px;">
+          Outstanding: <strong>${formatMoney(remaining)}</strong>
+        </div>
+        ${
+          pending > 0
+            ? `
+              <div class="muted" style="margin-top: 6px;">
+                Awaiting approval: ${formatMoney(pending)}
+              </div>
+            `
+            : ""
+        }
+        <div style="margin-top: 8px;">
+          Reminder amount:
+          <strong>${formatMoney(availableToNudge)}</strong>
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top: 14px;">
+        Your group member will receive a notification
+        reminding them about this payment.
+      </p>
+
+      <div class="close-group-confirmation-actions"
+           style="margin-top: 20px;">
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="openReceivables()"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="small-button nudge-button"
+          id="confirmNudgeButton"
+          onclick="sendNudge('${settlement.settlementId}')"
+        >
+          Send Nudge
+        </button>
+
+      </div>
+    `);
+
+  } catch (error) {
+    toast(error.message || "Unable to prepare nudge.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+async function sendNudge(settlementId) {
+  const button = document.getElementById("confirmNudgeButton");
+
+  if (button?.disabled) return;
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Sending...";
+  }
+
+  try {
+    const settlements = await loadCurrentSettlements();
+
+    const settlement = settlements.find(item =>
+      String(item.settlementId) === String(settlementId) &&
+      String(item.toUserId) === String(state.user.userId)
+    );
+
+    if (!settlement) {
+      throw new Error("Receivable not found.");
+    }
+
+    // Recheck the balance in case a payment was made
+    // after the confirmation modal was opened.
+    const { data: payments, error: paymentError } =
+      await supabaseClient
+        .from("payment_submissions")
+        .select("amount_paid, status")
+        .eq("settlement_id", settlementId)
+        .in("status", ["CONFIRMED", "SUBMITTED"]);
+
+    if (paymentError) throw paymentError;
+
+    const unavailable = (payments || [])
+      .reduce(
+        (sum, payment) => sum + Number(payment.amount_paid || 0),
+        0
+      );
+
+    const amountToNudge =
+      Number(settlement.amount || 0) - unavailable;
+
+    if (amountToNudge < 0.01) {
+      throw new Error(
+        "No outstanding amount is currently available to nudge."
+      );
+    }
+
+    const { error } = await supabaseClient
+      .from("nudges")
+      .insert({
+        settlement_id: settlement.settlementId,
+        sender_user_id: state.user.userId,
+        recipient_user_id: settlement.fromUserId
+      });
+
+    if (error) throw error;
+
+    await loadNotificationCount();
+    await openReceivables();
+
+    toast("Nudge sent successfully!");
+
+  } catch (error) {
+    toast(error.message || "Unable to send nudge.");
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Send Nudge";
+    }
+  }
+}
+
+function formatNudgeTime(createdAt) {
+  const timestamp = new Date(createdAt);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    return "recently";
+  }
+
+  const diffMs = Date.now() - timestamp.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) {
+    return "just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays < 30) {
+    return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  }
+
+  return timestamp.toLocaleDateString();
+}
