@@ -3839,7 +3839,6 @@ async function closeCurrentGroup() {
 
   openModal(`
     <div class="close-group-confirmation">
-      <div class="close-group-confirmation-icon">✓</div>
 
       <h2>Close this group?</h2>
 
@@ -7534,11 +7533,26 @@ async function reviewPayment(paymentSubmissionId) {
         style="margin-top:16px;"
       >
 
-        <div class="muted">
-          Payment Method
+        <div
+          style="
+            font-size:18px;
+            font-weight:700;
+            margin-bottom:16px;
+          "
+        >
+          Payment Details
         </div>
 
-        <strong>
+        <div class="muted">
+          Payment Method:
+        </div>
+
+        <strong
+          style="
+            display:block;
+            margin-top:4px;
+          "
+        >
           ${escapeHtml(
             payment.paymentOption ||
             "—"
@@ -11009,8 +11023,27 @@ async function renderSavedPaymentDetails() {
                           type="button"
                           class="secondary-button payment-detail-button"
                           onclick="viewPaymentQr('${detail.paymentDetailId}')"
+                          aria-label="View QR Code"
+                          title="View QR Code"
                         >
-                          View
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="3"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                            />
+                          </svg>
                         </button>
                       `
                       : ""
@@ -11020,16 +11053,67 @@ async function renderSavedPaymentDetails() {
                     type="button"
                     class="secondary-button payment-detail-button"
                     onclick="editPaymentDetails('${detail.paymentDetailId}')"
+                    aria-label="Edit Payment Details"
+                    title="Edit Payment Details"
                   >
-                    Edit
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 20h9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
                   </button>
 
                   <button
                     type="button"
                     class="danger-button payment-detail-button"
                     onclick="deletePaymentDetails('${detail.paymentDetailId}')"
+                    aria-label="Delete Payment Details"
+                    title="Delete Payment Details"
                   >
-                    Delete
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M3 6h18"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M8 6V4h8v2"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M19 6l-1 14H6L5 6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M10 11v5M14 11v5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
                   </button>
 
                 </div>
