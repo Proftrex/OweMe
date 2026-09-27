@@ -228,11 +228,24 @@ async function getBalancesFromSupabase(groupId) {
 
 async function getSettlementsFromSupabase(groupId) {
 
-  const balanceResult =
-    await getBalancesFromSupabase(groupId);
+  const { data: expenses, error: expenseError } =
+    await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        paid_by_user_id,
+        amount,
+        expense_participants (
+          user_id,
+          share_amount
+        )
+      `)
+      .eq("group_id", groupId)
+      .eq("status", "ACTIVE");
 
-  const balances =
-    balanceResult.data.balances || [];
+  if (expenseError) {
+    throw expenseError;
+  }
 
   const membersResult =
     await supabaseClient.rpc(
@@ -266,46 +279,72 @@ async function getSettlementsFromSupabase(groupId) {
 
   });
 
-  const debtors = balances
-    .filter(item => Number(item.balance) < -0.005)
-    .map(item => ({
-      userId: item.userId,
-      amount: Math.abs(Number(item.balance))
-    }));
+  /*
+   * Build direct obligations from each expense.
+   *
+   * If Alice pays an expense and Bob has a ₱500 share,
+   * Bob owes Alice ₱500.
+   *
+   * This intentionally does NOT net unrelated expenses
+   * across the entire group.
+   */
 
-  const creditors = balances
-    .filter(item => Number(item.balance) > 0.005)
-    .map(item => ({
-      userId: item.userId,
-      amount: Number(item.balance)
-    }));
+  const obligations = {};
+
+  (expenses || []).forEach(expense => {
+
+    const payerId =
+      String(expense.paid_by_user_id);
+
+    (expense.expense_participants || []).forEach(participant => {
+
+      const participantId =
+        String(participant.user_id);
+
+      const shareAmount =
+        Number(participant.share_amount || 0);
+
+      if (
+        participantId === payerId ||
+        shareAmount <= 0
+      ) {
+        return;
+      }
+
+      const key =
+        `${participantId}|${payerId}`;
+
+      if (!obligations[key]) {
+        obligations[key] = {
+          fromUserId: participantId,
+          toUserId: payerId,
+          amount: 0
+        };
+      }
+
+      obligations[key].amount =
+        Math.round(
+          (
+            obligations[key].amount +
+            shareAmount
+          ) * 100
+        ) / 100;
+
+    });
+
+  });
 
   const settlements = [];
 
-  let debtorIndex = 0;
-  let creditorIndex = 0;
-
-  while (
-    debtorIndex < debtors.length &&
-    creditorIndex < creditors.length
-  ) {
-
-    const debtor =
-      debtors[debtorIndex];
-
-    const creditor =
-      creditors[creditorIndex];
+  for (const obligation of Object.values(obligations)) {
 
     const amount =
       Math.round(
-        Math.min(
-          debtor.amount,
-          creditor.amount
-        ) * 100
+        Number(obligation.amount || 0) * 100
       ) / 100;
 
     if (amount <= 0) {
-      break;
+      continue;
     }
 
     const {
@@ -315,8 +354,8 @@ async function getSettlementsFromSupabase(groupId) {
       "ensure_settlement",
       {
         p_group_id: groupId,
-        p_from_user_id: debtor.userId,
-        p_to_user_id: creditor.userId,
+        p_from_user_id: obligation.fromUserId,
+        p_to_user_id: obligation.toUserId,
         p_amount: amount
       }
     );
@@ -340,22 +379,30 @@ async function getSettlementsFromSupabase(groupId) {
       groupId,
 
       fromUserId:
-        debtor.userId,
+        obligation.fromUserId,
 
       fromUsername:
-        memberMap[String(debtor.userId)]?.username || "",
+        memberMap[
+          String(obligation.fromUserId)
+        ]?.username || "",
 
       fromDisplayName:
-        memberMap[String(debtor.userId)]?.displayName || "",
+        memberMap[
+          String(obligation.fromUserId)
+        ]?.displayName || "",
 
       toUserId:
-        creditor.userId,
+        obligation.toUserId,
 
       toUsername:
-        memberMap[String(creditor.userId)]?.username || "",
+        memberMap[
+          String(obligation.toUserId)
+        ]?.username || "",
 
       toDisplayName:
-        memberMap[String(creditor.userId)]?.displayName || "",
+        memberMap[
+          String(obligation.toUserId)
+        ]?.displayName || "",
 
       amount,
 
@@ -363,24 +410,6 @@ async function getSettlementsFromSupabase(groupId) {
         "UNPAID"
 
     });
-
-    debtor.amount =
-      Math.round(
-        (debtor.amount - amount) * 100
-      ) / 100;
-
-    creditor.amount =
-      Math.round(
-        (creditor.amount - amount) * 100
-      ) / 100;
-
-    if (debtor.amount <= 0.005) {
-      debtorIndex++;
-    }
-
-    if (creditor.amount <= 0.005) {
-      creditorIndex++;
-    }
 
   }
 
