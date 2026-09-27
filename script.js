@@ -8323,16 +8323,7 @@ async function openSettlePayment(settlementId) {
                 .map(
                   detail => `
 
-                    <label
-                      class="card"
-                      style="
-                        display:flex;
-                        align-items:flex-start;
-                        gap:12px;
-                        cursor:pointer;
-                        margin-top:10px;
-                      "
-                    >
+                    <label class="card settle-payment-option">
 
                       <input
                         type="radio"
@@ -8343,10 +8334,7 @@ async function openSettlePayment(settlementId) {
                             ? "checked"
                             : ""
                         }
-                        style="
-                          width:auto;
-                          margin-top:4px;
-                        "
+                        class="settle-payment-radio"
                       >
 
                       <div style="flex:1;">
@@ -8394,74 +8382,17 @@ async function openSettlePayment(settlementId) {
                         ${
                           detail.qrDisplayUrl
                             ? `
-                              <div
-                                style="
-                                  margin-top:12px;
-                                  display:flex;
-                                  flex-direction:column;
-                                  align-items:center;
-                                  gap:8px;
-                                "
+                              <a
+                                href="${escapeHtml(
+                                  detail.qrDisplayUrl
+                                )}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="secondary-button settle-payment-qr-button"
+                                style="text-decoration:none;"
                               >
-
-                                <div
-                                  class="muted"
-                                  style="
-                                    font-weight:600;
-                                  "
-                                >
-                                  Payment QR Code
-                                </div>
-
-                                <a
-                                  href="${escapeHtml(
-                                    detail.qrDisplayUrl
-                                  )}"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style="
-                                    display:inline-block;
-                                    text-decoration:none;
-                                  "
-                                >
-
-                                  <img
-                                    src="${escapeHtml(
-                                      detail.qrDisplayUrl
-                                    )}"
-                                    alt="Payment QR Code"
-                                    style="
-                                      width:180px;
-                                      height:180px;
-                                      object-fit:contain;
-                                      border:1px solid var(--border-color, #ddd);
-                                      border-radius:12px;
-                                      background:#fff;
-                                      padding:8px;
-                                      display:block;
-                                    "
-                                  >
-
-                                </a>
-
-                                <a
-                                  href="${escapeHtml(
-                                    detail.qrDisplayUrl
-                                  )}"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  class="secondary-button"
-                                  style="
-                                    display:block;
-                                    width:fit-content;
-                                    margin:12px auto 0;
-                                    text-decoration:none;
-                                  "
-                                >
-                                  View QR Code
-                                </a>
-
-                              </div>
+                                View QR Code
+                              </a>
                             `
                             : ""
                         }
@@ -9143,120 +9074,6 @@ async function submitSettlementPayment(event, settlement) {
       );
       return;
     }
-
-    /*
-     * --------------------------------------------------
-     * EXISTING PENDING PAYMENT
-     * --------------------------------------------------
-     *
-     * If this payer already has a pending payment for
-     * this settlement, do not create another payment
-     * for the same pending submission.
-     *
-     * If they provide proof, attach it to the existing
-     * pending payment.
-     */
-
-    const existingPending =
-      settlementPayments.find(
-        transaction =>
-          String(transaction.status).toUpperCase() ===
-            "SUBMITTED"
-      );
-
-    if (existingPending) {
-
-      if (!proofFile) {
-
-        toast(
-          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
-        );
-
-        return;
-      }
-
-
-      setLoading(
-        true,
-        "Preparing payment proof..."
-      );
-
-
-      const proof =
-        await preparePaymentProof(
-          proofFile
-        );
-
-
-      setLoading(
-        true,
-        "Uploading payment proof..."
-      );
-
-
-      const proofFileUrl =
-        await uploadPaymentProofToSupabase(
-          proof,
-          settlement.groupId,
-          settlement.settlementId
-        );
-
-
-      setLoading(
-        true,
-        "Attaching payment proof..."
-      );
-
-
-      const { error: proofUpdateError } =
-        await supabaseClient
-          .from("payment_submissions")
-          .update({
-            proof_file_url: proofFileUrl
-          })
-          .eq(
-            "id",
-            existingPending.paymentSubmissionId
-          )
-          .eq(
-            "payer_user_id",
-            state.user.userId
-          );
-
-
-      if (proofUpdateError) {
-        throw proofUpdateError;
-      }
-
-
-      if (
-        window.owemeSettlementDrafts &&
-        window.owemeSettlementDrafts[
-          settlement.settlementId
-        ]
-      ) {
-
-        delete window.owemeSettlementDrafts[
-          settlement.settlementId
-        ];
-
-      }
-
-
-      closeModal();
-
-
-      await refreshCurrentGroup();
-
-
-      toast(
-        "Payment proof attached successfully."
-      );
-
-
-      return;
-    }
-
 
     /*
      * --------------------------------------------------

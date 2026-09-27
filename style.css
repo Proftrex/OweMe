@@ -3989,3 +3989,72 @@ body > #modal .modal-backdrop {
 
 }
 
+
+/* =========================================================
+   SETTLE UP — PAYMENT METHOD
+   ========================================================= */
+
+.settle-payment-option {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  cursor: pointer;
+  margin-top: 10px !important;
+  padding: 16px !important;
+}
+
+.settle-payment-radio {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  margin: 3px 0 0 !important;
+  padding: 0 !important;
+  accent-color: #4f8f68 !important;
+  cursor: pointer;
+}
+
+.settle-payment-option > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.settle-payment-option > div > div:first-child {
+  margin-bottom: 7px;
+}
+
+.settle-payment-option .muted {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.settle-payment-option .muted strong {
+  color: var(--text);
+}
+
+.settle-payment-qr-button {
+  display: inline-flex !important;
+  width: fit-content !important;
+  margin-top: 12px !important;
+  padding: 9px 14px !important;
+  text-decoration: none !important;
+}
+
+@media (max-width: 500px) {
+  .settle-payment-option {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  .settle-payment-radio {
+    width: 17px !important;
+    height: 17px !important;
+    min-width: 17px !important;
+  }
+}
+
+
+/* Green preferred payment checkbox */
+input[type="checkbox"] {
+  accent-color: #4f8f68 !important;
+}
+
