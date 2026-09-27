@@ -38,15 +38,18 @@
     }
 
     .payme-brand {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       margin-bottom: 24px;
     }
 
     .payme-brand img {
-      width: 52px;
-      height: 52px;
+      width: 42px;
+      height: 42px;
       object-fit: contain;
-      margin-bottom: 8px;
+      margin: 0;
     }
 
     .payme-brand-name {
@@ -110,6 +113,32 @@
       padding: 6px 10px !important;
     }
 
+    .payme-account-number-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .payme-copy-icon-button {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 34px !important;
+      height: 34px !important;
+      min-width: 34px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 8px;
+      background: var(--primary-soft) !important;
+      color: var(--primary) !important;
+      cursor: pointer;
+    }
+
+    .payme-copy-icon-button:hover {
+      opacity: 0.85;
+    }
+
     .payme-qr-section {
       margin-top: 24px;
       padding-top: 24px;
@@ -160,6 +189,69 @@
       .payme-card {
         padding: 20px 16px;
       }
+    }
+
+    /* PayMe compact layout */
+    .payme-page {
+      padding: 20px 14px 32px;
+    }
+
+    .payme-brand {
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .payme-brand img {
+      width: 38px;
+      height: 38px;
+    }
+
+    .payme-brand-name {
+      font-size: 21px;
+    }
+
+    .payme-card {
+      padding: 20px;
+      border-radius: 18px;
+    }
+
+    .payme-title {
+      margin-bottom: 4px;
+      font-size: 25px;
+    }
+
+    .payme-subtitle {
+      margin-bottom: 18px;
+    }
+
+    .payme-payment-method {
+      font-size: 19px;
+      margin-bottom: 14px;
+    }
+
+    .payme-detail {
+      padding: 10px 0;
+    }
+
+    .payme-qr-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 0;
+    }
+
+    .payme-qr-label {
+      margin-bottom: 10px;
+    }
+
+    .payme-qr-image {
+      width: min(100%, 230px);
+      max-height: 230px;
+      margin: 0 auto;
+      border-radius: 10px;
+    }
+
+    .payme-actions {
+      margin-top: 18px;
     }
 
     /* Standalone PayMe page: restore normal document scrolling */
@@ -409,6 +501,8 @@
                 Account Number
               </div>
 
+              <div class="payme-account-number-row">
+
               <div class="payme-detail-value">
                 ${escapeHtml(accountNumber)}
               </div>
@@ -419,17 +513,34 @@
                     <button
                       type="button"
                       id="copyAccountButton"
-                      class="secondary-button payme-copy-button"
+                      class="payme-copy-icon-button"
+                      aria-label="Copy account number"
+                      title="Copy account number"
                       onclick="copyText(
                         '${escapeHtml(accountNumber)}',
                         'Account number copied!'
                       )"
                     >
-                      Copy Account Number
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
                     </button>
                   `
                   : ""
               }
+
+            </div>
 
             </div>
 
