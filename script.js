@@ -1435,478 +1435,125 @@ async function loadGroups() {
 
   await loadGroupsData();
 
-  $("#content").innerHTML = `
+  const myGroups =
+    state.groups.filter(
+      group =>
+        String(group.createdBy) ===
+        String(state.user.userId)
+    );
 
-    <div class="history-intro page-intro">
-      <h2>Your groups</h2>
-      <p>Groups you're part of, all in one place.</p>
-    </div>
+  const otherGroups =
+    state.groups.filter(
+      group =>
+        String(group.createdBy) !==
+        String(state.user.userId)
+    );
+
+  window.owemeGroupTab = "mine";
+
+  const renderGroupsTab = () => {
+
+    const activeGroups =
+      window.owemeGroupTab === "mine"
+        ? myGroups
+        : otherGroups;
+
+    return activeGroups.length
+      ? activeGroups
+          .map(renderGroupCard)
+          .join("")
+      : `
+        <div class="card empty">
+          ${
+            window.owemeGroupTab === "mine"
+              ? "You haven't created any groups yet."
+              : "You aren't part of any groups created by your contacts yet."
+          }
+        </div>
+      `;
+  };
+
+  $("#content").innerHTML = `
 
     <button
       class="primary-button"
       onclick="openCreateGroupModal()"
-      style="margin-bottom:16px"
+      style="margin-bottom:16px;"
     >
       + Create Group
     </button>
 
-    ${
-      state.groups.length
-      ? state.groups.map(renderGroupCard).join("")
-      : `
-        <div class="card empty">
-          No groups yet.
-        </div>
-      `
-    }
+    <div
+      class="groups-tabs"
+      style="
+        display:flex;
+        gap:8px;
+        margin-bottom:20px;
+      "
+    >
+
+      <button
+        type="button"
+        class="groups-tab active"
+        data-group-tab="mine"
+      >
+        My Groups
+      </button>
+
+      <button
+        type="button"
+        class="groups-tab"
+        data-group-tab="other"
+      >
+        Other Groups
+      </button>
+
+    </div>
+
+    <div id="groupsTabContent">
+      ${renderGroupsTab()}
+    </div>
 
   `;
 
-  bindGroupCards();
-}
+  document
+    .querySelectorAll(".groups-tab")
+    .forEach(button => {
 
+      button.addEventListener("click", () => {
 
+        window.owemeGroupTab =
+          button.dataset.groupTab;
 
-async function loadContacts() {
+        document
+          .querySelectorAll(".groups-tab")
+          .forEach(tab => {
+            tab.classList.toggle(
+              "active",
+              tab === button
+            );
+          });
 
-  $("#pageTitle").textContent = "Contacts";
-
-  try {
-
-    const {
-      data: {
-        user
-      },
-      error: userError
-    } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      throw new Error("Please log in first.");
-    }
-
-    /* =====================================================
-       1. GET MY ACTIVE GROUPS
-       ===================================================== */
-
-    const {
-      data: memberships,
-      error: membershipError
-    } = await supabaseClient
-      .from("group_members")
-      .select(`
-        group_id,
-        role,
-        status,
-        joined_at,
-        groups (
-          id,
-          group_name,
-          created_by,
-          created_at,
-          status
-        )
-      `)
-      .eq("user_id", user.id)
-      .eq("status", "ACTIVE");
-
-    if (membershipError) {
-      throw membershipError;
-    }
-
-    const myGroups =
-      (memberships || [])
-        .filter(row =>
-          row.groups &&
-          String(row.groups.status).toUpperCase() === "ACTIVE"
-        )
-        .map(row => ({
-          groupId: row.groups.id,
-          groupName: row.groups.group_name,
-          groupCreatedAt: row.groups.created_at,
-          groupStatus: row.groups.status,
-          myJoinedAt: row.joined_at
-        }));
-
-    if (!myGroups.length) {
-      $("#content").innerHTML = `
-        <div class="history-intro page-intro">
-          <h2>Your contacts</h2>
-          <p>People you've shared groups with.</p>
-        </div>
-
-        <div class="card empty">
-          Debug: no active groups found.<br><br>
-          Membership rows: ${memberships ? memberships.length : 0}
-        </div>
-      `;
-
-      return;
-    }
-
-    /* =====================================================
-       2. GET MEMBERS FROM THOSE GROUPS
-       ===================================================== */
-
-    const contactMap = {};
-
-    for (const group of myGroups) {
-
-      const {
-        data: groupMembers,
-        error: groupMembersError
-      } = await supabaseClient.rpc(
-        "get_group_members",
-        {
-          lookup_group_id: group.groupId
-        }
-      );
-
-      if (groupMembersError) {
-        throw groupMembersError;
-      }
-
-      (groupMembers || []).forEach(member => {
-
-        const userId = String(member.user_id);
-
-        if (userId === String(user.id)) {
-          return;
-        }
-
-        if (!contactMap[userId]) {
-          contactMap[userId] = {
-            userId,
-            username: member.username || "",
-            displayName: member.display_name || "",
-            sharedGroups: []
-          };
-        }
-
-        contactMap[userId].sharedGroups.push({
-          groupId: group.groupId,
-          groupName: group.groupName,
-          groupCreatedAt: group.groupCreatedAt,
-          joinedAt: member.joined_at
-        });
-
-      });
-
-    }
-
-    /* =====================================================
-       3. BUILD UNIQUE CONTACT LIST
-       ===================================================== */
-
-    const contactUserIds =
-      Object.keys(contactMap);
-
-
-    /* =====================================================
-       4. BUILD CONTACT OBJECTS
-       ===================================================== */
-
-    const contacts =
-      contactUserIds
-        .map(userId => {
-
-          const contact =
-            contactMap[userId];
-
-          if (!contact) {
-            return null;
-          }
-
-          const sharedGroups =
-            contactMap[userId].sharedGroups
-              .slice()
-              .sort((a, b) =>
-                new Date(b.groupCreatedAt || 0) -
-                new Date(a.groupCreatedAt || 0)
-              );
-
-          return {
-            userId,
-            username: contact.username || "",
-            displayName: contact.displayName || "",
-            sharedGroups
-          };
-
-        })
-        .filter(Boolean)
-        .sort((a, b) =>
-          String(a.username).localeCompare(
-            String(b.username)
-          )
-        );
-
-    /* =====================================================
-       6. RENDER CONTACTS
-       ===================================================== */
-
-    $("#content").innerHTML = `
-      <div class="history-intro page-intro">
-        <h2>Your contacts</h2>
-        <p>People you've shared groups with.</p>
-      </div>
-
-      <div class="contacts-search">
-        <input
-          type="search"
-          id="contactsSearchInput"
-          placeholder="Search contacts..."
-          autocomplete="off"
-        >
-      </div>
-
-      ${
-        contacts.length
-          ? `
-            <div class="contacts-list" id="contactsList">
-              ${contacts.map(renderContactCard).join("")}
-            </div>
-          `
-          : `
-            <div class="card empty">
-              You don't have any contacts yet.
-            </div>
-          `
-      }
-    `;
-
-    const searchInput =
-      document.getElementById("contactsSearchInput");
-
-    if (searchInput) {
-
-      searchInput.addEventListener("input", event => {
-
-        const query =
-          String(event.target.value || "")
-            .trim()
-            .toLowerCase();
-
-        const filtered =
-          contacts.filter(contact =>
-            String(contact.username || "")
-              .toLowerCase()
-              .includes(query) ||
-            String(contact.displayName || "")
-              .toLowerCase()
-              .includes(query)
+        const container =
+          document.querySelector(
+            "#groupsTabContent"
           );
 
-        const list =
-          document.getElementById("contactsList");
-
-        if (!list) {
-          return;
+        if (container) {
+          container.innerHTML =
+            renderGroupsTab();
         }
 
-        list.innerHTML =
-          filtered.length
-            ? filtered.map(renderContactCard).join("")
-            : `
-              <div class="card empty">
-                No contacts found.
-              </div>
-            `;
+        bindGroupCards();
 
       });
 
-    }
+    });
 
-  } catch (error) {
-
-    console.error("LOAD CONTACTS ERROR:", error);
-
-    toast(
-      error.message ||
-      "Unable to load contacts."
-    );
-
-  }
+  bindGroupCards();
 
 }
 
-async function loadHistory() {
-
-  $("#pageTitle").textContent = "History";
-
-  try {
-
-    const {
-      data: {
-        user
-      },
-      error: userError
-    } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      throw new Error("Please log in first.");
-    }
-
-    const {
-      data: memberships,
-      error: membershipError
-    } = await supabaseClient
-      .from("group_members")
-      .select(`
-        group_id,
-        status,
-        groups (
-          id,
-          group_name,
-          created_by,
-          created_at,
-          status
-        )
-      `)
-      .eq("user_id", user.id)
-      .eq("status", "ACTIVE");
-
-    if (membershipError) {
-      throw new Error(
-        membershipError.message ||
-        "Unable to load your group history."
-      );
-    }
-
-    const closedGroups =
-      (memberships || [])
-        .filter(row =>
-          row.groups &&
-          String(row.groups.status).toUpperCase() === "CLOSED"
-        )
-        .map(row => ({
-          groupId: row.groups.id,
-          groupName: row.groups.group_name,
-          createdBy: row.groups.created_by,
-          createdAt: row.groups.created_at,
-          status: row.groups.status,
-          memberCount: 0
-        }));
-
-    for (const group of closedGroups) {
-
-      const {
-        data: memberRows
-      } = await supabaseClient
-        .from("group_members")
-        .select("user_id")
-        .eq("group_id", group.groupId)
-        .eq("status", "ACTIVE");
-
-      group.memberCount =
-        (memberRows || []).length;
-    }
-
-    $("#content").innerHTML = `
-
-      <div class="history-intro">
-
-        <h2>Your history</h2>
-
-        <p>
-          Groups you've closed and kept for the records.
-        </p>
-
-      </div>
-
-      ${
-        closedGroups.length
-          ? closedGroups.map(group => `
-              <div
-                class="card group-card history-group-card"
-                data-group-id="${escapeHtml(group.groupId)}"
-              >
-
-                <div>
-                  <h3>
-                    ${escapeHtml(group.groupName)}
-                  </h3>
-
-                  <div class="history-group-meta-row">
-                    <p>
-                      ${Number(group.memberCount || 0)}
-                      member${group.memberCount === 1 ? "" : "s"}
-                      · Closed
-                    </p>
-
-                    <div class="history-group-actions">
-                      <button
-                        type="button"
-                        class="history-icon-button history-delete-button"
-                        aria-label="Delete group"
-                        title="Delete group"
-                        onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M4 7h16"/>
-                          <path d="M10 11v6"/>
-                          <path d="M14 11v6"/>
-                          <path d="M6 7l1 14h10l1-14"/>
-                          <path d="M9 7V4h6v3"/>
-                        </svg>
-                      </button>
-
-                      <button
-                        type="button"
-                        class="history-icon-button history-view-button"
-                        aria-label="View group"
-                        title="View group"
-                        onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/>
-                          <circle cx="12" cy="12" r="2.5"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            `).join("")
-          : `
-              <div class="card empty-state">
-
-                <h3>No adventures here yet</h3>
-
-                <p>
-                  Closed groups will appear here after everyone is settled.
-                </p>
-
-              </div>
-            `
-      }
-
-    `;
-
-    document
-      .querySelectorAll(".history-group-card")
-      .forEach(card => {
-
-        card.addEventListener("click", () => {
-          openGroup(card.dataset.groupId);
-        });
-
-      });
-
-  } catch (error) {
-
-    console.error(
-      "LOAD HISTORY ERROR:",
-      error
-    );
-
-    toast(
-      error.message ||
-      "Unable to load your group history."
-    );
-
-  }
-
-}
 
 async function loadGroupsData(force = false) {
 
