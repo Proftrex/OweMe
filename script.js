@@ -1825,28 +1825,43 @@ async function loadHistory() {
                     ${escapeHtml(group.groupName)}
                   </h3>
 
-                  <p>
-                    ${Number(group.memberCount || 0)}
-                    member${group.memberCount === 1 ? "" : "s"}
-                    · Closed
-                  </p>
+                  <div class="history-group-meta-row">
+                    <p>
+                      ${Number(group.memberCount || 0)}
+                      member${group.memberCount === 1 ? "" : "s"}
+                      · Closed
+                    </p>
 
-                  <div class="history-group-actions">
-                    <button
-                      type="button"
-                      class="small-button danger-button"
-                      onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
-                    >
-                      Delete
-                    </button>
+                    <div class="history-group-actions">
+                      <button
+                        type="button"
+                        class="history-icon-button history-delete-button"
+                        aria-label="Delete group"
+                        title="Delete group"
+                        onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M4 7h16"/>
+                          <path d="M10 11v6"/>
+                          <path d="M14 11v6"/>
+                          <path d="M6 7l1 14h10l1-14"/>
+                          <path d="M9 7V4h6v3"/>
+                        </svg>
+                      </button>
 
-                    <button
-                      type="button"
-                      class="small-button"
-                      onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
-                    >
-                      View
-                    </button>
+                      <button
+                        type="button"
+                        class="history-icon-button history-view-button"
+                        aria-label="View group"
+                        title="View group"
+                        onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/>
+                          <circle cx="12" cy="12" r="2.5"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 

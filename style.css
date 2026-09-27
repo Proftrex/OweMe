@@ -4091,3 +4091,89 @@ input[type="checkbox"] {
   display: block;
 }
 
+
+/* =========================================================
+   HISTORY — INLINE ACTION ICONS
+   ========================================================= */
+
+.history-group-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.history-group-meta-row p {
+  margin: 0 !important;
+  min-width: 0;
+}
+
+.history-group-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+.history-icon-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.history-icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-delete-button {
+  background: var(--danger-soft, #fdecec) !important;
+  color: #d96b6b !important;
+}
+
+.history-view-button {
+  background: var(--primary-soft) !important;
+  color: var(--primary) !important;
+}
+
+.history-icon-button:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 500px) {
+  .history-group-meta-row {
+    gap: 8px;
+  }
+
+  .history-group-actions {
+    gap: 6px;
+  }
+
+  .history-icon-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 9px;
+  }
+
+  .history-icon-button svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
