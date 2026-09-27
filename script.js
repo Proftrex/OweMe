@@ -4320,7 +4320,7 @@ async function openCreateGroupModal() {
         <input
           type="search"
           id="newGroupMemberSearch"
-          placeholder="Search contacts or enter username..."
+          placeholder="Search OweMe users by username..."
           autocomplete="off"
         >
 
@@ -4661,21 +4661,14 @@ async function openCreateGroupModal() {
               </span>
 
               <small class="muted">
-                ${contact.sharedGroups.length}
-                ${
-                  contact.sharedGroups.length === 1
-                    ? "shared group"
-                    : "shared groups"
-                }
-              </small>
-
-            </button>
+                OweMe user
+              </small>      </button>
 
           `).join("")
         : `
             <div class="invite-contact-empty">
-              No matching contacts.
-              Press Enter to add this username.
+              No matching OweMe users.
+              Search by username or display name.
             </div>
           `;
 
@@ -4751,8 +4744,8 @@ async function openCreateGroupModal() {
 
         } else {
 
-          addManualUsername(
-            searchInput.value
+          toast(
+            "No OweMe user found with that username."
           );
 
         }
@@ -9300,72 +9293,40 @@ async function markSettlementPaid(settlementId) {
 
 async function loadContactSuggestions() {
 
+  /*
+   * Add Members should search all existing OweMe users,
+   * not only people who already share a group with you.
+   */
   const currentUserId =
     String(state.user.userId);
 
-  const groups =
-    Array.isArray(state.groups)
-      ? state.groups
-      : [];
-
-  const contactMap = {};
-
-  for (const group of groups) {
-
-    if (!group?.groupId) {
-      continue;
-    }
-
-    const {
-      data: groupMembers,
-      error
-    } = await supabaseClient.rpc(
-      "get_group_members",
-      {
-        lookup_group_id: group.groupId
-      }
-    );
-
-    if (error) {
-      throw error;
-    }
-
-    (groupMembers || []).forEach(member => {
-
-      const userId =
-        String(member.user_id);
-
-      if (userId === currentUserId) {
-        return;
-      }
-
-      if (!contactMap[userId]) {
-        contactMap[userId] = {
-          userId,
-          username: member.username || "",
-          displayName: member.display_name || "",
-          sharedGroups: []
-        };
-      }
-
-      contactMap[userId].sharedGroups.push({
-        groupId: group.groupId,
-        groupName: group.groupName
-      });
-
+  const {
+    data: profiles,
+    error
+  } = await supabaseClient
+    .from("profiles")
+    .select("id, username, username_normalized, display_name, status")
+    .neq("id", currentUserId)
+    .order("username_normalized", {
+      ascending: true
     });
 
+  if (error) {
+    throw error;
   }
 
-  return Object.values(contactMap)
-    .filter(contact => contact.username)
-    .sort((a, b) =>
-      String(a.username).localeCompare(
-        String(b.username)
-      )
-    );
+  return (profiles || [])
+    .filter(profile =>
+      profile.status === "ACTIVE" &&
+      profile.username
+    )
+    .map(profile => ({
+      userId: String(profile.id),
+      username: profile.username,
+      displayName: profile.display_name || "",
+      sharedGroups: []
+    }));
 }
-
 
 async function openMembersModal() {
 
