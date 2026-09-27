@@ -9322,6 +9322,10 @@ async function markSettlementPaid(settlementId) {
 
 async function loadContactSuggestions() {
 
+  /*
+   * Add Members should search all existing OweMe users,
+   * not only people who already share a group with you.
+   */
   const currentUserId =
     String(state.user.userId);
 
