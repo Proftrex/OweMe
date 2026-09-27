@@ -1345,6 +1345,30 @@ async function loadHome(initialGroups = null, force = false) {
         totalBalance.toFixed(2)
       );
 
+    const totalReceivables =
+      Number(
+        state.groups
+          .reduce(
+            (total, group) =>
+              total +
+              Number(group.receivables || 0),
+            0
+          )
+          .toFixed(2)
+      );
+
+    const totalPayables =
+      Number(
+        state.groups
+          .reduce(
+            (total, group) =>
+              total +
+              Number(group.payables || 0),
+            0
+          )
+          .toFixed(2)
+      );
+
 
     $("#content").innerHTML = `
 
@@ -1391,6 +1415,22 @@ async function loadHome(initialGroups = null, force = false) {
                 ? "Check if anything was missed."
                 : "Nothing outstanding right now."
           }
+        </div>
+
+        <div class="home-balance-breakdown">
+
+          <div class="home-balance-breakdown-item">
+            <span>Amount you're owed</span>
+            <strong>${formatMoney(totalReceivables)}</strong>
+          </div>
+
+          <div class="home-balance-breakdown-divider"></div>
+
+          <div class="home-balance-breakdown-item">
+            <span>Amount you owe</span>
+            <strong>${formatMoney(totalPayables)}</strong>
+          </div>
+
         </div>
 
       </div>
@@ -2030,37 +2070,30 @@ async function loadGroups() {
 
   await loadGroupsData();
 
-  const myGroups =
-    state.groups.filter(
-      group =>
-        String(group.createdBy) ===
-        String(state.user.userId)
-    );
+  window.owemeGroupsSection = "mine";
+  window.owemeGroupSubtab = "mine";
 
-  const otherGroups =
-    state.groups.filter(
-      group =>
-        String(group.createdBy) !==
-        String(state.user.userId)
-    );
+  const renderGroupsContent = () => {
 
-  window.owemeGroupTab = "mine";
+    const groups =
+      window.owemeGroupSubtab === "mine"
+        ? state.groups.filter(
+            group =>
+              String(group.createdBy) ===
+              String(state.user.userId)
+          )
+        : state.groups.filter(
+            group =>
+              String(group.createdBy) !==
+              String(state.user.userId)
+          );
 
-  const renderGroupsList = () => {
-
-    const activeGroups =
-      window.owemeGroupTab === "mine"
-        ? myGroups
-        : otherGroups;
-
-    return activeGroups.length
-      ? activeGroups
-          .map(renderGroupCard)
-          .join("")
+    return groups.length
+      ? groups.map(renderGroupCard).join("")
       : `
         <div class="card empty">
           ${
-            window.owemeGroupTab === "mine"
+            window.owemeGroupSubtab === "mine"
               ? "You haven't created any groups yet."
               : "You aren't part of any groups created by your contacts yet."
           }
@@ -2068,55 +2101,60 @@ async function loadGroups() {
       `;
   };
 
-  const renderGroupsTabs = () => `
-    <div class="groups-tab-container">
+  const renderSectionTabs = () => `
+    <div class="groups-tab-container groups-section-tabs">
+
       <button
         type="button"
-        class="groups-tab ${window.owemeGroupTab === "mine" ? "active" : ""}"
-        data-group-tab="mine"
-        onclick="switchGroupsPageTab('mine')"
+        class="groups-tab ${window.owemeGroupsSection === "mine" ? "active" : ""}"
+        data-section-tab="mine"
+        onclick="switchGroupsSectionTab('mine')"
       >
         My Groups
       </button>
 
       <button
         type="button"
-        class="groups-tab ${window.owemeGroupTab === "other" ? "active" : ""}"
-        data-group-tab="other"
-        onclick="switchGroupsPageTab('other')"
+        class="groups-tab ${window.owemeGroupsSection === "history" ? "active" : ""}"
+        data-section-tab="history"
+        onclick="switchGroupsSectionTab('history')"
       >
-        Other Groups
+        History
+      </button>
+
+    </div>
+  `;
+
+  const renderSubTabs = () => `
+    <div class="history-tabs groups-sub-tabs">
+
+      <button
+        type="button"
+        class="history-tab ${window.owemeGroupSubtab === "mine" ? "active" : ""}"
+        onclick="switchGroupsSubTab('mine')"
+      >
+        Own Group
       </button>
 
       <button
         type="button"
-        class="groups-tab ${window.owemeGroupTab === "history" ? "active" : ""}"
-        data-group-tab="history"
-        onclick="switchGroupsPageTab('history')"
+        class="history-tab ${window.owemeGroupSubtab === "other" ? "active" : ""}"
+        onclick="switchGroupsSubTab('other')"
       >
-        History
+        Others Group
       </button>
+
     </div>
   `;
 
   $("#content").innerHTML = `
 
-    <div class="groups-page-create-section">
+    ${renderSectionTabs()}
 
-      <button
-        class="primary-button"
-        onclick="openCreateGroupModal()"
-        style="margin-bottom:16px;"
-      >
-        + Create Group
-      </button>
-
-    </div>
-
-    ${renderGroupsTabs()}
+    ${renderSubTabs()}
 
     <div id="groupsTabContent">
-      ${renderGroupsList()}
+      ${renderGroupsContent()}
     </div>
 
   `;
@@ -2126,23 +2164,25 @@ async function loadGroups() {
 }
 
 
-async function switchGroupsPageTab(tab) {
+async function switchGroupsSectionTab(section) {
 
-  window.owemeGroupTab =
-    ["mine", "other", "history"].includes(tab)
-      ? tab
+  window.owemeGroupsSection =
+    section === "history"
+      ? "history"
       : "mine";
 
-  const tabs =
+  window.owemeGroupSubtab = "mine";
+
+  const sectionTabs =
     document.querySelectorAll(
-      ".groups-tab-container .groups-tab"
+      ".groups-section-tabs .groups-tab"
     );
 
-  tabs.forEach(button => {
+  sectionTabs.forEach(button => {
     button.classList.toggle(
       "active",
-      button.dataset.groupTab ===
-      window.owemeGroupTab
+      button.dataset.sectionTab ===
+      window.owemeGroupsSection
     );
   });
 
@@ -2153,18 +2193,64 @@ async function switchGroupsPageTab(tab) {
 
   if (!container) return;
 
-  if (window.owemeGroupTab === "history") {
-
-    container.innerHTML =
-      `<div class="groups-tab-loading">Loading history...</div>`;
-
+  if (window.owemeGroupsSection === "history") {
     await renderGroupsHistoryTab(container);
-
-    return;
+  } else {
+    await renderGroupsOwnTab(container);
   }
 
+}
+
+
+async function switchGroupsSubTab(subtab) {
+
+  window.owemeGroupSubtab =
+    subtab === "other"
+      ? "other"
+      : "mine";
+
+  const tabs =
+    document.querySelectorAll(
+      ".groups-sub-tabs .history-tab"
+    );
+
+  tabs.forEach(button => {
+    const text =
+      button.textContent.trim();
+
+    button.classList.toggle(
+      "active",
+      (
+        window.owemeGroupSubtab === "mine" &&
+        text === "Own Group"
+      ) ||
+      (
+        window.owemeGroupSubtab === "other" &&
+        text === "Others Group"
+      )
+    );
+  });
+
+  const container =
+    document.querySelector(
+      "#groupsTabContent"
+    );
+
+  if (!container) return;
+
+  if (window.owemeGroupsSection === "history") {
+    await renderGroupsHistoryTab(container);
+  } else {
+    await renderGroupsOwnTab(container);
+  }
+
+}
+
+
+async function renderGroupsOwnTab(container) {
+
   const groups =
-    window.owemeGroupTab === "mine"
+    window.owemeGroupSubtab === "mine"
       ? state.groups.filter(
           group =>
             String(group.createdBy) ===
@@ -2182,7 +2268,7 @@ async function switchGroupsPageTab(tab) {
       : `
         <div class="card empty">
           ${
-            window.owemeGroupTab === "mine"
+            window.owemeGroupSubtab === "mine"
               ? "You haven't created any groups yet."
               : "You aren't part of any groups created by your contacts yet."
           }
@@ -2264,200 +2350,130 @@ async function renderGroupsHistoryTab(container) {
         (memberRows || []).length;
     }
 
-    let historyTab = "mine";
+    const groups =
+      window.owemeGroupSubtab === "mine"
+        ? closedGroups.filter(
+            group =>
+              String(group.createdBy) ===
+              String(user.id)
+          )
+        : closedGroups.filter(
+            group =>
+              String(group.createdBy) !==
+              String(user.id)
+          );
 
-    const renderHistoryList = () => {
+    if (!groups.length) {
 
-      const groups =
-        historyTab === "mine"
-          ? closedGroups.filter(
-              group =>
-                String(group.createdBy) ===
-                String(user.id)
-            )
-          : closedGroups.filter(
-              group =>
-                String(group.createdBy) !==
-                String(user.id)
-            );
-
-      if (!groups.length) {
-        return `
-          <div class="history-empty-message">
-            ${
-              historyTab === "mine"
-                ? "You haven't closed any groups you created yet."
-                : "No closed groups from your contacts yet."
-            }
-          </div>
-        `;
-      }
-
-      return groups
-        .map(group => `
-          <div
-            class="history-list-item"
-            data-group-id="${escapeHtml(group.groupId)}"
-          >
-
-            <div class="history-list-info">
-
-              <div class="history-list-name">
-                ${escapeHtml(group.groupName)}
-              </div>
-
-              <div class="history-list-meta">
-                ${Number(group.memberCount || 0)}
-                member${group.memberCount === 1 ? "" : "s"}
-                · Closed
-              </div>
-
-            </div>
-
-            <div class="history-list-actions">
-
-              <button
-                type="button"
-                class="history-list-icon history-view-button"
-                aria-label="View group"
-                title="View group"
-                onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="2.5"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                  />
-                </svg>
-              </button>
-
-              <button
-                type="button"
-                class="history-list-icon history-delete-button"
-                aria-label="Delete group"
-                title="Delete group"
-                onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M4 7h16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M9 7V4h6v3"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M6 7l1 13h10l1-13"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M10 11v5M14 11v5"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </button>
-
-            </div>
-
-          </div>
-        `)
-        .join("");
-    };
-
-    container.innerHTML = `
-
-      <div class="history-intro">
-
-        <h2>Your history</h2>
-
-        <p>
-          Groups you've closed and kept for the records.
-        </p>
-
-      </div>
-
-      <div class="history-tabs">
-
-        <button
-          type="button"
-          class="history-tab active"
-          data-history-tab="mine"
-        >
-          My Groups
-        </button>
-
-        <button
-          type="button"
-          class="history-tab"
-          data-history-tab="other"
-        >
-          Other Groups
-        </button>
-
-      </div>
-
-      <div id="historyList">
-        ${renderHistoryList()}
-      </div>
-
-    `;
-
-    container
-      .querySelectorAll(".history-tab")
-      .forEach(button => {
-
-        button.addEventListener("click", () => {
-
-          historyTab =
-            button.dataset.historyTab;
-
-          container
-            .querySelectorAll(".history-tab")
-            .forEach(tab => {
-              tab.classList.toggle(
-                "active",
-                tab === button
-              );
-            });
-
-          const list =
-            container.querySelector(
-              "#historyList"
-            );
-
-          if (list) {
-            list.innerHTML =
-              renderHistoryList();
+      container.innerHTML = `
+        <div class="history-empty-message">
+          ${
+            window.owemeGroupSubtab === "mine"
+              ? "You haven't closed any groups you created yet."
+              : "No closed groups from your contacts yet."
           }
+        </div>
+      `;
 
-        });
+      return;
+    }
 
-      });
+    container.innerHTML = groups
+      .map(group => `
+        <div
+          class="history-list-item"
+          data-group-id="${escapeHtml(group.groupId)}"
+        >
+
+          <div class="history-list-info">
+
+            <div class="history-list-name">
+              ${escapeHtml(group.groupName)}
+            </div>
+
+            <div class="history-list-meta">
+              ${Number(group.memberCount || 0)}
+              member${group.memberCount === 1 ? "" : "s"}
+              · Closed
+            </div>
+
+          </div>
+
+          <div class="history-list-actions">
+
+            <button
+              type="button"
+              class="history-list-icon history-view-button"
+              aria-label="View group"
+              title="View group"
+              onclick="event.stopPropagation(); openGroup('${escapeHtml(group.groupId)}')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="history-list-icon history-delete-button"
+              aria-label="Delete group"
+              title="Delete group"
+              onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 7h16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M9 7V4h6v3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M6 7l1 13h10l1-13"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M10 11v5M14 11v5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+
+          </div>
+
+        </div>
+      `)
+      .join("");
+
+    bindHistoryList();
 
   } catch (error) {
 

@@ -9682,3 +9682,469 @@ body,
     font-size: 14px !important;
   }
 }
+
+/* OweMe login brand — tagline below OweMe */
+.auth-card .brand {
+  display: grid !important;
+  grid-template-columns: 78px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 14px !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+  text-align: left !important;
+  margin-bottom: 28px !important;
+}
+
+.auth-card .brand .brand-icon {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  margin: 0 !important;
+}
+
+.auth-card .brand h1 {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  margin: 0 !important;
+  align-self: end !important;
+}
+
+.auth-card .brand p {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin: 2px 0 0 !important;
+  align-self: start !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 600px) {
+  .auth-card .brand {
+    grid-template-columns: 70px minmax(0, 1fr) !important;
+    column-gap: 12px !important;
+  }
+}
+
+
+/* =========================================================
+   OweMe — FINAL LOGIN SPACING SYSTEM
+   Normalize auth heights, gaps and vertical rhythm
+========================================================= */
+
+.auth-card {
+  padding: 30px !important;
+}
+
+/* ---------- Brand ---------- */
+
+.auth-card .brand {
+  display: grid !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 14px !important;
+  row-gap: 1px !important;
+  align-items: center !important;
+  text-align: left !important;
+  margin: 0 0 26px !important;
+}
+
+.auth-card .brand .brand-icon {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  width: 64px !important;
+  height: 64px !important;
+  min-width: 64px !important;
+  margin: 0 !important;
+}
+
+.auth-card .brand h1 {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  margin: 0 !important;
+  line-height: 1.05 !important;
+  align-self: end !important;
+}
+
+.auth-card .brand p {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin: 3px 0 0 !important;
+  line-height: 1.3 !important;
+  align-self: start !important;
+}
+
+/* ---------- Login heading ---------- */
+
+.auth-card #loginPanel h2 {
+  margin: 0 0 20px !important;
+  line-height: 1.2 !important;
+}
+
+/* ---------- Login form ---------- */
+
+.auth-card #loginForm {
+  margin: 0 !important;
+}
+
+/* Labels */
+
+.auth-card #loginForm > label {
+  display: block !important;
+  margin: 0 0 16px !important;
+  color: #526457 !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+}
+
+/* Inputs */
+
+.auth-card #loginForm > label > input {
+  display: block !important;
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  margin-top: 7px !important;
+  padding: 0 15px !important;
+  border-radius: 17px !important;
+}
+
+/* ---------- Forgot password ---------- */
+
+.auth-card #forgotPasswordButton {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.auth-card #loginForm > p:has(#forgotPasswordButton) {
+  margin: -3px 0 18px !important;
+  line-height: 1.3 !important;
+}
+
+/* ---------- Login button ---------- */
+
+.auth-card #loginForm > .primary-button,
+.auth-card #loginForm > button.primary-button {
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 17px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ---------- Create account ---------- */
+
+.auth-card #loginPanel > .switch-text {
+  margin: 18px 0 0 !important;
+  text-align: center !important;
+  line-height: 1.4 !important;
+}
+
+.auth-card #loginPanel > .switch-text .link-button {
+  margin-left: 3px !important;
+  padding: 0 !important;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 600px) {
+
+  .auth-card {
+    padding: 24px 20px !important;
+  }
+
+  .auth-card .brand {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    column-gap: 12px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .auth-card .brand .brand-icon {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+  }
+
+  .auth-card #loginPanel h2 {
+    margin-bottom: 18px !important;
+  }
+
+  .auth-card #loginForm > label {
+    margin-bottom: 15px !important;
+  }
+
+  .auth-card #loginForm > label > input {
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  .auth-card #loginForm > p:has(#forgotPasswordButton) {
+    margin-bottom: 17px !important;
+  }
+
+  .auth-card #loginForm > .primary-button,
+  .auth-card #loginForm > button.primary-button {
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  .auth-card #loginPanel > .switch-text {
+    margin-top: 17px !important;
+  }
+
+}
+
+
+/* =========================================================
+   OweMe — Center Create Group Navigation Button
+========================================================= */
+
+.nav-create-group {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 64px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.nav-create-group::before {
+  display: none !important;
+}
+
+.nav-create-group-icon {
+  width: 52px !important;
+  height: 52px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  border-radius: 18px !important;
+
+  background: #193a27 !important;
+  color: #ffffff !important;
+
+  font-size: 30px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+
+  box-shadow:
+    0 8px 20px rgba(25, 58, 39, 0.20) !important;
+
+  transform: translateY(-8px) !important;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease !important;
+}
+
+.nav-create-group:hover .nav-create-group-icon {
+  transform: translateY(-10px) !important;
+  box-shadow:
+    0 11px 24px rgba(25, 58, 39, 0.24) !important;
+}
+
+.nav-create-group:active .nav-create-group-icon {
+  transform: translateY(-5px) scale(0.96) !important;
+}
+
+.nav-create-group small {
+  display: none !important;
+}
+
+@media (max-width: 600px) {
+
+  .nav-create-group {
+    min-width: 58px !important;
+  }
+
+  .nav-create-group-icon {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 17px !important;
+    font-size: 29px !important;
+  }
+
+}
+
+
+/* =========================================================
+   OweMe — Groups navigation hierarchy
+========================================================= */
+
+.groups-section-tabs {
+  display: flex !important;
+  width: 100% !important;
+  min-height: 52px !important;
+  padding: 0 !important;
+  gap: 28px !important;
+  margin: 0 0 18px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border-bottom: 1px solid #e4ebe0 !important;
+}
+
+.groups-section-tabs .groups-tab {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  min-height: 52px !important;
+  padding: 0 4px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #718074 !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+
+.groups-section-tabs .groups-tab.active {
+  color: #193a27 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.groups-section-tabs .groups-tab.active::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: -1px !important;
+  height: 3px !important;
+  border-radius: 999px !important;
+  background: #193a27 !important;
+}
+
+.groups-sub-tabs {
+  display: flex !important;
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+  margin: 0 0 24px !important;
+  border-radius: 16px !important;
+  background: #e8f1e4 !important;
+  border: none !important;
+}
+
+.groups-sub-tabs .history-tab {
+  flex: 1 !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #718074 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+
+.groups-sub-tabs .history-tab.active {
+  background: #ffffff !important;
+  color: #193a27 !important;
+  box-shadow: 0 2px 8px rgba(39, 66, 45, 0.07) !important;
+}
+
+#groupsTabContent {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 600px) {
+  .groups-section-tabs {
+    min-height: 48px !important;
+    gap: 24px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .groups-section-tabs .groups-tab {
+    min-height: 48px !important;
+    font-size: 15px !important;
+  }
+
+  .groups-sub-tabs {
+    min-height: 44px !important;
+    margin-bottom: 22px !important;
+  }
+
+  .groups-sub-tabs .history-tab {
+    min-height: 36px !important;
+    font-size: 13px !important;
+  }
+}
+
+
+/* =========================================================
+   OweMe — Home balance breakdown
+========================================================= */
+
+.home-balance-breakdown {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  align-items: stretch !important;
+  margin-top: 20px !important;
+  padding-top: 18px !important;
+  border-top: 1px solid rgba(39, 66, 45, 0.12) !important;
+}
+
+.home-balance-breakdown-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+
+.home-balance-breakdown-item:first-child {
+  padding-right: 18px !important;
+}
+
+.home-balance-breakdown-item:last-child {
+  padding-left: 18px !important;
+}
+
+.home-balance-breakdown-item span {
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+  color: #718074 !important;
+  font-weight: 700 !important;
+}
+
+.home-balance-breakdown-item strong {
+  font-size: 17px !important;
+  line-height: 1.25 !important;
+  color: #193a27 !important;
+  font-weight: 850 !important;
+}
+
+.home-balance-breakdown-divider {
+  width: 1px !important;
+  background: rgba(39, 66, 45, 0.12) !important;
+}
+
+@media (max-width: 600px) {
+
+  .home-balance-breakdown {
+    margin-top: 18px !important;
+    padding-top: 16px !important;
+  }
+
+  .home-balance-breakdown-item:first-child {
+    padding-right: 12px !important;
+  }
+
+  .home-balance-breakdown-item:last-child {
+    padding-left: 12px !important;
+  }
+
+  .home-balance-breakdown-item span {
+    font-size: 11px !important;
+  }
+
+  .home-balance-breakdown-item strong {
+    font-size: 16px !important;
+  }
+
+}
+
