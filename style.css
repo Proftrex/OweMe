@@ -5385,3 +5385,1034 @@ input[type="checkbox"] {
   text-transform: uppercase;
 }
 
+
+/* Profile account action buttons — one row */
+#profileAccountSection .action-button,
+#profileAccountSection .secondary-button,
+#profileAccountSection button {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+#profileAccountSection .profile-action-buttons {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+@media (max-width: 500px) {
+  #profileAccountSection .profile-action-buttons {
+    gap: 8px !important;
+  }
+
+  #profileAccountSection .profile-action-buttons button {
+    padding: 11px 6px !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+  }
+}
+
+
+/* Profile account buttons — one line */
+.profile-account-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin-top: 16px !important;
+}
+
+.profile-account-actions > button {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 11px 8px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 500px) {
+  .profile-account-actions {
+    gap: 8px !important;
+  }
+
+  .profile-account-actions > button {
+    font-size: 12px !important;
+    padding: 10px 5px !important;
+  }
+}
+
+
+/* Payment Option select — match input field height */
+#paymentOption,
+select#paymentOption {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 12px 14px !important;
+  box-sizing: border-box !important;
+  border: 2px solid var(--border) !important;
+  border-radius: var(--radius-small) !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+}
+
+
+/* Compact pending payment list */
+.pending-group-list {
+  width: 100%;
+}
+
+.pending-payment-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pending-payment-list-item:last-child {
+  border-bottom: none;
+}
+
+.pending-payment-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pending-payment-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.pending-payment-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pending-payment-notes {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-payment-amount {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.pending-payment-review-button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: var(--green-soft);
+  color: var(--green);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 500px) {
+  .pending-payment-list-item {
+    gap: 8px;
+    padding: 12px 2px;
+  }
+
+  .pending-payment-title {
+    font-size: 14px;
+  }
+
+  .pending-payment-meta {
+    font-size: 11px;
+  }
+
+  .pending-payment-amount {
+    font-size: 13px;
+  }
+
+  .pending-payment-review-button {
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+}
+
+
+/* Pending tab — flat list, no cards */
+#pendingPaymentsSection,
+#pendingPaymentsList {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+#pendingPaymentsList .settlement-row,
+#pendingPaymentsList .card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.pending-payment-list-item {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  padding: 12px 4px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.pending-payment-list-item:last-child {
+  border-bottom: none !important;
+}
+
+
+/* Settle modal — compact shared expense list */
+.settle-expense-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settle-expense-list-item:last-child {
+  border-bottom: none;
+}
+
+.settle-expense-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settle-expense-name {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.settle-expense-date {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settle-expense-amount {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+
+/* Settle modal — compact payment lists */
+.settle-payment-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settle-payment-list-item:last-child {
+  border-bottom: none;
+}
+
+.settle-payment-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settle-payment-name {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.settle-payment-date {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settle-payment-amount {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.settle-payment-status {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.settle-payment-status.confirmed {
+  color: var(--green);
+}
+
+.settle-payment-status.pending {
+  color: #9a8218;
+}
+
+.settle-payment-empty {
+  padding: 14px 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+
+/* Remove nested card appearance in Settle Up modal */
+.settle-payment-list-item,
+.settle-expense-list-item {
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+
+/* Settle Up modal — flatten outstanding amount section */
+.settle-amount-summary {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 16px !important;
+}
+
+.settle-amount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settle-amount-row:last-child {
+  border-bottom: none;
+}
+
+.settle-amount-label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.settle-amount-value {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+
+/* Receivables modal — flat list */
+.receivables-flat-list {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.receivable-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receivable-list-item:last-child {
+  border-bottom: none;
+}
+
+.receivable-list-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.receivable-list-meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.receivable-nudge-meta {
+  font-size: 11px;
+}
+
+.receivable-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.receivable-list-actions .small-button {
+  white-space: nowrap;
+}
+
+.receivables-empty {
+  padding: 16px 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 500px) {
+  .receivable-list-item {
+    gap: 8px;
+    padding: 13px 2px;
+  }
+
+  .receivable-list-actions {
+    gap: 4px;
+  }
+
+  .receivable-list-actions .small-button {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+
+  .receivable-list-meta {
+    font-size: 12px;
+  }
+}
+
+
+/* Receivable Details — same flat list treatment as Payable Details */
+.receivable-summary-list,
+.receivable-detail-list {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.receivable-summary-row,
+.receivable-detail-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receivable-summary-row:last-child,
+.receivable-detail-list-item:last-child {
+  border-bottom: none;
+}
+
+.receivable-summary-row strong {
+  white-space: nowrap;
+}
+
+.receivable-detail-list-item > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.receivable-detail-list-item .user-name {
+  font-weight: 800;
+}
+
+.receivable-detail-list-item .muted {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.receivable-detail-list-item > strong,
+.receivable-detail-list-item > div:last-child {
+  flex-shrink: 0;
+}
+
+
+/* Receivable Details — same flat list treatment as Payable Details */
+.receivable-summary-list,
+.receivable-detail-list {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.receivable-summary-row,
+.receivable-detail-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receivable-summary-row:last-child,
+.receivable-detail-list-item:last-child {
+  border-bottom: none;
+}
+
+.receivable-summary-row strong {
+  white-space: nowrap;
+}
+
+.receivable-detail-list-item > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.receivable-detail-list-item .user-name {
+  font-weight: 800;
+}
+
+.receivable-detail-list-item .muted {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.receivable-detail-list-item > strong,
+.receivable-detail-list-item > div:last-child {
+  flex-shrink: 0;
+}
+
+
+/* Receivable Details — same flat list treatment as Payable Details */
+.receivable-summary-list,
+.receivable-detail-list {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.receivable-summary-row,
+.receivable-detail-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receivable-summary-row:last-child,
+.receivable-detail-list-item:last-child {
+  border-bottom: none;
+}
+
+.receivable-summary-row strong {
+  white-space: nowrap;
+}
+
+.receivable-detail-list-item > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.receivable-detail-list-item .user-name {
+  font-weight: 800;
+}
+
+.receivable-detail-list-item .muted {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.receivable-detail-list-item > strong,
+.receivable-detail-list-item > div:last-child {
+  flex-shrink: 0;
+}
+
+
+/* Receivable Details — completely flat sections */
+.receivable-flat-section {
+  width: 100%;
+  margin-top: 16px;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.receivable-flat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.receivable-flat-row:last-child {
+  border-bottom: none;
+}
+
+.receivable-flat-row > strong {
+  white-space: nowrap;
+}
+
+.receivable-detail-row {
+  align-items: flex-start !important;
+}
+
+
+/* Receivable Details modal — remove all nested cards */
+.receivable-flat-section,
+.receivable-summary-list,
+.receivable-detail-list {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Any card/balance rows inside the Receivable Details modal */
+.receivable-flat-section .card,
+.receivable-flat-section .balance-detail-row,
+.receivable-detail-list .card,
+.receivable-detail-list .balance-detail-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Flat rows */
+.receivable-flat-row,
+.receivable-detail-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 13px 2px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Remove extra spacing between individual rows */
+.receivable-flat-row + .receivable-flat-row,
+.receivable-detail-row + .receivable-detail-row {
+  margin-top: 0 !important;
+}
+
+/* Last row */
+.receivable-flat-row:last-child,
+.receivable-detail-row:last-child {
+  border-bottom: none !important;
+}
+
+
+/* One card per Receivable Details section */
+.receivable-section-card {
+  padding: 20px !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.receivable-section-list {
+  width: 100%;
+}
+
+/* Rows inside the card stay flat */
+.receivable-section-list .receivable-detail-row,
+.receivable-section-list .receivable-flat-row,
+.receivable-section-list .balance-detail-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 13px 2px !important;
+}
+
+.receivable-section-list > :last-child {
+  border-bottom: none !important;
+}
+
+
+/* One card around each payment section */
+.receivable-section-card {
+  padding: 20px !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.receivable-section-list {
+  width: 100%;
+}
+
+/* Flat rows inside the card */
+.receivable-section-list .receivable-detail-row,
+.receivable-section-list .receivable-flat-row,
+.receivable-section-list .balance-detail-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 13px 2px !important;
+}
+
+.receivable-section-list > :last-child {
+  border-bottom: none !important;
+}
+
+
+/* Payment Summary — no outer card */
+.receivable-summary-flat {
+  width: 100% !important;
+  margin-top: 16px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.receivable-summary-flat .receivable-flat-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 13px 2px !important;
+}
+
+.receivable-summary-flat .receivable-flat-row:last-child {
+  border-bottom: none !important;
+}
+
+
+/* Match Confirmed Payments spacing to Pending Payments */
+.receivable-section-card .receivable-flat-row {
+  padding: 13px 2px !important;
+  margin: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row > div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row .muted {
+  margin-top: 3px !important;
+}
+
+
+/* Confirmed Payments — tighter card spacing */
+.receivable-section-card .receivable-flat-row {
+  padding: 8px 2px !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row > div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row .user-name {
+  margin: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row .muted {
+  margin-top: 2px !important;
+}
+
+@media (max-width: 500px) {
+  .receivable-section-card .receivable-flat-row {
+    padding: 8px 2px !important;
+  }
+}
+
+
+/* Pull Confirmed Payment content closer to the card top */
+.receivable-section-card .receivable-section-list {
+  padding-top: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row {
+  padding-top: 4px !important;
+  padding-bottom: 8px !important;
+}
+
+.receivable-section-card .receivable-flat-row:first-child {
+  padding-top: 4px !important;
+}
+
+
+/* Confirmed Payments card — reduce internal top whitespace */
+.receivable-section-card {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.receivable-section-card .receivable-section-list {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row:first-child {
+  padding-top: 4px !important;
+  margin-top: 0 !important;
+}
+
+.receivable-section-card .receivable-flat-row:last-child {
+  padding-bottom: 4px !important;
+}
+
+
+/* Add Expense — one card containing all participants */
+.participant-list-card {
+  padding: 8px 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.participant-list-card .participant-list {
+  margin: 0 !important;
+}
+
+.participant-list-card .participant-option {
+  margin: 0 !important;
+  padding: 13px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.participant-list-card .participant-option:last-child {
+  border-bottom: none !important;
+}
+
+
+/* Compact participant list */
+.participant-list-card {
+  padding: 6px 16px !important;
+}
+
+.participant-list-card .participant-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.participant-list-card .participant-option > div {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+.participant-list-card .participant-option .user-name,
+.participant-list-card .participant-option .user-handle {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.participant-list-card .participant-option .user-name {
+  font-weight: 800 !important;
+}
+
+.participant-list-card .participant-option .user-handle {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.participant-list-card .participant-option .user-handle::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--muted);
+}
+
+
+/* Custom split — one card, flat member rows */
+.custom-split-list-card {
+  padding: 6px 16px !important;
+}
+
+.custom-split-list {
+  width: 100%;
+}
+
+.custom-split-list-card .custom-split-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 12px 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.custom-split-list-card .custom-split-row:last-child {
+  border-bottom: none !important;
+}
+
+.custom-split-member {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+.custom-split-member .user-name,
+.custom-split-member .user-handle {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.custom-split-member .user-handle::before {
+  content: "·";
+  margin-right: 5px;
+}
+
+.custom-split-amount {
+  flex: 0 0 135px !important;
+  width: 135px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 500px) {
+  .custom-split-list-card {
+    padding: 5px 14px !important;
+  }
+
+  .custom-split-list-card .custom-split-row {
+    padding: 10px 0 !important;
+  }
+
+  .custom-split-amount {
+    flex-basis: 120px !important;
+    width: 120px !important;
+  }
+}
+
+
+/* Custom split rows — flat list */
+#expenseSplitEditor {
+  width: 100%;
+}
+
+#expenseSplitEditor .expense-share-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 12px 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+#expenseSplitEditor .expense-share-row:last-child {
+  border-bottom: none !important;
+}
+
+#expenseSplitEditor .expense-share-row > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+#expenseSplitEditor .expense-share-row .user-name,
+#expenseSplitEditor .expense-share-row .user-handle {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#expenseSplitEditor .expense-share-row .user-handle::before {
+  content: "·";
+  margin-right: 5px;
+}
+
+#expenseSplitEditor .expense-share-input-wrap {
+  flex: 0 0 135px !important;
+  width: 135px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 500px) {
+  #expenseSplitEditor .expense-share-row {
+    padding: 10px 0 !important;
+  }
+
+  #expenseSplitEditor .expense-share-input-wrap {
+    flex-basis: 120px !important;
+    width: 120px !important;
+  }
+}
+
+
+/* Indent custom split member names */
+#expenseSplitEditor .expense-share-row > div:first-child {
+  padding-left: 14px !important;
+}
+
+@media (max-width: 500px) {
+  #expenseSplitEditor .expense-share-row > div:first-child {
+    padding-left: 12px !important;
+  }
+}
+
+
+/* Groups page — divider between Create Group and tabs */
+.groups-page-create-section {
+  position: relative;
+  margin-bottom: 28px !important;
+}
+
+.groups-page-create-section::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 2px;
+  background: #cfe7da;
+  border-radius: 999px;
+}
+

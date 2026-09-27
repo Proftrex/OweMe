@@ -2049,13 +2049,17 @@ async function loadGroups() {
 
   $("#content").innerHTML = `
 
-    <button
-      class="primary-button"
-      onclick="openCreateGroupModal()"
-      style="margin-bottom:16px;"
-    >
-      + Create Group
-    </button>
+    <div class="groups-page-create-section">
+
+      <button
+        class="primary-button"
+        onclick="openCreateGroupModal()"
+        style="margin-bottom:16px;"
+      >
+        + Create Group
+      </button>
+
+    </div>
 
     <div
       class="groups-tabs"
@@ -5503,21 +5507,35 @@ function openAddExpenseModal() {
         </div>
       </div>
 
-      <div class="participant-list">
-        ${members.map(member => `
-          <label class="participant-option">
-            <input
-              type="checkbox"
-              class="participant-checkbox"
-              value="${escapeHtml(member.userId)}"
-              checked
-            >
-            <div>
-              <div class="user-name">@${escapeHtml(member.username)}</div>
-              <div class="user-handle">${escapeHtml(member.displayName)}</div>
-            </div>
-          </label>
-        `).join("")}
+      <div class="card participant-list-card">
+
+        <div class="participant-list">
+
+          ${members.map(member => `
+            <label class="participant-option">
+
+              <input
+                type="checkbox"
+                class="participant-checkbox"
+                value="${escapeHtml(member.userId)}"
+                checked
+              >
+
+              <div>
+                <div class="user-name">
+                  @${escapeHtml(member.username)}
+                </div>
+
+                <div class="user-handle">
+                  ${escapeHtml(member.displayName)}
+                </div>
+              </div>
+
+            </label>
+          `).join("")}
+
+        </div>
+
       </div>
 
       <div class="expense-split-section">
@@ -6599,29 +6617,29 @@ async function openPayableDetails(settlementId) {
               );
 
             return `
-              <div
-                class="balance-detail-row"
-                style="align-items:flex-start;margin-bottom:12px;"
-              >
+              <div class="settle-expense-list-item">
 
-                <div style="flex:1;">
+                <div class="settle-expense-info">
 
-                  <div class="user-name">
+                  <div class="settle-expense-name">
                     ${escapeHtml(
                       expense.description || "Expense"
                     )}
                   </div>
 
-                  <div class="muted">
-                    ${expense.date
-                      ? new Date(expense.date)
-                          .toLocaleDateString()
-                      : ""}
+                  <div class="settle-expense-date">
+                    ${
+                      expense.date
+                        ? new Date(
+                            expense.date
+                          ).toLocaleDateString()
+                        : ""
+                    }
                   </div>
 
                 </div>
 
-                <strong>
+                <strong class="settle-expense-amount">
                   ${formatMoney(
                     Number(
                       participant?.shareAmount || 0
@@ -6640,22 +6658,19 @@ async function openPayableDetails(settlementId) {
         `;
 
 
+
     const confirmedHistory =
       confirmedPayments.length
         ? confirmedPayments.map(payment => `
+            <div class="settle-payment-list-item">
 
-            <div
-              class="balance-detail-row"
-              style="align-items:flex-start;"
-            >
+              <div class="settle-payment-info">
 
-              <div style="flex:1;">
-
-                <div class="user-name">
+                <div class="settle-payment-name">
                   Payment
                 </div>
 
-                <div class="muted">
+                <div class="settle-payment-date">
                   ${
                     payment.confirmed_at
                       ? new Date(
@@ -6667,25 +6682,20 @@ async function openPayableDetails(settlementId) {
 
               </div>
 
-              <div style="text-align:right;">
+              <div class="settle-payment-amount confirmed">
+                ${formatMoney(
+                  Number(payment.amount_paid || 0)
+                )}
+              </div>
 
-                <strong>
-                  ${formatMoney(
-                    Number(payment.amount_paid || 0)
-                  )}
-                </strong>
-
-                <div class="muted">
-                  Confirmed
-                </div>
-
+              <div class="settle-payment-status confirmed">
+                Confirmed
               </div>
 
             </div>
-
           `).join("")
         : `
-          <div class="muted">
+          <div class="settle-payment-empty">
             No confirmed payments yet.
           </div>
         `;
@@ -6694,19 +6704,15 @@ async function openPayableDetails(settlementId) {
     const pendingHistory =
       pendingPayments.length
         ? pendingPayments.map(payment => `
+            <div class="settle-payment-list-item">
 
-            <div
-              class="balance-detail-row"
-              style="align-items:flex-start;"
-            >
+              <div class="settle-payment-info">
 
-              <div style="flex:1;">
-
-                <div class="user-name">
+                <div class="settle-payment-name">
                   Payment
                 </div>
 
-                <div class="muted">
+                <div class="settle-payment-date">
                   ${
                     payment.submitted_at
                       ? new Date(
@@ -6718,28 +6724,24 @@ async function openPayableDetails(settlementId) {
 
               </div>
 
-              <div style="text-align:right;">
+              <div class="settle-payment-amount pending">
+                ${formatMoney(
+                  Number(payment.amount_paid || 0)
+                )}
+              </div>
 
-                <strong>
-                  ${formatMoney(
-                    Number(payment.amount_paid || 0)
-                  )}
-                </strong>
-
-                <div class="muted">
-                  Waiting for receiver approval
-                </div>
-
+              <div class="settle-payment-status pending">
+                Pending
               </div>
 
             </div>
-
           `).join("")
         : `
-          <div class="muted">
+          <div class="settle-payment-empty">
             No pending payments.
           </div>
         `;
+
 
 
     openModal(`
@@ -6752,32 +6754,30 @@ async function openPayableDetails(settlementId) {
         Outstanding amount
       </p>
 
-      <div
-        class="card"
-        style="
-          margin-top:16px;
-          padding:20px;
-        "
-      >
+      <div class="settle-amount-summary">
 
-        <div class="balance-detail-row">
-          <span class="muted">
+        <div class="settle-amount-row">
+
+          <span class="settle-amount-label">
             Remaining
           </span>
 
-          <strong>
+          <strong class="settle-amount-value">
             ${formatMoney(settlement.amount)}
           </strong>
+
         </div>
 
-        <div class="balance-detail-row">
-          <span class="muted">
+        <div class="settle-amount-row">
+
+          <span class="settle-amount-label">
             Pending approval
           </span>
 
-          <strong>
+          <strong class="settle-amount-value">
             ${formatMoney(pendingAmount)}
           </strong>
+
         </div>
 
       </div>
@@ -6890,6 +6890,7 @@ async function openReceivables() {
     let nudgeMap = {};
 
     if (settlementIds.length) {
+
       const { data: nudgeRows, error: nudgeError } =
         await supabaseClient
           .from("nudges")
@@ -6904,73 +6905,126 @@ async function openReceivables() {
       }
 
       (nudgeRows || []).forEach(nudge => {
+
         if (!nudgeMap[nudge.settlement_id]) {
           nudgeMap[nudge.settlement_id] =
             nudge.created_at;
         }
+
       });
+
     }
 
     openModal(`
+
       <h2>Receivables</h2>
-      <p class="muted">What others still need to pay you.</p>
 
-      ${receivables.length
-        ? `
-          <div class="balance-detail-list">
-            ${receivables.map(item => `
-              <div class="balance-detail-row">
-                <div>
-                  <div class="user-name">
-                    @${escapeHtml(item.fromUsername)}
+      <p class="muted">
+        What others still need to pay you.
+      </p>
+
+      ${
+        receivables.length
+          ? `
+            <div class="balance-detail-list">
+
+              ${receivables.map(item => `
+
+                <div
+                  class="balance-detail-row"
+                  style="
+                    align-items:center;
+                  "
+                >
+
+                  <div style="flex:1;min-width:0;">
+
+                    <div class="user-name">
+                      @${escapeHtml(
+                        item.fromUsername || "Unknown"
+                      )}
+                    </div>
+
+                    <div
+                      style="
+                        font-size:24px;
+                        font-weight:700;
+                        margin-top:4px;
+                      "
+                    >
+                      ${formatMoney(item.amount)}
+                    </div>
+
+                    <div class="muted">
+                      Still owed to you
+                    </div>
+
+                    ${
+                      nudgeMap[item.settlementId]
+                        ? `
+                          <div
+                            class="nudge-last-sent"
+                            style="margin-top:4px;"
+                          >
+                            Last nudged
+                            ${formatNudgeTime(
+                              nudgeMap[item.settlementId]
+                            )}
+                          </div>
+                        `
+                        : ""
+                    }
+
                   </div>
-                  <div class="muted">
-                    ${formatMoney(item.amount)}
+
+                  <div
+                    style="
+                      display:flex;
+                      flex-direction:column;
+                      gap:8px;
+                      align-items:flex-end;
+                    "
+                  >
+
+                    <button
+                      type="button"
+                      class="small-button"
+                      onclick="openReceivableDetails('${escapeHtml(item.settlementId)}')"
+                    >
+                      View details
+                    </button>
+
+                    <button
+                      type="button"
+                      class="small-button nudge-button"
+                      onclick="openNudgeConfirmation('${escapeHtml(item.settlementId)}')"
+                    >
+                      Nudge
+                    </button>
+
+                    <button
+                      type="button"
+                      class="small-button payme-receivable-button"
+                      onclick="createSettlementPayMeLink('${escapeHtml(item.settlementId)}')"
+                    >
+                      PayMe
+                    </button>
+
                   </div>
 
-                  ${
-                    nudgeMap[item.settlementId]
-                      ? `
-                        <div class="nudge-last-sent">
-                          Last nudged ${formatNudgeTime(
-                            nudgeMap[item.settlementId]
-                          )}
-                        </div>
-                      `
-                      : ""
-                  }
                 </div>
-                <div class="receivable-action-buttons">
-                  <button
-                    type="button"
-                    class="small-button"
-                    onclick="openReceivableDetails('${escapeHtml(item.settlementId)}')"
-                  >
-                    Details
-                  </button>
 
-                  <button
-                    type="button"
-                    class="small-button nudge-button"
-                    onclick="openNudgeConfirmation('${escapeHtml(item.settlementId)}')"
-                  >
-                    Nudge
-                  </button>
+              `).join("")}
 
-                  <button
-                    type="button"
-                    class="small-button payme-receivable-button"
-                    onclick="createSettlementPayMeLink('${escapeHtml(item.settlementId)}')"
-                  >
-                    PayMe
-                  </button>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        `
-        : `<div class="card empty">Nobody owes you right now.</div>`
+            </div>
+          `
+          : `
+            <div class="muted">
+              Nobody owes you right now.
+            </div>
+          `
       }
+
     `);
 
   } catch (error) {
@@ -7107,10 +7161,7 @@ async function openReceivableDetails(settlementId) {
               );
 
             return `
-              <div
-                class="balance-detail-row"
-                style="align-items:flex-start;"
-              >
+              <div class="receivable-detail-list-item">
 
                 <div style="flex:1;">
 
@@ -7155,7 +7206,7 @@ async function openReceivableDetails(settlementId) {
         ? confirmedPayments.map(payment => `
 
             <div
-              class="balance-detail-row"
+              class="receivable-flat-row"
               style="align-items:flex-start;"
             >
 
@@ -7206,7 +7257,7 @@ async function openReceivableDetails(settlementId) {
         ? pendingPayments.map(payment => `
 
             <div
-              class="balance-detail-row"
+              class="receivable-flat-row"
               style="align-items:flex-start;"
             >
 
@@ -7261,15 +7312,10 @@ async function openReceivableDetails(settlementId) {
       </h2>
 
 
-      <div
-        class="card"
-        style="
-          margin-top:16px;
-          padding:20px;
-        "
-      >
+      <div class="receivable-summary-list">
 
-        <div class="balance-detail-row">
+        <div class="receivable-summary-row">
+
           <span class="muted">
             Remaining
           </span>
@@ -7277,9 +7323,11 @@ async function openReceivableDetails(settlementId) {
           <strong>
             ${formatMoney(settlement.amount)}
           </strong>
+
         </div>
 
-        <div class="balance-detail-row">
+        <div class="receivable-summary-row">
+
           <span class="muted">
             Pending approval
           </span>
@@ -7287,6 +7335,7 @@ async function openReceivableDetails(settlementId) {
           <strong>
             ${formatMoney(pendingAmount)}
           </strong>
+
         </div>
 
       </div>
@@ -7298,9 +7347,9 @@ async function openReceivableDetails(settlementId) {
           Payment summary
         </div>
 
-        <div class="card">
+        <div class="card receivable-section-card">
 
-          <div class="balance-detail-row">
+          <div class="receivable-flat-row">
             <span class="muted">
               Original amount
             </span>
@@ -7316,7 +7365,7 @@ async function openReceivableDetails(settlementId) {
             </strong>
           </div>
 
-          <div class="balance-detail-row">
+          <div class="receivable-flat-row">
             <span class="muted">
               Paid so far
             </span>
@@ -7326,7 +7375,7 @@ async function openReceivableDetails(settlementId) {
             </strong>
           </div>
 
-          <div class="balance-detail-row">
+          <div class="receivable-flat-row">
             <strong>
               Remaining
             </strong>
@@ -7347,8 +7396,10 @@ async function openReceivableDetails(settlementId) {
           Shared expenses
         </div>
 
-        <div class="card">
-          ${expenseRows}
+        <div class="card receivable-section-card">
+          <div class="receivable-section-list">
+            ${expenseRows}
+          </div>
         </div>
 
       </div>
@@ -7360,7 +7411,9 @@ async function openReceivableDetails(settlementId) {
           Confirmed Payments
         </div>
 
-        <div class="card">
+        <div class="card receivable-section-card">
+
+          <div class="receivable-detail-list">
           ${confirmedHistory}
         </div>
 
@@ -7369,12 +7422,16 @@ async function openReceivableDetails(settlementId) {
 
       <div style="margin-top:24px;">
 
+        </div>
+
         <div class="section-title">
           Pending Payments
         </div>
 
-        <div class="card">
-          ${pendingHistory}
+        <div class="card receivable-section-card">
+          <div class="receivable-section-list">
+            ${pendingHistory}
+          </div>
         </div>
 
       </div>
@@ -7512,44 +7569,22 @@ async function loadPendingPayments() {
 function renderPendingPayment(payment) {
 
   return `
-    <div
-      class="settlement-row"
-      style="margin-bottom:12px;"
-    >
+    <div class="pending-payment-list-item">
 
-      <div>
+      <div class="pending-payment-info">
 
-        <strong>
+        <div class="pending-payment-title">
           Payment received
-        </strong>
-
-        <div class="muted">
-          ${escapeHtml(payment.paymentOption)}
         </div>
 
-        <div
-          style="
-            margin-top:6px;
-            font-size:18px;
-            font-weight:700;
-          "
-        >
-          ₱${Number(payment.amountPaid).toLocaleString(
-            "en-PH",
-            {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            }
-          )}
+        <div class="pending-payment-meta">
+          ${escapeHtml(payment.paymentOption || "Payment")}
         </div>
 
         ${
           payment.notes
             ? `
-              <div
-                class="muted"
-                style="margin-top:4px;"
-              >
+              <div class="pending-payment-notes">
                 ${escapeHtml(payment.notes)}
               </div>
             `
@@ -7558,9 +7593,19 @@ function renderPendingPayment(payment) {
 
       </div>
 
+      <div class="pending-payment-amount">
+        ₱${Number(payment.amountPaid || 0).toLocaleString(
+          "en-PH",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }
+        )}
+      </div>
+
       <button
         type="button"
-        class="small-button green-button"
+        class="pending-payment-review-button"
         onclick="reviewPayment('${escapeHtml(payment.paymentSubmissionId)}')"
       >
         Review
@@ -10840,21 +10885,25 @@ async function renderProfile() {
 
         </div>
 
-        <button
-          class="secondary-button"
-          type="button"
-          id="editDisplayNameButton"
-        >
-          Edit Display Name →
-        </button>
+        <div class="profile-account-actions">
 
-        <button
-          class="secondary-button"
-          type="button"
-          id="changePasswordButton"
-        >
-          Change Password →
-        </button>
+          <button
+            class="secondary-button"
+            type="button"
+            id="editDisplayNameButton"
+          >
+            Edit Display Name
+          </button>
+
+          <button
+            class="secondary-button"
+            type="button"
+            id="changePasswordButton"
+          >
+            Change Password
+          </button>
+
+        </div>
 
       </div>
 
