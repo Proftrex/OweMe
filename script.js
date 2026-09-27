@@ -4305,13 +4305,50 @@ function renderGroup() {
     ${
       String(group.status).toUpperCase() === "ACTIVE"
         ? `
-          <div style="margin-top:16px;">
+          <div class="group-top-actions">
 
             <button
               class="add-expense-button"
               onclick="openAddExpenseModal()"
             >
               + Add Expense
+            </button>
+
+            <button
+              class="action-button members-button group-icon-action"
+              onclick="openMembersModal()"
+              aria-label="Add Members"
+              title="Add Members"
+            >
+              <span class="group-action-plus">+</span>
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="8" r="3"></circle>
+                <path d="M3.5 19c.7-3.2 2.6-5 5.5-5s4.8 1.8 5.5 5"></path>
+                <path d="M16 7.5c2.2.2 3.5 1.8 3.5 4"></path>
+                <path d="M16.5 14c2.5.3 4 2 4.5 5"></path>
+              </svg>
+            </button>
+
+            <button
+              class="close-group-button group-icon-action"
+              onclick="closeCurrentGroup()"
+              aria-label="Close group"
+              title="Close group"
+            >
+              <span class="group-action-close">×</span>
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="8" r="3"></circle>
+                <path d="M3.5 19c.7-3.2 2.6-5 5.5-5s4.8 1.8 5.5 5"></path>
+                <circle cx="16.5" cy="9" r="2.3"></circle>
+                <path d="M14 19c.4-2.3 1.3-3.8 2.8-4.4"></path>
+                <path d="M18 14.6c1.5.7 2.3 2 2.6 4.4"></path>
+              </svg>
             </button>
 
           </div>
@@ -4324,9 +4361,44 @@ function renderGroup() {
     }
 
 
-    <div class="section-title">
-      Your Balances
+    <div class="history-tabs">
+
+      <button
+        type="button"
+        class="history-tab active"
+        data-group-tab="settlements"
+        onclick="switchGroupTab(this)"
+      >
+        Settlements
+      </button>
+
+      <button
+        type="button"
+        class="history-tab"
+        data-group-tab="pending"
+        onclick="switchGroupTab(this)"
+      >
+        Pending
+      </button>
+
+      <button
+        type="button"
+        class="history-tab"
+        data-group-tab="members"
+        onclick="switchGroupTab(this)"
+      >
+        Members
+      </button>
+
     </div>
+
+
+    <div
+      id="groupTabSettlements"
+      class="group-tab-panel"
+    >
+
+     
 
 
     <div class="balance-sections">
@@ -4451,40 +4523,91 @@ function renderGroup() {
     </div>
 
 
+    </div>
+
+
     <div
-      class="group-actions"
-      style="margin-top:20px;"
+      id="groupTabPending"
+      class="group-tab-panel"
+      hidden
     >
 
-      <button
-        class="action-button members-button"
-        onclick="openMembersModal()"
+      <div class="section-title">
+        Pending Payment Reviews
+      </div>
+
+      <div
+        id="pendingPaymentsList"
+        class="pending-group-list"
       >
-        Members
-      </button>
+
+        <div class="muted">
+          Loading pending payments...
+        </div>
+
+      </div>
 
     </div>
 
-    ${
-      String(group.status).toUpperCase() === "ACTIVE"
-        ? `
-          <div class="group-close-section">
 
-            <div class="group-close-note">
-              Everyone settled? You can close this group and move it to History.
-            </div>
+    <div
+      id="groupTabMembers"
+      class="group-tab-panel"
+      hidden
+    >
 
-            <button
-              class="close-group-button"
-              onclick="closeCurrentGroup()"
-            >
-              ✓ Close this group
-            </button>
+      <div class="section-title">
+        Members
+      </div>
 
-          </div>
-        `
-        : ""
-    }
+      <div class="group-members-list">
+
+        ${
+          members.length
+            ? members.map(member => `
+                <div class="group-member-list-item">
+
+                  <div class="group-member-list-info">
+
+                    <div class="group-member-list-name">
+                      @${escapeHtml(member.username)}
+                    </div>
+
+                    ${
+                      member.displayName
+                        ? `
+                          <div class="group-member-list-username">
+                            ${escapeHtml(member.displayName)}
+                          </div>
+                        `
+                        : ""
+                    }
+
+                  </div>
+
+                  ${
+                    member.role
+                      ? `
+                        <div class="group-member-list-role">
+                          ${escapeHtml(member.role)}
+                        </div>
+                      `
+                      : ""
+                  }
+
+                </div>
+              `).join("")
+            : `
+              <div class="muted">
+                No members found.
+              </div>
+            `
+        }
+
+      </div>
+
+    </div>
+
 
   `;
 
@@ -13269,4 +13392,30 @@ function renderContactCard(contact) {
 
     </div>
   `;
+}
+
+function switchGroupTab(tab) {
+
+  const target = tab.dataset.groupTab;
+
+  document.querySelectorAll(".group-page-tab").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button === tab
+    );
+  });
+
+  document.querySelectorAll(".group-tab-panel").forEach(panel => {
+    panel.hidden = (
+      panel.id !==
+      "groupTab" +
+      target.charAt(0).toUpperCase() +
+      target.slice(1)
+    );
+  });
+
+  if (target === "pending") {
+    loadPendingPayments();
+  }
+
 }

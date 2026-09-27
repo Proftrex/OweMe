@@ -4842,3 +4842,546 @@ input[type="checkbox"] {
     font-size: 11px !important;
   }
 }
+
+/* Group page tabs */
+.group-page-tabs {
+  display: flex;
+  width: 100%;
+  gap: 4px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.group-page-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 12px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.group-page-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.group-tab-panel[hidden] {
+  display: none !important;
+}
+
+.pending-group-list {
+  width: 100%;
+}
+
+.pending-group-list .settlement-row {
+  margin-bottom: 12px;
+}
+
+.group-members-tab-actions {
+  margin-top: 20px;
+}
+
+@media (max-width: 500px) {
+  .group-page-tabs {
+    margin-top: 18px;
+    margin-bottom: 18px;
+  }
+
+  .group-page-tab {
+    padding: 11px 4px;
+    font-size: 12px;
+  }
+}
+
+/* Group top buttons: one horizontal row */
+.group-top-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin-top: 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.group-top-actions > button {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  margin: 0 !important;
+  padding: 8px 6px !important;
+  box-sizing: border-box !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+}
+
+/* Add Expense: pastel green */
+.group-top-actions > .add-expense-button {
+  background: #dcefe5 !important;
+  background-color: #dcefe5 !important;
+  color: #4d9079 !important;
+  border-color: #c9e5d7 !important;
+}
+
+@media (max-width: 500px) {
+  .group-top-actions {
+    gap: 6px !important;
+  }
+
+  .group-top-actions > button {
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 7px 4px !important;
+    font-size: 12px !important;
+  }
+}
+
+
+/* Group page tabs — match History tabs */
+.group-page-tabs {
+  display: flex !important;
+  gap: 14px !important;
+  width: 100% !important;
+  margin: 18px 0 14px !important;
+  border-bottom: 0 !important;
+}
+
+.group-page-tab {
+  flex: 1 !important;
+  padding: 14px 14px !important;
+  min-height: 60px !important;
+  border: 2px solid var(--border) !important;
+  border-radius: 18px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+
+.group-page-tab.active {
+  background: var(--card-soft) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+@media (max-width: 500px) {
+  .group-page-tabs {
+    gap: 12px !important;
+  }
+
+  .group-page-tab {
+    min-height: 58px !important;
+    padding: 13px 8px !important;
+    font-size: 14px !important;
+    border-radius: 17px !important;
+  }
+}
+
+
+/* Group top actions — consistent bordered buttons */
+.group-top-actions > .add-expense-button {
+  background: var(--primary-soft) !important;
+  background-color: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  border: 1px solid #c9e5d7 !important;
+  box-shadow: none !important;
+}
+
+.group-top-actions > .members-button {
+  background: var(--yellow-soft) !important;
+  background-color: var(--yellow-soft) !important;
+  color: #806d18 !important;
+  border: 1px solid var(--yellow) !important;
+  box-shadow: none !important;
+}
+
+.group-top-actions > .close-group-button {
+  background: var(--red-soft) !important;
+  background-color: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1c4c4 !important;
+  box-shadow: none !important;
+}
+
+/* Group top actions — consistent bordered buttons */
+.group-top-actions > .add-expense-button {
+  background: var(--primary-soft) !important;
+  background-color: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  border: 1px solid #c9e5d7 !important;
+  box-shadow: none !important;
+}
+
+.group-top-actions > .members-button {
+  background: var(--yellow-soft) !important;
+  background-color: var(--yellow-soft) !important;
+  color: #806d18 !important;
+  border: 1px solid var(--yellow) !important;
+  box-shadow: none !important;
+}
+
+.group-top-actions > .close-group-button {
+  background: var(--red-soft) !important;
+  background-color: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1c4c4 !important;
+  box-shadow: none !important;
+}
+/* Group tabs — match History tab design */
+.group-page-tabs {
+  display: flex !important;
+  gap: 14px !important;
+  width: 100% !important;
+  margin: 18px 0 20px !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.group-page-tab {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  padding: 0 8px !important;
+  border: 2px solid var(--border) !important;
+  border-radius: 18px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+}
+
+.group-page-tab.active {
+  background: var(--card-soft) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+@media (max-width: 500px) {
+  .group-page-tabs {
+    gap: 10px !important;
+    margin-top: 18px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .group-page-tab {
+    height: 54px !important;
+    min-height: 54px !important;
+    padding: 0 4px !important;
+    border-radius: 17px !important;
+    font-size: 13px !important;
+  }
+}
+/* EXACT GROUP TAB DESIGN — matched to History tabs */
+.group-page-tabs {
+  display: flex !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin: 18px 0 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.group-page-tab {
+  flex: 1 !important;
+  padding: 11px 14px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+.group-page-tab.active {
+  background: var(--card-soft) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+@media (max-width: 500px) {
+  .group-page-tabs {
+    gap: 8px !important;
+  }
+
+  .group-page-tab {
+    font-size: 14px !important;
+  }
+}
+/* Group action icons */
+.group-top-actions .group-icon-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  flex: 0 0 80px !important;
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  padding: 0 6px !important;
+}
+
+.group-top-actions .group-icon-action svg {
+  width: 21px !important;
+  height: 21px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.8 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.group-action-plus,
+.group-action-close {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+@media (max-width: 500px) {
+  .group-top-actions .group-icon-action {
+    flex-basis: 72px !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+  }
+
+  .group-top-actions .group-icon-action svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .group-action-plus,
+  .group-action-close {
+    font-size: 21px;
+  }
+}
+/* Group action buttons */
+.group-top-actions > .add-expense-button {
+  background: var(--yellow) !important;
+  background-color: var(--yellow) !important;
+  color: #5c5130 !important;
+  border: 1px solid #d6bb4f !important;
+  box-shadow: none !important;
+}
+
+.group-top-actions .group-icon-action {
+  gap: 9px !important;
+}
+
+.group-top-actions .group-icon-action svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.group-action-plus,
+.group-action-close {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 500px) {
+  .group-top-actions .group-icon-action {
+    gap: 8px !important;
+  }
+
+  .group-top-actions .group-icon-action svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+}
+
+/* Separate Add Expense from the icon actions */
+.group-top-actions {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+.group-top-actions > .add-expense-button {
+  margin-right: 10px !important;
+}
+
+.group-top-actions > .group-icon-action {
+  margin-left: 0 !important;
+}
+
+
+.group-top-actions > .add-expense-button {
+  flex: 0 1 58% !important;
+  width: 58% !important;
+}
+
+.group-top-actions > .group-icon-action {
+  flex: 0 0 68px !important;
+  width: 68px !important;
+  min-width: 68px !important;
+  max-width: 68px !important;
+}
+
+.group-top-actions > .add-expense-button {
+  margin-right: 28px !important;
+}
+
+.group-top-actions > .group-icon-action + .group-icon-action {
+  margin-left: 10px !important;
+}
+
+@media (max-width: 500px) {
+  .group-top-actions > .add-expense-button {
+    flex: 0 1 54% !important;
+    width: 54% !important;
+    margin-right: 20px !important;
+  }
+
+  .group-top-actions > .group-icon-action {
+    flex-basis: 64px !important;
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+  }
+}
+
+
+.group-top-actions {
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+}
+
+.group-top-actions > .add-expense-button {
+  flex: 0 0 52% !important;
+  width: 52% !important;
+  min-width: 0 !important;
+  margin-right: auto !important;
+}
+
+.group-top-actions > .group-icon-action {
+  flex: 0 0 64px !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  margin-left: 0 !important;
+}
+
+.group-top-actions > .group-icon-action + .group-icon-action {
+  margin-left: 6px !important;
+}
+
+@media (max-width: 500px) {
+  .group-top-actions > .add-expense-button {
+    flex-basis: 52% !important;
+    width: 52% !important;
+  }
+
+  .group-top-actions > .group-icon-action {
+    flex-basis: 60px !important;
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+  }
+
+  .group-top-actions > .group-icon-action + .group-icon-action {
+    margin-left: 5px !important;
+  }
+}
+
+
+/* Divider between group actions and tabs */
+.group-top-actions {
+  position: relative;
+  margin-bottom: 26px !important;
+}
+
+.group-top-actions::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 2px;
+  background: #cfe7da;
+  border-radius: 999px;
+}
+
+
+/* Group members tab */
+.group-members-list {
+  width: 100%;
+}
+
+.group-member-list-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.group-member-list-item:last-child {
+  border-bottom: none;
+}
+
+.group-member-list-info {
+  min-width: 0;
+}
+
+.group-member-list-name {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.group-member-list-username {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+
+.group-member-list-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 15px 4px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.group-member-list-name {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.group-member-list-username {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.group-member-list-role {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
