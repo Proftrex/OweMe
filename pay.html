@@ -479,6 +479,25 @@
               Send payment using the details below.
             </p>
 
+            ${
+              detail.settlement_amount !== null &&
+              detail.settlement_amount !== undefined
+                ? `
+                  <div class="payme-settlement-amount">
+                    <div class="payme-settlement-label">
+                      Amount to Pay
+                    </div>
+                    <div class="payme-settlement-value">
+                      ₱${Number(detail.settlement_amount || 0).toLocaleString("en-PH", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </div>
+                  </div>
+                `
+                : ""
+            }
+
             <div class="payme-payment-method">
               ${escapeHtml(detail.payment_option)}
             </div>
@@ -592,3 +611,25 @@
 
 </body>
 </html>
+
+<style>
+.payme-settlement-amount {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  text-align: center;
+}
+
+.payme-settlement-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.payme-settlement-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--primary);
+}
+</style>

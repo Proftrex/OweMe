@@ -5830,6 +5830,14 @@ async function openReceivables() {
                   >
                     Nudge
                   </button>
+
+                  <button
+                    type="button"
+                    class="small-button payme-receivable-button"
+                    onclick="createSettlementPayMeLink('${escapeHtml(item.settlementId)}')"
+                  >
+                    PayMe
+                  </button>
                 </div>
               </div>
             `).join("")}
@@ -11404,6 +11412,265 @@ async function createPayMeLink(paymentDetailId) {
     setLoading(false);
   }
 }
+
+async function createSettlementPayMeLink(settlementId) {
+  setLoading(true, "Creating PayMe link...");
+
+  try {
+    const settlements = await loadCurrentSettlements();
+
+    const settlement = settlements.find(
+      item =>
+        String(item.settlementId) ===
+        String(settlementId)
+    );
+
+    if (!settlement) {
+      throw new Error("Settlement not found.");
+    }
+
+    if (
+      String(settlement.toUserId) !==
+      String(state.user.userId)
+    ) {
+      throw new Error("You can only create a PayMe link for money owed to you.");
+    }
+
+    const { data: paymentRows, error: paymentError } =
+      await supabaseClient
+        .from("payment_submissions")
+        .select("*")
+        .eq("settlement_id", settlement.settlementId)
+        .eq("payer_user_id", settlement.fromUserId)
+        .in("status", ["CONFIRMED", "SUBMITTED"]);
+
+    if (paymentError) {
+      throw paymentError;
+    }
+
+    const confirmedPaid = (paymentRows || [])
+      .filter(
+        payment =>
+          String(payment.status).toUpperCase() ===
+          "CONFIRMED"
+      )
+      .reduce(
+        (total, payment) =>
+          total + Number(payment.amount_paid || 0),
+        0
+      );
+
+    const pendingPaid = (paymentRows || [])
+      .filter(
+        payment =>
+          String(payment.status).toUpperCase() ===
+          "SUBMITTED"
+      )
+      .reduce(
+        (total, payment) =>
+          total + Number(payment.amount_paid || 0),
+        0
+      );
+
+    const remainingAmount = Math.max(
+      0,
+      Number(settlement.amount || 0) -
+        confirmedPaid -
+        pendingPaid
+    );
+
+    if (remainingAmount <= 0.009) {
+      throw new Error(
+        "This settlement has already been fully paid."
+      );
+    }
+
+    const details = await loadPaymentDetails();
+
+    if (!details.length) {
+      throw new Error(
+        "Please add payment details to your profile first."
+      );
+    }
+
+    const detail = details[0];
+
+    const tokenBytes = new Uint8Array(24);
+    crypto.getRandomValues(tokenBytes);
+
+    const token = Array.from(tokenBytes)
+      .map(byte => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    let qrPublicPath = "";
+
+    if (detail.qrFileUrl) {
+      const {
+        data: qrFile,
+        error: downloadError
+      } = await supabaseClient.storage
+        .from("payment-proofs")
+        .download(detail.qrFileUrl);
+
+      if (downloadError) {
+        throw downloadError;
+      }
+
+      const originalPath =
+        String(detail.qrFileUrl);
+
+      const extensionMatch =
+        originalPath.match(
+          /\.([a-zA-Z0-9]+)$/
+        );
+
+      const extension =
+        extensionMatch
+          ? extensionMatch[1].toLowerCase()
+          : "png";
+
+      qrPublicPath =
+        `${state.user.userId}/${token}.${extension}`;
+
+      const {
+        error: uploadError
+      } = await supabaseClient.storage
+        .from("payme-qrs")
+        .upload(
+          qrPublicPath,
+          qrFile,
+          {
+            contentType:
+              qrFile.type || "image/png",
+            upsert: false
+          }
+        );
+
+      if (uploadError) {
+        throw uploadError;
+      }
+    }
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("payme_links")
+      .insert({
+        token,
+        owner_user_id: state.user.userId,
+        payment_detail_id:
+          detail.paymentDetailId,
+        settlement_id:
+          settlement.settlementId,
+        amount: remainingAmount,
+        qr_public_path:
+          qrPublicPath || null,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const paymeUrl =
+      new URL(
+        `pay.html?token=${encodeURIComponent(data.token)}`,
+        window.location.href
+      ).href;
+
+    openModal(`
+      <h2>PayMe Link Ready</h2>
+
+      <p class="muted">
+        This link is for
+        <strong>
+          @${escapeHtml(settlement.fromUsername || "the payer")}
+        </strong>
+        and the remaining amount below.
+      </p>
+
+      <div class="card payme-link-card">
+
+        <div class="muted">
+          Amount to Pay
+        </div>
+
+        <strong>
+          ${formatMoney(remainingAmount)}
+        </strong>
+
+        <div
+          class="muted"
+          style="margin-top:12px;"
+        >
+          Payment Method
+        </div>
+
+        <strong>
+          ${escapeHtml(detail.paymentOption)}
+        </strong>
+
+        <div
+          class="muted"
+          style="margin-top:12px;"
+        >
+          PayMe Link
+        </div>
+
+        <div class="payme-link-url">
+          ${escapeHtml(paymeUrl)}
+        </div>
+
+      </div>
+
+      <div class="payme-link-actions">
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="copyPayMeLink('${escapeHtml(paymeUrl)}')"
+        >
+          Copy Link
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          onclick="sharePayMeLink('${escapeHtml(paymeUrl)}')"
+        >
+          Share
+        </button>
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="window.open('${escapeHtml(paymeUrl)}', '_blank', 'noopener,noreferrer')"
+        >
+          View PayMe Page
+        </button>
+
+      </div>
+    `);
+
+  } catch (error) {
+    console.error(
+      "CREATE SETTLEMENT PAYME LINK ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to create PayMe link."
+    );
+
+  } finally {
+    setLoading(false);
+  }
+}
+
 
 async function copyPayMeLink(url) {
   try {

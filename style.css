@@ -3597,3 +3597,10 @@ body > #modal .modal-backdrop {
   min-width: 0 !important;
   margin: 0 !important;
 }
+
+.payme-receivable-button {
+  background: var(--yellow-soft) !important;
+  color: #8a7420 !important;
+  border: 1px solid #f0df91 !important;
+}
+
