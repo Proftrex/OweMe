@@ -3422,3 +3422,31 @@ body > #modal .modal-backdrop {
 }
 
 
+
+.close-group-confirm-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1cccc !important;
+}
+
+
+.close-group-actions .close-group-confirm-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1cccc !important;
+}
+
+
+.close-group-actions .close-group-confirm-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1cccc !important;
+}
+
+
+.close-group-button {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+  border: 1px solid #f1cccc !important;
+}
+

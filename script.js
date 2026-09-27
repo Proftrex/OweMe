@@ -1433,6 +1433,11 @@ async function loadGroups() {
 
   $("#content").innerHTML = `
 
+    <div class="history-intro page-intro">
+      <h2>Your groups</h2>
+      <p>Groups you're part of, all in one place.</p>
+    </div>
+
     <button
       class="primary-button"
       onclick="openCreateGroupModal()"
@@ -1534,10 +1539,10 @@ async function loadHistory() {
 
       <div class="history-intro">
 
-        <h2>Past adventures</h2>
+        <h2>Your history</h2>
 
         <p>
-          Groups you've closed and kept for the memories.
+          Groups you've closed and kept for the records.
         </p>
 
       </div>
@@ -4532,7 +4537,7 @@ function openAddExpenseModal() {
             ? (
                 previous !== undefined
                   ? previous
-                  : equalShare.toFixed(2)
+                  : "0.00"
               )
             : equalShare.toFixed(2);
 
@@ -4659,11 +4664,16 @@ function openAddExpenseModal() {
         "click",
         () => {
 
+          const targetMode =
+            button.dataset.splitMode;
+
           const previousValues =
-            getExistingCustomValues();
+            targetMode === "CUSTOM"
+              ? {}
+              : getExistingCustomValues();
 
           splitModeInput.value =
-            button.dataset.splitMode;
+            targetMode;
 
           document
             .querySelectorAll(".split-mode-button")
@@ -8958,6 +8968,11 @@ async function loadInvitations() {
 
   $("#content").innerHTML = `
 
+    <div class="history-intro page-intro">
+      <h2>Your invitations</h2>
+      <p>Group invitations waiting for your response.</p>
+    </div>
+
     ${
       state.invitations.length
       ? state.invitations.map(renderInvitation).join("")
@@ -9188,6 +9203,11 @@ async function renderProfile() {
     $("#pageTitle").textContent = "Profile";
 
     $("#content").innerHTML = `
+
+      <div class="history-intro page-intro">
+        <h2>Your profile</h2>
+        <p>Manage your account and payment details.</p>
+      </div>
 
       <div class="card profile-account-card">
 
