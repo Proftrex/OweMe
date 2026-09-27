@@ -4308,7 +4308,6 @@ async function openCreateGroupModal() {
           required
           placeholder="Boracay Trip"
         >
-
       </label>
 
       <div class="section-title">
@@ -4320,7 +4319,7 @@ async function openCreateGroupModal() {
         <input
           type="search"
           id="newGroupMemberSearch"
-          placeholder="Search contacts or enter username..."
+          placeholder="Search OweMe users by username..."
           autocomplete="off"
         >
 
@@ -4346,7 +4345,7 @@ async function openCreateGroupModal() {
       ></textarea>
 
       <small class="field-help">
-        Select one or more members before creating the group.
+        Search any active OweMe user. They do not need to be in your Contacts.
       </small>
 
       <button
@@ -4374,18 +4373,64 @@ async function openCreateGroupModal() {
 
   const selectedMembers = [];
 
-  let contacts = [];
+  let users = [];
 
   try {
 
-    contacts =
-      await loadContactSuggestions();
+    const {
+      data: profiles,
+      error
+    } = await supabaseClient
+      .from("profiles")
+      .select(
+        "id, username, username_normalized, display_name, status"
+      )
+      .neq(
+        "id",
+        String(state.user.userId)
+      )
+      .eq(
+        "status",
+        "ACTIVE"
+      )
+      .order(
+        "username_normalized",
+        {
+          ascending: true
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    users =
+      (profiles || [])
+        .filter(profile =>
+          profile.username
+        )
+        .map(profile => ({
+          userId:
+            String(profile.id),
+
+          username:
+            profile.username,
+
+          displayName:
+            profile.display_name || ""
+        }));
+
 
   } catch (error) {
 
     console.error(
-      "LOAD CREATE GROUP CONTACTS ERROR:",
+      "LOAD CREATE GROUP USERS ERROR:",
       error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load OweMe users."
     );
 
   }
@@ -4454,38 +4499,30 @@ async function openCreateGroupModal() {
       `).join("");
 
     selectedList
-      .querySelectorAll(
-        ".selected-member-remove"
-      )
+      .querySelectorAll(".selected-member-remove")
       .forEach(button => {
 
-        button.addEventListener(
-          "click",
-          () => {
+        button.addEventListener("click", () => {
 
-            const userId =
-              String(
-                button.dataset.removeUserId || ""
-              );
-
-            const index =
-              selectedMembers.findIndex(
-                member =>
-                  String(member.userId) === userId
-              );
-
-            if (index !== -1) {
-              selectedMembers.splice(index, 1);
-            }
-
-            renderSelectedMembers();
-
-            renderMemberSuggestions(
-              searchInput.value
+          const userId =
+            String(
+              button.dataset.removeUserId || ""
             );
 
+          const index =
+            selectedMembers.findIndex(
+              member =>
+                String(member.userId) === userId
+            );
+
+          if (index !== -1) {
+            selectedMembers.splice(index, 1);
           }
-        );
+
+          renderSelectedMembers();
+          renderUserSuggestions(searchInput.value);
+
+        });
 
       });
 
@@ -4493,17 +4530,17 @@ async function openCreateGroupModal() {
 
   }
 
-  function addSelectedMember(member) {
+  function addSelectedMember(user) {
 
     const userId =
-      String(member.userId);
+      String(user.userId);
 
     const username =
-      String(member.username || "")
+      String(user.username || "")
         .trim()
         .replace(/^@/, "");
 
-    if (!username) {
+    if (!userId || !username) {
       return;
     }
 
@@ -4524,11 +4561,10 @@ async function openCreateGroupModal() {
       userId,
       username,
       displayName:
-        member.displayName || ""
+        user.displayName || ""
     });
 
     searchInput.value = "";
-
     suggestions.innerHTML = "";
 
     renderSelectedMembers();
@@ -4537,47 +4573,7 @@ async function openCreateGroupModal() {
 
   }
 
-  function addManualUsername(username) {
-
-    const normalizedUsername =
-      String(username || "")
-        .trim()
-        .replace(/^@/, "");
-
-    if (!normalizedUsername) {
-      return;
-    }
-
-    const alreadySelected =
-      selectedMembers.some(
-        selected =>
-          String(selected.username).toLowerCase() ===
-          normalizedUsername.toLowerCase()
-      );
-
-    if (alreadySelected) {
-      toast("That member is already selected.");
-      return;
-    }
-
-    selectedMembers.push({
-      userId:
-        `manual-${normalizedUsername.toLowerCase()}`,
-      username: normalizedUsername,
-      displayName: ""
-    });
-
-    searchInput.value = "";
-
-    suggestions.innerHTML = "";
-
-    renderSelectedMembers();
-
-    searchInput.focus();
-
-  }
-
-  function renderMemberSuggestions(query = "") {
+  function renderUserSuggestions(query = "") {
 
     const normalizedQuery =
       String(query || "")
@@ -4586,9 +4582,7 @@ async function openCreateGroupModal() {
         .toLowerCase();
 
     if (!normalizedQuery) {
-
       suggestions.innerHTML = "";
-
       return;
     }
 
@@ -4607,13 +4601,17 @@ async function openCreateGroupModal() {
       );
 
     const filtered =
-      contacts.filter(contact => {
+      users.filter(user => {
 
         const userId =
-          String(contact.userId);
+          String(user.userId);
 
         const username =
-          String(contact.username || "")
+          String(user.username || "")
+            .toLowerCase();
+
+        const displayName =
+          String(user.displayName || "")
             .toLowerCase();
 
         if (
@@ -4625,34 +4623,32 @@ async function openCreateGroupModal() {
 
         return (
           username.includes(normalizedQuery) ||
-          String(contact.displayName || "")
-            .toLowerCase()
-            .includes(normalizedQuery)
+          displayName.includes(normalizedQuery)
         );
 
       });
 
     suggestions.innerHTML =
       filtered.length
-        ? filtered.map(contact => `
+        ? filtered.map(user => `
 
             <button
               type="button"
               class="invite-contact-suggestion"
-              data-contact-user-id="${escapeHtml(String(contact.userId))}"
+              data-user-id="${escapeHtml(String(user.userId))}"
             >
 
               <span>
 
                 <strong>
-                  @${escapeHtml(contact.username)}
+                  @${escapeHtml(user.username)}
                 </strong>
 
                 ${
-                  contact.displayName
+                  user.displayName
                     ? `
                       <small>
-                        ${escapeHtml(contact.displayName)}
+                        ${escapeHtml(user.displayName)}
                       </small>
                     `
                     : ""
@@ -4661,12 +4657,7 @@ async function openCreateGroupModal() {
               </span>
 
               <small class="muted">
-                ${contact.sharedGroups.length}
-                ${
-                  contact.sharedGroups.length === 1
-                    ? "shared group"
-                    : "shared groups"
-                }
+                OweMe user
               </small>
 
             </button>
@@ -4674,93 +4665,81 @@ async function openCreateGroupModal() {
           `).join("")
         : `
             <div class="invite-contact-empty">
-              No matching contacts.
-              Press Enter to add this username.
+              No OweMe user found.
             </div>
           `;
 
     suggestions
-      .querySelectorAll(
-        ".invite-contact-suggestion"
-      )
+      .querySelectorAll(".invite-contact-suggestion")
       .forEach(button => {
 
-        button.addEventListener(
-          "click",
-          () => {
+        button.addEventListener("click", () => {
 
-            const userId =
-              String(
-                button.dataset.contactUserId || ""
-              );
+          const userId =
+            String(
+              button.dataset.userId || ""
+            );
 
-            const contact =
-              contacts.find(
-                item =>
-                  String(item.userId) === userId
-              );
+          const user =
+            users.find(
+              item =>
+                String(item.userId) === userId
+            );
 
-            if (contact) {
-              addSelectedMember(contact);
-            }
-
+          if (user) {
+            addSelectedMember(user);
           }
-        );
+
+        });
 
       });
 
   }
 
-  searchInput.addEventListener(
-    "input",
-    event => {
+  searchInput.addEventListener("input", event => {
 
-      renderMemberSuggestions(
-        event.target.value
-      );
+    renderUserSuggestions(
+      event.target.value
+    );
 
-    }
-  );
+  });
 
-  searchInput.addEventListener(
-    "keydown",
-    event => {
+  searchInput.addEventListener("keydown", event => {
 
-      if (
-        event.key === "Enter" &&
-        String(searchInput.value || "").trim()
-      ) {
+    if (
+      event.key === "Enter" &&
+      String(searchInput.value || "").trim()
+    ) {
 
-        event.preventDefault();
+      event.preventDefault();
 
-        const query =
-          String(searchInput.value || "")
-            .trim()
-            .replace(/^@/, "")
-            .toLowerCase();
+      const query =
+        String(searchInput.value || "")
+          .trim()
+          .replace(/^@/, "")
+          .toLowerCase();
 
-        const exactContact =
-          contacts.find(contact =>
-            String(contact.username || "")
-              .toLowerCase() === query
-          );
+      const exactUser =
+        users.find(user =>
+          String(user.username || "")
+            .toLowerCase() === query
+        );
 
-        if (exactContact) {
+      if (exactUser) {
 
-          addSelectedMember(exactContact);
+        addSelectedMember(exactUser);
 
-        } else {
+      } else {
 
-          addManualUsername(
-            searchInput.value
-          );
-
-        }
+        toast(
+          "No OweMe user found with that username."
+        );
 
       }
 
     }
-  );
+
+  });
 
   renderSelectedMembers();
 
@@ -4770,7 +4749,6 @@ async function openCreateGroupModal() {
   );
 
 }
-
 
 async function createGroup(event) {
 
@@ -4783,11 +4761,18 @@ async function createGroup(event) {
     $("#newGroupMembers")
       .value
       .split("\n")
-      .map(x => x.trim().replace(/^@/, ""))
+      .map(username =>
+        username.trim().replace(/^@/, "")
+      )
       .filter(Boolean);
 
   if (!groupName) {
     toast("Please enter a group name.");
+    return;
+  }
+
+  if (!usernames.length) {
+    toast("Please select at least one member.");
     return;
   }
 
@@ -4807,11 +4792,92 @@ async function createGroup(event) {
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      throw new Error("Your session has expired. Please log in again.");
+      throw new Error(
+        "Your session has expired. Please log in again."
+      );
     }
 
     /* ================================================
-       2. CREATE GROUP
+       2. RESOLVE SELECTED USERS BEFORE CREATING GROUP
+       ================================================ */
+
+    const normalizedUsernames =
+      [...new Set(
+        usernames
+          .map(username =>
+            username.toLowerCase()
+          )
+          .filter(Boolean)
+      )];
+
+    const {
+      data: invitedProfiles,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select(
+        "id, username, username_normalized, display_name, status"
+      )
+      .in(
+        "username_normalized",
+        normalizedUsernames
+      );
+
+    if (profileError) {
+      throw new Error(
+        profileError.message ||
+        "Unable to find the selected OweMe users."
+      );
+    }
+
+    const profiles =
+      (invitedProfiles || [])
+        .filter(profile =>
+          profile.status === "ACTIVE"
+        );
+
+    const foundUsernames =
+      new Set(
+        profiles.map(profile =>
+          String(profile.username_normalized || "")
+            .toLowerCase()
+        )
+      );
+
+    const missingUsernames =
+      normalizedUsernames.filter(
+        username =>
+          !foundUsernames.has(username)
+      );
+
+    if (missingUsernames.length) {
+
+      throw new Error(
+        `These users don't have active OweMe accounts: ${missingUsernames
+          .map(username => "@" + username)
+          .join(", ")}`
+      );
+
+    }
+
+    /* ================================================
+       3. DO NOT INVITE YOURSELF
+       ================================================ */
+
+    const validProfiles =
+      profiles.filter(
+        profile =>
+          String(profile.id) !== String(user.id)
+      );
+
+    if (!validProfiles.length) {
+      throw new Error(
+        "Please select at least one other OweMe user."
+      );
+    }
+
+    /* ================================================
+       4. CREATE GROUP
        ================================================ */
 
     const {
@@ -4835,9 +4901,8 @@ async function createGroup(event) {
       );
     }
 
-
     /* ================================================
-       3. ADD CREATOR AS ADMIN
+       5. ADD CREATOR AS ADMIN
        ================================================ */
 
     const {
@@ -4853,12 +4918,6 @@ async function createGroup(event) {
 
     if (memberError) {
 
-      /*
-       * The group was created but the creator could not
-       * be added as a member. Stop here rather than
-       * pretending the group was created successfully.
-       */
-
       console.error(
         "CREATE GROUP MEMBERSHIP ERROR:",
         memberError
@@ -4868,148 +4927,111 @@ async function createGroup(event) {
         memberError.message ||
         "The group was created, but you could not be added as its admin."
       );
+
     }
 
-
     /* ================================================
-       4. FIND INVITED USERS
+       6. CREATE PENDING INVITATIONS
        ================================================ */
 
-    if (usernames.length) {
+    const invitations = [];
 
-      const normalizedUsernames =
-        [...new Set(
-          usernames
-            .map(username =>
-              username.toLowerCase()
-            )
-            .filter(Boolean)
-        )];
+    for (const profile of validProfiles) {
+
+      /*
+       * Check whether the user is already an
+       * active member of this group.
+       */
 
       const {
-        data: invitedProfiles,
-        error: profileError
+        data: existingMember,
+        error: existingMemberError
       } = await supabaseClient
-        .from("profiles")
-        .select("id, username, username_normalized")
-        .in(
-          "username_normalized",
-          normalizedUsernames
-        );
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", group.id)
+        .eq("user_id", profile.id)
+        .eq("status", "ACTIVE")
+        .maybeSingle();
 
-      if (profileError) {
+      if (existingMemberError) {
         throw new Error(
-          profileError.message ||
-          "The group was created, but invited users could not be checked."
+          existingMemberError.message
         );
       }
 
-
-      /* ==============================================
-         5. CREATE PENDING INVITATIONS
-         ============================================== */
-
-      const invitations = [];
-
-      for (const profile of invitedProfiles || []) {
-
-        /*
-         * Do not invite yourself.
-         */
-
-        if (profile.id === user.id) {
-          continue;
-        }
-
-        /*
-         * Check whether the user is already an
-         * active member of this group.
-         */
-
-        const {
-          data: existingMember,
-          error: existingMemberError
-        } = await supabaseClient
-          .from("group_members")
-          .select("user_id")
-          .eq("group_id", group.id)
-          .eq("user_id", profile.id)
-          .eq("status", "ACTIVE")
-          .maybeSingle();
-
-        if (existingMemberError) {
-          throw new Error(
-            existingMemberError.message
-          );
-        }
-
-        if (existingMember) {
-          continue;
-        }
-
-
-        /*
-         * Check for an existing pending invitation.
-         */
-
-        const {
-          data: existingInvitation,
-          error: existingInvitationError
-        } = await supabaseClient
-          .from("invitations")
-          .select("id")
-          .eq("group_id", group.id)
-          .eq("invited_user_id", profile.id)
-          .eq("status", "PENDING")
-          .maybeSingle();
-
-        if (existingInvitationError) {
-          throw new Error(
-            existingInvitationError.message
-          );
-        }
-
-        if (existingInvitation) {
-          continue;
-        }
-
-
-        invitations.push({
-          group_id: group.id,
-          invited_user_id: profile.id,
-          invited_by_user_id: user.id,
-          status: "PENDING"
-        });
+      if (existingMember) {
+        continue;
       }
 
+      /*
+       * Check for an existing pending invitation.
+       */
 
-      if (invitations.length) {
+      const {
+        data: existingInvitation,
+        error: existingInvitationError
+      } = await supabaseClient
+        .from("invitations")
+        .select("id")
+        .eq("group_id", group.id)
+        .eq("invited_user_id", profile.id)
+        .eq("status", "PENDING")
+        .maybeSingle();
 
-        const {
-          error: invitationError
-        } = await supabaseClient
-          .from("invitations")
-          .insert(invitations);
-
-        if (invitationError) {
-          throw new Error(
-            invitationError.message ||
-            "The group was created, but some invitations could not be sent."
-          );
-        }
+      if (existingInvitationError) {
+        throw new Error(
+          existingInvitationError.message
+        );
       }
+
+      if (existingInvitation) {
+        continue;
+      }
+
+      invitations.push({
+        group_id: group.id,
+        invited_user_id: profile.id,
+        invited_by_user_id: user.id,
+        status: "PENDING"
+      });
+
     }
 
+    if (!invitations.length) {
+
+      throw new Error(
+        "No new invitations could be created for the selected users."
+      );
+
+    }
+
+    const {
+      error: invitationError
+    } = await supabaseClient
+      .from("invitations")
+      .insert(invitations);
+
+    if (invitationError) {
+      throw new Error(
+        invitationError.message ||
+        "The group was created, but the invitations could not be sent."
+      );
+    }
 
     /* ================================================
-       6. REFRESH GROUP STATE
+       7. REFRESH GROUP STATE
        ================================================ */
 
     state.groupsLoadedAt = 0;
 
     closeModal();
 
-    toast("Group created.");
+    toast(
+      invitations.length === 1
+        ? "Group created and invitation sent."
+        : `Group created and ${invitations.length} invitations sent.`
+    );
 
     await loadGroupsData(true);
 
@@ -5033,8 +5055,8 @@ async function createGroup(event) {
     setLoading(false);
 
   }
-}
 
+}
 
 /* =========================================================
    ADD EXPENSE
@@ -9303,69 +9325,51 @@ async function loadContactSuggestions() {
   const currentUserId =
     String(state.user.userId);
 
-  const groups =
-    Array.isArray(state.groups)
-      ? state.groups
-      : [];
-
-  const contactMap = {};
-
-  for (const group of groups) {
-
-    if (!group?.groupId) {
-      continue;
-    }
-
-    const {
-      data: groupMembers,
-      error
-    } = await supabaseClient.rpc(
-      "get_group_members",
+  const {
+    data: profiles,
+    error
+  } = await supabaseClient
+    .from("profiles")
+    .select(
+      "id, username, username_normalized, display_name, status"
+    )
+    .neq(
+      "id",
+      currentUserId
+    )
+    .eq(
+      "status",
+      "ACTIVE"
+    )
+    .order(
+      "username_normalized",
       {
-        lookup_group_id: group.groupId
+        ascending: true
       }
     );
 
-    if (error) {
-      throw error;
-    }
-
-    (groupMembers || []).forEach(member => {
-
-      const userId =
-        String(member.user_id);
-
-      if (userId === currentUserId) {
-        return;
-      }
-
-      if (!contactMap[userId]) {
-        contactMap[userId] = {
-          userId,
-          username: member.username || "",
-          displayName: member.display_name || "",
-          sharedGroups: []
-        };
-      }
-
-      contactMap[userId].sharedGroups.push({
-        groupId: group.groupId,
-        groupName: group.groupName
-      });
-
-    });
-
+  if (error) {
+    throw error;
   }
 
-  return Object.values(contactMap)
-    .filter(contact => contact.username)
-    .sort((a, b) =>
-      String(a.username).localeCompare(
-        String(b.username)
-      )
-    );
-}
+  return (profiles || [])
+    .filter(profile =>
+      profile.username
+    )
+    .map(profile => ({
+      userId:
+        String(profile.id),
 
+      username:
+        profile.username,
+
+      displayName:
+        profile.display_name || "",
+
+      sharedGroups: []
+    }));
+
+}
 
 async function openMembersModal() {
 
@@ -9421,7 +9425,7 @@ async function openMembersModal() {
         <input
           type="search"
           id="inviteMemberSearch"
-          placeholder="Search contacts or enter username..."
+          placeholder="Search OweMe users by username..."
           autocomplete="off"
         >
 
@@ -9634,46 +9638,6 @@ async function openMembersModal() {
 
   }
 
-  function addManualUsername(username) {
-
-    const normalizedUsername =
-      String(username || "")
-        .trim()
-        .replace(/^@/, "");
-
-    if (!normalizedUsername) {
-      return;
-    }
-
-    const alreadySelected =
-      selectedMembers.some(
-        selected =>
-          String(selected.username).toLowerCase() ===
-          normalizedUsername.toLowerCase()
-      );
-
-    if (alreadySelected) {
-      toast("That member is already selected.");
-      return;
-    }
-
-    selectedMembers.push({
-      userId:
-        `manual-${normalizedUsername.toLowerCase()}`,
-      username: normalizedUsername,
-      displayName: ""
-    });
-
-    searchInput.value = "";
-
-    suggestions.innerHTML = "";
-
-    renderSelectedMembers();
-
-    searchInput.focus();
-
-  }
-
   function renderMemberSuggestions(query = "") {
 
     const normalizedQuery =
@@ -9771,8 +9735,7 @@ async function openMembersModal() {
           `).join("")
         : `
             <div class="invite-contact-empty">
-              No matching contacts.
-              Press Enter to add this username.
+              No OweMe user found with that username.
             </div>
           `;
 
@@ -9848,8 +9811,8 @@ async function openMembersModal() {
 
         } else {
 
-          addManualUsername(
-            searchInput.value
+          toast(
+            "No OweMe user found with that username."
           );
 
         }
