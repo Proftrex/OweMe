@@ -1323,7 +1323,7 @@ async function loadHome(initialGroups = null, force = false) {
 
     $("#content").innerHTML = `
 
-      <div class="welcome">
+      <div class="home-intro">
 
         <h2>
           Hi,

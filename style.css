@@ -3158,3 +3158,38 @@ body > #modal .modal-backdrop {
   color: #ffffff !important;
 }
 
+
+.home-intro {
+  margin: 4px 0 24px;
+  padding: 0 8px;
+}
+
+.home-intro h2 {
+  margin: 0 0 8px;
+}
+
+.home-intro p {
+  margin: 0;
+}
+
+
+.history-group-actions button {
+  height: 48px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+
+.history-group-actions button {
+  height: 40px !important;
+  padding: 0 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
