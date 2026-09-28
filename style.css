@@ -4698,7 +4698,7 @@ input[type="checkbox"] {
 
 /* Invitation status colors */
 .invitation-list-actions .invitation-status.accepted {
-  color: var(--primary) !important;
+  color: #39744B !important;
   font-weight: 600 !important;
 }
 
@@ -12529,4 +12529,10 @@ button.settle-payable-button {
 
 .group-header p {
   margin-top: 0 !important;
+}
+
+
+/* Invitation accepted — stronger green */
+.invitation-status {
+  color: #39744B !important;
 }

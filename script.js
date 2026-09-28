@@ -11943,16 +11943,6 @@ async function renderSavedPaymentDetails() {
 
               <div class="payment-detail-actions">
 
-                ${
-                  detail.isPreferred
-                    ? `
-                      <span class="muted">
-                        Preferred
-                      </span>
-                    `
-                    : ""
-                }
-
                 <div class="payment-detail-action-buttons">
 
                   ${
