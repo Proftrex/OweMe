@@ -1551,7 +1551,14 @@ async function loadContacts() {
         }));
 
     if (!myGroups.length) {
-      $("#content").innerHTML = renderInvitesTabs() + `
+      if (!document.getElementById("invitesTabContent")) {
+    $("#content").innerHTML = `
+      ${renderInvitesTabs()}
+      <div id="invitesTabContent"></div>
+    `;
+  }
+
+  $("#invitesTabContent").innerHTML = `
         <div class="history-intro page-intro">
           <h2>Your contacts</h2>
           <p>People you've shared groups with.</p>
@@ -1666,7 +1673,14 @@ async function loadContacts() {
        6. RENDER CONTACTS
        ===================================================== */
 
-    $("#content").innerHTML = renderInvitesTabs() + `
+    if (!document.getElementById("invitesTabContent")) {
+    $("#content").innerHTML = `
+      ${renderInvitesTabs()}
+      <div id="invitesTabContent"></div>
+    `;
+  }
+
+  $("#invitesTabContent").innerHTML = `
       <div class="history-intro page-intro">
         <h2>Your contacts</h2>
         <p>People you've shared groups with.</p>
@@ -2110,7 +2124,7 @@ async function loadGroups() {
         data-section-tab="mine"
         onclick="switchGroupsSectionTab('mine')"
       >
-        My Groups
+        My Active Groups
       </button>
 
       <button
@@ -2119,7 +2133,7 @@ async function loadGroups() {
         data-section-tab="history"
         onclick="switchGroupsSectionTab('history')"
       >
-        History
+        My Past Groups
       </button>
 
     </div>
@@ -4933,22 +4947,8 @@ function renderGroup() {
             ? members.map(member => `
                 <div class="group-member-list-item">
 
-                  <div class="group-member-list-info">
-
-                    <div class="group-member-list-name">
-                      @${escapeHtml(member.username)}
-                    </div>
-
-                    ${
-                      member.displayName
-                        ? `
-                          <div class="group-member-list-username">
-                            ${escapeHtml(member.displayName)}
-                          </div>
-                        `
-                        : ""
-                    }
-
+                  <div class="group-member-list-name">
+                    ${escapeHtml(member.displayName || member.username || "Member")}
                   </div>
 
                   ${
@@ -10945,7 +10945,14 @@ async function loadInvitations() {
         inviterMap[String(invitation.invited_by_user_id)] || ""
     }));
 
-  $("#content").innerHTML = renderInvitesTabs() + `
+  if (!document.getElementById("invitesTabContent")) {
+    $("#content").innerHTML = `
+      ${renderInvitesTabs()}
+      <div id="invitesTabContent"></div>
+    `;
+  }
+
+  $("#invitesTabContent").innerHTML = `
 
     <div class="history-intro page-intro">
       <h2>Your invitations</h2>
@@ -13866,6 +13873,24 @@ async function switchInvitesTab(tab) {
     tab === "contacts"
       ? "contacts"
       : "invitations";
+
+  document
+    .querySelectorAll(".invites-tab-container .groups-tab")
+    .forEach(button => {
+      const label = button.textContent.trim();
+
+      button.classList.toggle(
+        "active",
+        (
+          invitesActiveTab === "invitations" &&
+          label === "Invitations"
+        ) ||
+        (
+          invitesActiveTab === "contacts" &&
+          label === "Contacts"
+        )
+      );
+    });
 
   if (invitesActiveTab === "contacts") {
     await loadContacts();

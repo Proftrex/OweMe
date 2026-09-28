@@ -10159,3 +10159,35 @@ body,
     bottom: max(4px, env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* Compact Members tab */
+.group-member-list-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 14px 0 !important;
+  border-bottom: none !important;
+}
+
+.group-member-list-item + .group-member-list-item {
+  border-top: none !important;
+}
+
+.group-member-list-name {
+  margin: 0 !important;
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  color: #193a27 !important;
+}
+
+.group-member-list-role {
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  font-weight: 800 !important;
+  color: #718074 !important;
+  text-transform: uppercase !important;
+}
