@@ -11246,3 +11246,74 @@ input.participant-checkbox {
   margin-top: 8px !important;
 }
 
+
+/* Receivables action buttons */
+.balance-detail-row > div:last-child {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+.balance-detail-row > div:last-child .small-button {
+  margin: 0 !important;
+  min-height: 46px !important;
+  padding: 10px 18px !important;
+  white-space: nowrap !important;
+}
+
+.balance-detail-row > div:last-child .payme-receivable-button {
+  background: #193A27 !important;
+  border-color: #193A27 !important;
+  color: #FFFFFF !important;
+}
+
+@media (max-width: 600px) {
+  .balance-detail-row > div:last-child {
+    gap: 6px !important;
+  }
+
+  .balance-detail-row > div:last-child .small-button {
+    padding: 9px 13px !important;
+    font-size: 13px !important;
+  }
+}
+
+
+/* Review Payment — prevent action buttons from being clipped */
+.modal .payment-review-actions,
+.modal .review-payment-actions {
+  display: flex !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.modal .payment-review-actions > button,
+.modal .review-payment-actions > button {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 600px) {
+  .modal .payment-review-actions,
+  .modal .review-payment-actions {
+    gap: 8px !important;
+  }
+
+  .modal .payment-review-actions > button,
+  .modal .review-payment-actions > button {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    font-size: 13px !important;
+  }
+}
+

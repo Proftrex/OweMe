@@ -6806,11 +6806,13 @@ async function openPayables() {
                   </div>
 
                   <div
+                    class="payable-action-buttons"
                     style="
                       display:flex;
-                      flex-direction:column;
+                      flex-direction:row;
                       gap:8px;
-                      align-items:flex-end;
+                      align-items:center;
+                      justify-content:flex-end;
                     "
                   >
 
@@ -6820,6 +6822,14 @@ async function openPayables() {
                       onclick="openPayableDetails('${escapeHtml(item.settlementId)}')"
                     >
                       View details
+                    </button>
+
+                    <button
+                      type="button"
+                      class="small-button settle-payable-button"
+                      onclick="openSettlePayment('${escapeHtml(item.settlementId)}')"
+                    >
+                      Settle
                     </button>
 
                   </div>
@@ -8295,6 +8305,26 @@ async function reviewPayment(paymentSubmissionId) {
         payment.amountPaid || 0
       );
 
+    // Get the actual payment provider/bank from the
+    // payment detail selected when the payment was submitted.
+    let actualPaymentMethod =
+      String(payment.paymentOption || "").trim();
+
+    if (payment.paymentDetailId) {
+      const {
+        data: paymentDetail,
+        error: paymentDetailError
+      } = await supabaseClient
+        .from("payment_details")
+        .select("payment_option")
+        .eq("id", payment.paymentDetailId)
+        .maybeSingle();
+
+      if (!paymentDetailError && paymentDetail?.payment_option) {
+        actualPaymentMethod =
+          String(paymentDetail.payment_option).trim();
+      }
+    }
 
     const proofFileUrl =
       String(
@@ -8323,31 +8353,21 @@ async function reviewPayment(paymentSubmissionId) {
         style="margin-top:16px;"
       >
 
+
         <div
           style="
-            font-size:18px;
-            font-weight:700;
-            margin-bottom:16px;
+            margin-top:0;
+            font-size:16px;
           "
         >
-          Payment Details
+          <strong>Payment Method:</strong>
+          <span>
+            ${escapeHtml(
+              actualPaymentMethod ||
+              "—"
+            )}
+          </span>
         </div>
-
-        <div class="muted">
-          Payment Method:
-        </div>
-
-        <strong
-          style="
-            display:block;
-            margin-top:4px;
-          "
-        >
-          ${escapeHtml(
-            payment.paymentOption ||
-            "—"
-          )}
-        </strong>
 
 
         <div
@@ -8498,6 +8518,7 @@ async function reviewPayment(paymentSubmissionId) {
 
 
       <div
+        class="payment-review-actions"
         style="
           display:flex;
           gap:10px;
@@ -9170,6 +9191,7 @@ async function openSettlePayment(settlementId) {
                         type="radio"
                         name="settlePaymentMethod"
                         value="${escapeHtml(detail.paymentDetailId)}"
+                        data-payment-option="${escapeHtml(detail.paymentOption || "")}"
                         ${
                           detail.isPreferred
                             ? "checked"
@@ -9970,9 +9992,6 @@ async function submitSettlementPayment(event, settlement) {
           payer_user_id: state.user.userId,
           recipient_user_id: settlement.toUserId,
           payment_option:
-            selected.closest("label")?.querySelector(
-              "strong"
-            )?.textContent?.trim() ||
             selected.dataset?.paymentOption ||
             selected.value,
           payment_detail_id: paymentDetailId,
