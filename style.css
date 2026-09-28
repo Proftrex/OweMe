@@ -11317,3 +11317,21 @@ input.participant-checkbox {
   }
 }
 
+
+/* Payables — Settle button */
+.balance-detail-row .payable-action-buttons .settle-payable-button,
+.balance-detail-row button.settle-payable-button,
+button.settle-payable-button {
+  background: #193A27 !important;
+  background-color: #193A27 !important;
+  border: 1px solid #193A27 !important;
+  color: #FFFFFF !important;
+  box-shadow: none !important;
+}
+
+/* Group top action colors */
+.group-top-actions > .add-expense-button { background: #193A27 !important; border-color: #193A27 !important; color: #FFFFFF !important; }
+.group-top-actions > .members-button { background: #E6F0E0 !important; border-color: #CFE1C9 !important; color: #193A27 !important; }
+.group-top-actions > .members-button svg, .group-top-actions > .members-button .group-action-plus { color: #193A27 !important; stroke: #193A27 !important; }
+.group-top-actions > .close-group-button { background: #F8E5E3 !important; border-color: #F8E5E3 !important; color: #984F4B !important; }
+.group-top-actions > .close-group-button svg, .group-top-actions > .close-group-button .group-action-close { color: #984F4B !important; stroke: #984F4B !important; }
