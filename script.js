@@ -4931,12 +4931,27 @@ function renderGroup() {
     >
 
       <div class="section-title">
+        Pending Payments to Settle
+      </div>
+
+      <div
+        id="pendingPayablesList"
+        class="pending-list-container"
+      >
+
+        <div class="muted">
+          Loading payments to settle...
+        </div>
+
+      </div>
+
+      <div class="section-title pending-section-title">
         Pending Payment Reviews
       </div>
 
       <div
         id="pendingPaymentsList"
-        class="pending-group-list"
+        class="pending-list-container"
       >
 
         <div class="muted">
@@ -4966,14 +4981,14 @@ function renderGroup() {
                 <div class="group-member-list-item">
 
                   <div class="group-member-list-name">
-                    ${escapeHtml(member.displayName || member.username || "Member")}
+                    ${escapeHtml(member.displayName || "Member")}
                   </div>
 
                   ${
                     member.role
                       ? `
                         <div class="group-member-list-role">
-                          ${escapeHtml(member.role)}
+                          ${escapeHtml(String(member.role).toUpperCase() === "ADMIN" ? "Admin" : String(member.role).toUpperCase() === "MEMBER" ? "Member" : String(member.role))}
                         </div>
                       `
                       : ""
@@ -5882,7 +5897,7 @@ function openAddExpenseModal() {
               >
 
               <div class="participant-display-name">
-                ${escapeHtml(member.displayName || member.username || "Member")}
+                ${escapeHtml(member.displayName || "Member")}
               </div>
 
             </label>
@@ -6715,6 +6730,7 @@ async function openBalancesModal() {
 
     `);
 
+    await loadPendingPayables();
     await loadPendingPayments();
 
   } catch (error) {
@@ -7884,6 +7900,124 @@ async function openSettlementsModal() {
 }
 
 
+async function loadPendingPayables() {
+
+  const container = $("#pendingPayablesList");
+
+  if (!container) {
+    return;
+  }
+
+  try {
+
+    const { data: settlements, error } =
+      await supabaseClient
+        .from("settlements")
+        .select(`
+          id,
+          group_id,
+          from_user_id,
+          to_user_id,
+          amount,
+          status
+        `)
+        .eq(
+          "group_id",
+          state.currentGroup.group.groupId
+        )
+        .eq(
+          "from_user_id",
+          state.user.userId
+        )
+        .eq(
+          "status",
+          "UNPAID"
+        )
+        .order("created_at", {
+          ascending: true
+        });
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = settlements || [];
+
+    if (!rows.length) {
+
+      container.innerHTML = `
+        <div class="muted pending-list-empty">
+          No payments to settle.
+        </div>
+      `;
+
+      return;
+    }
+
+    const membersResult =
+      await supabaseClient.rpc(
+        "get_group_members",
+        {
+          lookup_group_id:
+            state.currentGroup.group.groupId
+        }
+      );
+
+    if (membersResult.error) {
+      throw membersResult.error;
+    }
+
+    const memberMap = {};
+
+    (membersResult.data || []).forEach(member => {
+
+      memberMap[String(member.user_id)] =
+        member.display_name || "";
+
+    });
+
+    container.innerHTML =
+      rows.map(item => `
+
+        <div class="pending-flat-row">
+
+          <div class="pending-flat-label">
+            Pending payable
+          </div>
+
+          <div class="pending-flat-amount">
+            ${formatMoney(item.amount)}
+          </div>
+
+          <button
+            type="button"
+            class="pending-flat-action pending-settle-action"
+            onclick="openSettlePayment('${escapeHtml(item.id)}')"
+          >
+            Settle
+          </button>
+
+        </div>
+
+      `).join("");
+
+  } catch (error) {
+
+    console.error(
+      "LOAD PENDING PAYABLES ERROR:",
+      error
+    );
+
+    container.innerHTML = `
+      <div class="muted pending-list-empty">
+        Unable to load payments to settle.
+      </div>
+    `;
+
+  }
+
+}
+
 async function loadPendingPayments() {
 
   const container = $("#pendingPaymentsList");
@@ -7933,31 +8067,13 @@ async function loadPendingPayments() {
 function renderPendingPayment(payment) {
 
   return `
-    <div class="pending-payment-list-item">
+    <div class="pending-flat-row">
 
-      <div class="pending-payment-info">
-
-        <div class="pending-payment-title">
-          Payment received
-        </div>
-
-        <div class="pending-payment-meta">
-          ${escapeHtml(payment.paymentOption || "Payment")}
-        </div>
-
-        ${
-          payment.notes
-            ? `
-              <div class="pending-payment-notes">
-                ${escapeHtml(payment.notes)}
-              </div>
-            `
-            : ""
-        }
-
+      <div class="pending-flat-label">
+        Payment received
       </div>
 
-      <div class="pending-payment-amount">
+      <div class="pending-flat-amount">
         ₱${Number(payment.amountPaid || 0).toLocaleString(
           "en-PH",
           {
@@ -7969,7 +8085,7 @@ function renderPendingPayment(payment) {
 
       <button
         type="button"
-        class="pending-payment-review-button"
+        class="pending-flat-action pending-review-action"
         onclick="reviewPayment('${escapeHtml(payment.paymentSubmissionId)}')"
       >
         Review
@@ -7978,7 +8094,6 @@ function renderPendingPayment(payment) {
     </div>
   `;
 }
-
 
 async function openPaymentTransaction(paymentSubmissionId) {
   try {
@@ -10220,7 +10335,7 @@ async function openMembersModal() {
           </div>
 
           <small class="member-role">
-            ${escapeHtml(member.role)}
+            ${escapeHtml(String(member.role).toLowerCase().replace(/^\w/, c => c.toUpperCase()))}
           </small>
 
         </div>
@@ -13806,6 +13921,7 @@ function switchGroupTab(tab) {
   });
 
   if (target === "pending") {
+    loadPendingPayables();
     loadPendingPayments();
   }
 
