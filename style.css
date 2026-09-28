@@ -380,7 +380,7 @@ button.success-button {
 .bottom-nav {
   position: fixed;
   left: 50%;
-  bottom: 12px;
+  bottom: 4px;
   z-index: 50;
   width: min(calc(100% - 24px), 720px);
   height: var(--nav-height);
@@ -576,7 +576,7 @@ button.success-button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 4px;
 }
 
 .summary-card {
@@ -665,7 +665,7 @@ button.success-button {
 
 .expense-card {
   padding: 17px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   transition:
     transform 0.16s ease,
     box-shadow 0.16s ease;
@@ -915,7 +915,7 @@ button.success-button {
 }
 
 .balance-section-amount {
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
@@ -1041,7 +1041,7 @@ button.success-button {
 .payment-card,
 .payment-detail-card {
   padding: 17px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   background: var(--card-soft);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1142,7 +1142,7 @@ button.success-button {
   }
 
   .bottom-nav {
-    bottom: 18px;
+    bottom: 4px;
   }
 }
 
@@ -1226,7 +1226,7 @@ button.success-button {
 
   .bottom-nav {
     width: calc(100% - 28px);
-    bottom: 12px;
+    bottom: 4px;
     height: 68px;
     border-radius: 22px;
   }
@@ -2156,7 +2156,7 @@ button[onclick^="deletePaymentDetails"] {
 }
 
 .payment-qr-modal .muted {
-  margin-bottom: 18px;
+  margin-bottom: 4px;
 }
 
 .payment-qr-image {
@@ -2654,7 +2654,7 @@ body {
 
 .topbar {
   padding-top: max(18px, env(safe-area-inset-top));
-  padding-bottom: 18px;
+  padding-bottom: 4px;
 }
 
 #content {
@@ -2765,7 +2765,7 @@ body {
   }
 
   #modalContent {
-    padding-bottom: 12px;
+    padding-bottom: 4px;
   }
 }
 
@@ -3466,7 +3466,7 @@ body > #modal .modal-backdrop {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 4px;
 }
 
 .notifications-header h2 {
@@ -3781,7 +3781,7 @@ body > #modal .modal-backdrop {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .selected-members-empty {
@@ -4879,7 +4879,7 @@ input[type="checkbox"] {
 }
 
 .pending-group-list .settlement-row {
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .group-members-tab-actions {
@@ -4889,7 +4889,7 @@ input[type="checkbox"] {
 @media (max-width: 500px) {
   .group-page-tabs {
     margin-top: 18px;
-    margin-bottom: 18px;
+    margin-bottom: 4px;
   }
 
   .group-page-tab {
@@ -7649,7 +7649,7 @@ hr,
 
 #groupDetail .history-tabs,
 .group-detail .history-tabs {
-  margin-bottom: 18px;
+  margin-bottom: 4px;
 }
 
 /* ---------- Settlement rows ---------- */
@@ -10148,3 +10148,14 @@ body,
 
 }
 
+
+/* OweMe — keep bottom navigation anchored to the bottom */
+.bottom-nav {
+  bottom: max(4px, env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 700px) {
+  .bottom-nav {
+    bottom: max(4px, env(safe-area-inset-bottom)) !important;
+  }
+}
