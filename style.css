@@ -11335,3 +11335,336 @@ button.settle-payable-button {
 .group-top-actions > .members-button svg, .group-top-actions > .members-button .group-action-plus { color: #193A27 !important; stroke: #193A27 !important; }
 .group-top-actions > .close-group-button { background: #F8E5E3 !important; border-color: #F8E5E3 !important; color: #984F4B !important; }
 .group-top-actions > .close-group-button svg, .group-top-actions > .close-group-button .group-action-close { color: #984F4B !important; stroke: #984F4B !important; }
+
+\n/* Payment Details — tighter account number to action icons */
+#paymentDetailsList .payment-detail-actions {
+  margin-top: 0 !important;
+  gap: 2px !important;
+}
+
+#paymentDetailsList .payment-detail-action-buttons {
+  margin-top: 0 !important;
+}
+
+
+/* Payment Details — pull icons closer to account information */
+#paymentDetailsList .payment-detail-actions {
+  transform: translateY(-35px) !important;
+  margin-bottom: -35px !important;
+}
+
+/* Header — match logo and notification to Refresh button */
+.brand-logo {
+  width: 76px !important;
+  height: 76px !important;
+  object-fit: contain !important;
+  flex: 0 0 76px !important;
+}
+
+#notificationButton {
+  width: 76px !important;
+  height: 76px !important;
+  min-width: 76px !important;
+  min-height: 76px !important;
+  max-width: 76px !important;
+  max-height: 76px !important;
+  box-sizing: border-box !important;
+}
+
+
+/* Header — notification matches Refresh exactly */
+#notificationButton {
+  width: 76px !important;
+  height: 76px !important;
+  min-width: 76px !important;
+  min-height: 76px !important;
+  max-width: 76px !important;
+  max-height: 76px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E1EADF !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#notificationButton .notification-bell {
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+
+/* FINAL — notification bell matches Refresh */
+#notificationButton {
+  width: 76px !important;
+  height: 76px !important;
+  min-width: 76px !important;
+  min-height: 76px !important;
+  max-width: 76px !important;
+  max-height: 76px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+}
+
+#notificationButton .notification-bell {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#notificationButton .notification-bell svg {
+  width: 28px !important;
+  height: 28px !important;
+  display: block !important;
+}
+
+/* Header — notification matches Refresh */
+#notificationButton {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+}
+
+#notificationButton .notification-bell {
+  position: static !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#notificationButton .notification-bell svg {
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+}
+
+
+/* FINAL HEADER — Refresh and Notification use identical outer controls */
+#refreshButton,
+#notificationButton {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  flex: 0 0 52px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E5ECE2 !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#refreshButton > span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+#notificationButton .notification-bell {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+#notificationButton .notification-bell svg {
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+
+/* Group Members — final member name size */
+.group-member-list-name {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  font-weight: 850 !important;
+}
+
+
+
+/* =========================================================
+   Tabs — match Own Group / Others Group design
+========================================================= */
+
+/* Invitations / Contacts + Settlements / Pending / Members */
+.history-tabs {
+  display: flex !important;
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+  margin: 0 0 24px !important;
+  border-radius: 16px !important;
+  background: #e8f1e4 !important;
+  border: none !important;
+  box-sizing: border-box !important;
+}
+
+.history-tabs .history-tab {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #718074 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+.history-tabs .history-tab.active {
+  background: #ffffff !important;
+  color: #193a27 !important;
+  box-shadow: 0 2px 8px rgba(39, 66, 45, 0.07) !important;
+}
+
+/* Keep the existing Own Group / Others Group design identical */
+.groups-sub-tabs {
+  min-height: 46px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+  border-radius: 16px !important;
+  background: #e8f1e4 !important;
+}
+
+.groups-sub-tabs .history-tab {
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+}
+
+@media (max-width: 600px) {
+  .history-tabs {
+    min-height: 46px !important;
+    padding: 4px !important;
+    gap: 3px !important;
+    margin-bottom: 22px !important;
+  }
+
+  .history-tabs .history-tab {
+    min-height: 38px !important;
+    padding: 0 8px !important;
+    font-size: 14px !important;
+  }
+}
+
+
+
+/* =========================================================
+   Invitations / Contacts — match Own Group / Others Group
+========================================================= */
+
+.invites-tab-container {
+  display: flex !important;
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+  margin: 0 0 24px !important;
+  border-radius: 16px !important;
+  background: #e8f1e4 !important;
+  border: none !important;
+  box-sizing: border-box !important;
+}
+
+.invites-tab-container .groups-tab {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #718074 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+.invites-tab-container .groups-tab.active {
+  background: #ffffff !important;
+  color: #193a27 !important;
+  box-shadow: 0 2px 8px rgba(39, 66, 45, 0.07) !important;
+}
+
+@media (max-width: 600px) {
+  .invites-tab-container {
+    min-height: 46px !important;
+    padding: 4px !important;
+    gap: 3px !important;
+    margin-bottom: 22px !important;
+  }
+
+  .invites-tab-container .groups-tab {
+    min-height: 38px !important;
+    padding: 0 8px !important;
+    font-size: 14px !important;
+  }
+}
+
