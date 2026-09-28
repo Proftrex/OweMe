@@ -2187,6 +2187,18 @@ async function switchGroupsSectionTab(section) {
 
   window.owemeGroupSubtab = "mine";
 
+  const subTabs =
+    document.querySelectorAll(
+      ".groups-sub-tabs .history-tab"
+    );
+
+  subTabs.forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.textContent.trim() === "Own Group"
+    );
+  });
+
   const sectionTabs =
     document.querySelectorAll(
       ".groups-section-tabs .groups-tab"
@@ -3589,11 +3601,17 @@ async function openGroup(groupId) {
           fromUsername:
             payer?.username || "",
 
+          fromDisplayName:
+            payer?.displayName || "",
+
           toUserId:
             payment.recipient_user_id,
 
           toUsername:
             recipient?.username || "",
+
+          toDisplayName:
+            recipient?.displayName || "",
 
           amount:
             Number(payment.amount_paid || 0),
@@ -3962,15 +3980,15 @@ function renderTransactionRow(transaction) {
   const fromLabel =
     fromUserId === currentUserId
       ? "You"
-      : transaction.fromUsername
-        ? `@${escapeHtml(transaction.fromUsername)}`
+      : transaction.fromDisplayName
+        ? escapeHtml(transaction.fromDisplayName)
         : "—";
 
   const toLabel =
     toUserId === currentUserId
       ? "You"
-      : transaction.toUsername
-        ? `@${escapeHtml(transaction.toUsername)}`
+      : transaction.toDisplayName
+        ? escapeHtml(transaction.toDisplayName)
         : isExpense
           ? "Group"
           : "—";
@@ -4161,7 +4179,7 @@ async function openExpenseDetails(expenseId) {
         Paid by
       </div>
       <div style="margin-top:4px;">
-        @${escapeHtml(expense.paidByUsername || "Unknown")}
+        ${escapeHtml(expense.paidByDisplayName || "Unknown")}
       </div>
 
       ${
@@ -4195,7 +4213,7 @@ async function openExpenseDetails(expenseId) {
               <div class="balance-detail-row">
                 <div>
                   <div class="user-name">
-                    @${escapeHtml(participant.username || "Unknown")}
+                    ${escapeHtml(participant.displayName || "Unknown")}
                   </div>
                 </div>
 
@@ -4987,7 +5005,7 @@ function renderExpense(expense) {
 
   const participantText =
     expense.participants.length === 1
-      ? `For ${escapeHtml(expense.participants[0].username)}`
+      ? `For ${escapeHtml(expense.participants[0].displayName || "Member")}`
       : `${expense.participants.length} participants`;
 
   return `
@@ -5000,7 +5018,7 @@ function renderExpense(expense) {
       <div class="expense-top">
 
         <div class="expense-payer">
-          @${escapeHtml(expense.paidBy.username)}
+          ${escapeHtml(expense.paidBy.displayName || "Unknown")}
         </div>
 
         <div class="expense-amount">
@@ -5224,18 +5242,8 @@ async function openCreateGroupModal() {
           <div>
 
             <div class="user-name">
-              @${escapeHtml(member.username)}
+              ${escapeHtml(member.displayName || "Member")}
             </div>
-
-            ${
-              member.displayName
-                ? `
-                  <div class="muted selected-member-display-name">
-                    ${escapeHtml(member.displayName)}
-                  </div>
-                `
-                : ""
-            }
 
           </div>
 
@@ -5395,18 +5403,8 @@ async function openCreateGroupModal() {
               <span>
 
                 <strong>
-                  @${escapeHtml(user.username)}
+                  ${escapeHtml(user.displayName || "Member")}
                 </strong>
-
-                ${
-                  user.displayName
-                    ? `
-                      <small>
-                        ${escapeHtml(user.displayName)}
-                      </small>
-                    `
-                    : ""
-                }
 
               </span>
 
@@ -5856,7 +5854,7 @@ function openAddExpenseModal() {
         </div>
 
         <div class="expense-paid-by">
-          <strong>@${escapeHtml(state.user.username)}</strong>
+          <strong>${escapeHtml(state.user.displayName || "Member")}</strong>
           <div class="muted">
             You are paying for this expense.
           </div>
@@ -6046,7 +6044,7 @@ function openAddExpenseModal() {
 
             <div>
               <div class="user-name">
-                @${escapeHtml(member.username)}
+                ${escapeHtml(member.displayName || "Member")}
               </div>
 
               <div class="user-handle">
@@ -6696,7 +6694,7 @@ async function openBalancesModal() {
 
             <div>
               <div class="user-name">
-                @${escapeHtml(item.username)}
+                ${escapeHtml(item.displayName || "Unknown")}
               </div>
 
               <div class="user-handle">
@@ -6786,7 +6784,7 @@ async function openPayables() {
                   <div style="flex:1;">
 
                     <div class="user-name">
-                      @${escapeHtml(item.toUsername || "Unknown")}
+                      ${escapeHtml(item.toDisplayName || item.toUsername || "Unknown")}
                     </div>
 
                     <div
@@ -7112,8 +7110,8 @@ async function openPayableDetails(settlementId) {
 
     openModal(`
 
-      <h2>You owe @${escapeHtml(
-        settlement.toUsername || "Unknown"
+      <h2>You owe ${escapeHtml(
+        settlement.toDisplayName || settlement.toUsername || "Unknown"
       )}</h2>
 
       <p class="muted">
@@ -7306,8 +7304,8 @@ async function openReceivables() {
                   <div style="flex:1;min-width:0;">
 
                     <div class="user-name">
-                      @${escapeHtml(
-                        item.fromUsername || "Unknown"
+                      ${escapeHtml(
+                        item.fromDisplayName || item.fromUsername || "Unknown"
                       )}
                     </div>
 
@@ -7672,8 +7670,8 @@ async function openReceivableDetails(settlementId) {
     openModal(`
 
       <h2>
-        @${escapeHtml(
-          settlement.fromUsername || "Unknown"
+        ${escapeHtml(
+          settlement.fromDisplayName || settlement.fromUsername || "Unknown"
         )} owes you
       </h2>
 
@@ -8037,14 +8035,14 @@ async function openPaymentTransaction(paymentSubmissionId) {
       );
 
     const payerName =
-      payerProfile?.username
-        ? `@${payerProfile.username}`
-        : payerProfile?.display_name || "Unknown";
+      payerProfile?.display_name ||
+      payerProfile?.username ||
+      "Unknown";
 
     const recipientName =
-      recipientProfile?.username
-        ? `@${recipientProfile.username}`
-        : recipientProfile?.display_name || "Unknown";
+      recipientProfile?.display_name ||
+      recipientProfile?.username ||
+      "Unknown";
 
     let proofHtml = "";
 
@@ -8950,15 +8948,15 @@ function renderSettlement(item) {
       <div>
 
         <strong>
-          ${escapeHtml(item.fromUsername)}
+          ${escapeHtml(item.fromDisplayName || item.fromUsername || "Unknown")}
           →
-          ${escapeHtml(item.toUsername)}
+          ${escapeHtml(item.toDisplayName || item.toUsername || "Unknown")}
         </strong>
 
         <div class="muted">
           ${isPayer
-            ? `You owe ${escapeHtml(item.toUsername)}`
-            : `${escapeHtml(item.fromUsername)} owes you`
+            ? `You owe ${escapeHtml(item.toDisplayName || item.toUsername || "Unknown")}`
+            : `${escapeHtml(item.fromDisplayName || item.fromUsername || "Unknown")} owes you`
           }
         </div>
 
@@ -9136,7 +9134,7 @@ async function openSettlePayment(settlementId) {
         You owe
 
         <strong>
-          ${escapeHtml(settlement.toUsername)}
+          ${escapeHtml(settlement.toDisplayName || settlement.toUsername || "Unknown")}
         </strong>
 
       </p>
@@ -9272,7 +9270,7 @@ async function openSettlePayment(settlementId) {
               <div class="card empty">
 
                 ${escapeHtml(
-                  settlement.toUsername
+                  settlement.toDisplayName || settlement.toUsername || "Unknown"
                 )}
 
                 has not added any payment
@@ -10215,19 +10213,9 @@ async function openMembersModal() {
 
           <div class="member-identity">
 
-            <span class="member-username">
-              @${escapeHtml(member.username)}
+            <span class="member-display-name">
+              ${escapeHtml(member.displayName || "Member")}
             </span>
-
-            ${
-              member.displayName
-                ? `
-                  <span class="member-display-name">
-                    ${escapeHtml(member.displayName)}
-                  </span>
-                `
-                : ""
-            }
 
           </div>
 
@@ -10353,18 +10341,8 @@ async function openMembersModal() {
           <div>
 
             <div class="user-name">
-              @${escapeHtml(member.username)}
+              ${escapeHtml(member.displayName || "Member")}
             </div>
-
-            ${
-              member.displayName
-                ? `
-                  <div class="muted selected-member-display-name">
-                    ${escapeHtml(member.displayName)}
-                  </div>
-                `
-                : ""
-            }
 
           </div>
 
@@ -10533,18 +10511,8 @@ async function openMembersModal() {
               <span>
 
                 <strong>
-                  @${escapeHtml(contact.username)}
+                  ${escapeHtml(contact.displayName || "Member")}
                 </strong>
-
-                ${
-                  contact.displayName
-                    ? `
-                      <small>
-                        ${escapeHtml(contact.displayName)}
-                      </small>
-                    `
-                    : ""
-                }
 
               </span>
 
@@ -10937,26 +10905,33 @@ async function loadInvitations() {
     const profile = profileRows?.[0];
 
     if (profile) {
-      inviterMap[String(invitation.invited_by_user_id)] =
-        profile.username ||
-        profile.display_name ||
-        "";
+      inviterMap[String(invitation.invited_by_user_id)] = {
+        username: profile.username || "",
+        displayName: profile.display_name || ""
+      };
     }
   }
 
   state.invitations =
-    invitations.map(invitation => ({
-      invitationId: invitation.id,
-      groupId: invitation.group_id,
-      invitedUserId: invitation.invited_user_id,
-      invitedByUserId: invitation.invited_by_user_id,
-      status: invitation.status,
-      createdAt: invitation.created_at,
-      respondedAt: invitation.responded_at,
-      groupName: invitation.groups?.group_name || "Group",
-      invitedByUsername:
-        inviterMap[String(invitation.invited_by_user_id)] || ""
-    }));
+    invitations.map(invitation => {
+      const inviter =
+        inviterMap[String(invitation.invited_by_user_id)] || {};
+
+      return {
+        invitationId: invitation.id,
+        groupId: invitation.group_id,
+        invitedUserId: invitation.invited_user_id,
+        invitedByUserId: invitation.invited_by_user_id,
+        status: invitation.status,
+        createdAt: invitation.created_at,
+        respondedAt: invitation.responded_at,
+        groupName: invitation.groups?.group_name || "Group",
+        invitedByUsername:
+          inviter.username || "",
+        invitedByDisplayName:
+          inviter.displayName || ""
+      };
+    });
 
   if (!document.getElementById("invitesTabContent")) {
     $("#content").innerHTML = `
@@ -11069,7 +11044,7 @@ function renderInvitation(invitation) {
 
         <div class="invitation-list-meta">
           Invited by
-          @${escapeHtml(invitation.invitedByUsername)}
+          ${escapeHtml(invitation.invitedByDisplayName || invitation.invitedByUsername || "Unknown")}
         </div>
 
       </div>
@@ -11251,18 +11226,13 @@ async function renderProfile() {
         <div class="profile-account-details">
 
           <div>
-            <strong>Username:</strong>
-            @${escapeHtml(state.user.username)}
+            <strong>Display Name:</strong>
+            ${escapeHtml(state.user.displayName || "Member")}
           </div>
 
           <div>
             <strong>Email:</strong>
             ${escapeHtml(state.user.email)}
-          </div>
-
-          <div>
-            <strong>Display Name:</strong>
-            ${escapeHtml(state.user.displayName)}
           </div>
 
         </div>
@@ -13162,14 +13132,14 @@ async function openNudgeConfirmation(settlementId) {
     const username = escapeHtml(settlement.fromUsername);
 
     openModal(`
-      <h2>Nudge @${username}</h2>
+      <h2>Nudge ${escapeHtml(settlement.fromDisplayName || settlement.fromUsername || "Unknown")}</h2>
 
       <p class="muted">
         Send a friendly payment reminder?
       </p>
 
       <div class="card">
-        <div class="user-name">@${username}</div>
+        <div class="user-name">${escapeHtml(settlement.fromDisplayName || settlement.fromUsername || "Unknown")}</div>
         <div style="margin-top: 8px;">
           Outstanding: <strong>${formatMoney(remaining)}</strong>
         </div>
@@ -13639,7 +13609,7 @@ async function createSettlementPayMeLink(settlementId) {
       <p class="muted">
         This link is for
         <strong>
-          @${escapeHtml(settlement.fromUsername || "the payer")}
+          ${escapeHtml(settlement.fromDisplayName || settlement.fromUsername || "the payer")}
         </strong>
         and the remaining amount below.
       </p>
@@ -13782,19 +13752,9 @@ function renderContactCard(contact) {
 
         <div class="contact-list-primary">
 
-          <span class="contact-list-username">
-            @${escapeHtml(contact.username || "Unknown")}
+          <span class="contact-list-display-name">
+            ${escapeHtml(contact.displayName || "Unknown")}
           </span>
-
-          ${
-            contact.displayName
-              ? `
-                <span class="contact-list-display-name">
-                  ${escapeHtml(contact.displayName)}
-                </span>
-              `
-              : ""
-          }
 
         </div>
 
