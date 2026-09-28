@@ -5849,27 +5849,27 @@ function openAddExpenseModal() {
         >
       </label>
 
-      <div class="section-title">
-        Paid by
-      </div>
+      <div class="expense-participants-section">
 
-      <div class="card" style="margin-bottom:16px">
-        <strong>@${escapeHtml(state.user.username)}</strong>
-        <div class="muted" style="font-size:12px">
-          You are paying for this expense.
+        <div class="section-title">
+          Paid by
         </div>
-      </div>
 
-      <div class="section-title">
-        <div>
-          <strong>Who should share this?</strong>
-          <div class="muted" style="font-size:12px;margin-top:3px">
-            Select only the members included in this expense.
+        <div class="expense-paid-by">
+          <strong>@${escapeHtml(state.user.username)}</strong>
+          <div class="muted">
+            You are paying for this expense.
           </div>
         </div>
-      </div>
 
-      <div class="card participant-list-card">
+        <div class="section-title">
+          <div>
+            <strong>Who should share this?</strong>
+            <div class="muted" style="font-size:12px;margin-top:3px">
+              Select only the members included in this expense.
+            </div>
+          </div>
+        </div>
 
         <div class="participant-list">
 
@@ -5883,14 +5883,8 @@ function openAddExpenseModal() {
                 checked
               >
 
-              <div>
-                <div class="user-name">
-                  @${escapeHtml(member.username)}
-                </div>
-
-                <div class="user-handle">
-                  ${escapeHtml(member.displayName)}
-                </div>
+              <div class="participant-display-name">
+                ${escapeHtml(member.displayName || member.username || "Member")}
               </div>
 
             </label>
