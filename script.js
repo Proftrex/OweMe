@@ -12409,11 +12409,34 @@ async function renderProfile() {
       testLocalNotificationButton.addEventListener(
         "click",
         async () => {
-          alert("OweMe local notification test button was clicked.");
+          alert("Step 1: Button works.");
 
           try {
-            const registration =
-              await navigator.serviceWorker.ready;
+            if (!("serviceWorker" in navigator)) {
+              alert("Step 2: Service Worker API is not available.");
+              return;
+            }
+
+            const registrations =
+              await navigator.serviceWorker.getRegistrations();
+
+            if (!registrations.length) {
+              alert("Step 2: No service worker registration found.");
+              return;
+            }
+
+            const registration = registrations[0];
+
+            alert(
+              "Step 2: Service worker found.\n" +
+              "Scope: " + registration.scope + "\n" +
+              "Active: " + !!registration.active
+            );
+
+            if (!registration.active) {
+              alert("Step 3: Service worker exists but is not active.");
+              return;
+            }
 
             await registration.showNotification(
               "OweMe Test",
@@ -12422,9 +12445,11 @@ async function renderProfile() {
                 tag: "oweme-local-test"
               }
             );
+
+            alert("Step 4: Notification request was sent.");
           } catch (error) {
             alert(
-              "Local notification failed: " +
+              "Notification test failed:\n" +
               (error?.message || error)
             );
           }
