@@ -13212,3 +13212,35 @@ h3 {
   font-weight: 700 !important;
 }
 
+
+/* FORCE LOGIN LINK COLORS */
+.auth-card #loginPanel p button.link-button,
+.auth-card #loginPanel #forgotPasswordButton,
+.auth-card #loginPanel #showRegister {
+  color: #193a27 !important;
+  -webkit-text-fill-color: #193a27 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.auth-card #loginPanel p button.link-button:hover,
+.auth-card #loginPanel p button.link-button:focus,
+.auth-card #loginPanel p button.link-button:active {
+  color: #193a27 !important;
+  -webkit-text-fill-color: #193a27 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+
+/* Login links — soft light green */
+.auth-card #loginPanel p button.link-button,
+.auth-card #loginPanel #forgotPasswordButton,
+.auth-card #loginPanel #showRegister {
+  color: #6FAF8F !important;
+  -webkit-text-fill-color: #6FAF8F !important;
+}
+
