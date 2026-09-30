@@ -45,6 +45,21 @@ async function init() {
   const recoveryType =
     hashParams.get("type");
 
+  const urlParams =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const sharedGroupId =
+    urlParams.get("group");
+
+  if (sharedGroupId) {
+    console.log(
+      "OWEME SHARED GROUP LINK:",
+      sharedGroupId
+    );
+  }
+
   if (
     recoveryType === "recovery" &&
     session
@@ -90,6 +105,10 @@ async function init() {
 
     await loadNotificationCount();
     await loadHome(null, true);
+
+    if (sharedGroupId) {
+      await handleSharedGroupLink(sharedGroupId);
+    }
 
   } catch (error) {
 
@@ -4740,12 +4759,31 @@ function renderGroup() {
             </button>
 
             <button
-              class="action-button members-button group-icon-action"
+              type="button"
+              class="group-icon-action share-group-button"
+              onclick="shareCurrentGroup()"
+              aria-label="Share group"
+              title="Share group"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle cx="18" cy="5" r="2.5"></circle>
+                <circle cx="6" cy="12" r="2.5"></circle>
+                <circle cx="18" cy="19" r="2.5"></circle>
+                <path d="M8.2 10.8l7.5-4.4"></path>
+                <path d="M8.2 13.2l7.5 4.4"></path>
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="group-icon-action members-button"
               onclick="openMembersModal()"
               aria-label="Add Members"
               title="Add Members"
             >
-              <span class="group-action-plus">+</span>
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
@@ -4758,12 +4796,12 @@ function renderGroup() {
             </button>
 
             <button
-              class="close-group-button group-icon-action"
+              type="button"
+              class="group-icon-action close-group-button"
               onclick="closeCurrentGroup()"
               aria-label="Close group"
               title="Close group"
             >
-              <span class="group-action-close">×</span>
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
@@ -5907,6 +5945,56 @@ async function createGroup(event) {
 /* =========================================================
    ADD EXPENSE
    ========================================================= */
+
+async function shareCurrentGroup() {
+
+  try {
+
+    const group =
+      state.currentGroup?.group;
+
+    if (!group) {
+      toast("No group is currently open.");
+      return;
+    }
+
+    const groupId =
+      group.groupId;
+
+    const groupName =
+      group.groupName || "OweMe group";
+
+    if (!groupId) {
+      throw new Error("Group ID not found.");
+    }
+
+    const shareUrl =
+      new URL(
+        `?group=${encodeURIComponent(groupId)}`,
+        window.location.origin +
+          window.location.pathname
+      ).href;
+
+    await navigator.clipboard.writeText(shareUrl);
+
+    toast("Group link copied!");
+
+  } catch (error) {
+
+    console.error(
+      "SHARE GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error?.message ||
+      "Unable to create group link."
+    );
+
+  }
+
+}
+
 
 function openAddExpenseModal() {
 
@@ -12655,6 +12743,222 @@ function showApp() {
 
   $("#authView").classList.add("hidden");
   $("#mainApp").classList.remove("hidden");
+
+}
+
+
+async function handleSharedGroupLink(groupId) {
+
+  if (!groupId) {
+    return;
+  }
+
+  try {
+
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      return;
+    }
+
+    const {
+      data: group,
+      error: groupError
+    } = await supabaseClient
+      .rpc("get_shared_group", {
+        p_group_id: groupId
+      })
+      .single();
+
+    if (groupError || !group) {
+
+      console.error(
+        "SHARED GROUP LOAD ERROR:",
+        groupError
+      );
+
+      toast(
+        "This group could not be found or is no longer active."
+      );
+
+      return;
+    }
+
+    const {
+      data: existingMembership,
+      error: membershipError
+    } = await supabaseClient
+      .from("group_members")
+      .select("group_id, status")
+      .eq("group_id", group.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (membershipError) {
+
+      console.error(
+        "CHECK GROUP MEMBERSHIP ERROR:",
+        membershipError
+      );
+
+    }
+
+    if (
+      existingMembership &&
+      String(existingMembership.status).toUpperCase() ===
+      "ACTIVE"
+    ) {
+
+      openModal(`
+        <div class="modal-header">
+          <h3>Already a member</h3>
+
+          <button
+            class="modal-close"
+            onclick="closeModal()"
+            aria-label="Close"
+          >×</button>
+        </div>
+
+        <div class="modal-body">
+
+          <p>
+            You are already a member of
+            <strong>${escapeHtml(group.group_name)}</strong>.
+          </p>
+
+          <button
+            class="primary-button"
+            onclick="
+              closeModal();
+              openGroup('${group.id}');
+            "
+          >
+            Open Group
+          </button>
+
+        </div>
+      `);
+
+      return;
+    }
+
+    openModal(`
+      <div class="modal-header">
+        <h3>Join Group</h3>
+
+        <button
+          class="modal-close"
+          onclick="closeModal()"
+          aria-label="Close"
+        >×</button>
+      </div>
+
+      <div class="modal-body">
+
+        <p>
+          You've been invited to join
+          <strong>${escapeHtml(group.group_name)}</strong>.
+        </p>
+
+        <p class="muted">
+          Join this group to view expenses,
+          balances, and settlements.
+        </p>
+
+        <button
+          class="primary-button"
+          onclick="joinSharedGroup('${group.id}')"
+        >
+          Join Group
+        </button>
+
+      </div>
+    `);
+
+  } catch (error) {
+
+    console.error(
+      "SHARED GROUP LINK ERROR:",
+      error
+    );
+
+    toast(
+      error?.message ||
+      "Unable to open the group link."
+    );
+
+  }
+
+}
+
+
+async function joinSharedGroup(groupId) {
+
+  try {
+
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Please log in first.");
+    }
+
+    setLoading(true, "Joining group...");
+
+    const {
+      data: joinedGroup,
+      error: joinError
+    } = await supabaseClient
+      .rpc("join_shared_group", {
+        p_group_id: groupId
+      })
+      .single();
+
+    if (joinError) {
+      throw joinError;
+    }
+
+    if (!joinedGroup) {
+      throw new Error(
+        "The group could not be joined."
+      );
+    }
+
+    closeModal();
+
+    toast(
+      `You joined ${joinedGroup.group_name}!`
+    );
+
+    state.groupsLoadedAt = 0;
+
+    await loadGroups();
+
+    await openGroup(joinedGroup.id);
+
+  } catch (error) {
+
+    console.error(
+      "JOIN SHARED GROUP ERROR:",
+      error
+    );
+
+    toast(
+      error?.message ||
+      "Unable to join the group."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
 
 }
 
