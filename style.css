@@ -13244,3 +13244,67 @@ h3 {
   -webkit-text-fill-color: #6FAF8F !important;
 }
 
+
+/* Username — give the @ prefix proper breathing room */
+.username-input input {
+  padding-left: 44px !important;
+}
+
+.username-input::before {
+  left: 14px !important;
+}
+
+/* Login button — light green */
+.auth-card #loginForm > .primary-button {
+  background: #dcefe5 !important;
+  background-color: #dcefe5 !important;
+  color: #193a27 !important;
+  border: 1px solid #c9e5d7 !important;
+  box-shadow: none !important;
+}
+
+
+/* Username — balanced @ spacing */
+.username-input input {
+  padding-left: 36px !important;
+}
+
+.username-input::before {
+  left: 14px !important;
+}
+
+/* Auth switch links — soft light green */
+.auth-card .switch-text .link-button {
+  color: #6FAF8F !important;
+  -webkit-text-fill-color: #6FAF8F !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+
+/* Username — tighter @ spacing */
+.username-input input {
+  padding-left: 31px !important;
+}
+
+.username-input::before {
+  left: 12px !important;
+}
+
+
+/* Create Account — Log in link */
+.auth-card #registerPanel .switch-text .link-button {
+  color: #6FAF8F !important;
+  -webkit-text-fill-color: #6FAF8F !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+}
+
