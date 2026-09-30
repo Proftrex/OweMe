@@ -2004,26 +2004,225 @@ async function loadHome(initialGroups = null, force = false) {
         hidden
       >
 
-        <div class="card insights-points-card">
 
-          <div class="card-title">
-            🏆 OweMe Points
+
+
+        <div class="insights-section">
+
+          <div class="insights-section-title">
+            Payment Stats
           </div>
+
+          <div class="insights-payment-stats">
+
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">⏱️</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Average days to pay
+                </div>
+                <div
+                  id="insightsAverageDaysToPay"
+                  class="insights-stat-value"
+                >
+                  —
+                </div>
+              </div>
+            </div>
+
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">⚡</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Fastest payment
+                </div>
+                <div
+                  id="insightsFastestPayment"
+                  class="insights-stat-value"
+                >
+                  —
+                </div>
+              </div>
+            </div>
+
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">💸</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Average days to settle
+                </div>
+                <div
+                  id="insightsAverageDaysToSettle"
+                  class="insights-stat-value"
+                >
+                  —
+                </div>
+              </div>
+            </div>
+
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">✅</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Settlements completed
+                </div>
+                <div
+                  id="insightsSettlementsCompleted"
+                  class="insights-stat-value"
+                >
+                  0
+                </div>
+              </div>
+            </div>
+
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">₱</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Total paid
+                </div>
+                <div
+                  id="insightsTotalPaid"
+                  class="insights-stat-value"
+                >
+                  ₱0.00
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="insights-section">
+
+          <div class="insights-section-title">
+            Badges
+          </div>
+
+          <div class="insights-badges">
+
+            <div
+              class="insights-badge locked"
+              id="insightBadgeGalante"
+            >
+              <div class="insights-badge-icon">
+                💚
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Galante
+                </div>
+
+                <div class="insights-badge-description">
+                  Pays on time and often covers more than their share
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="insights-badge locked"
+              id="insightBadgeKoripot"
+            >
+              <div class="insights-badge-icon">
+                🪙
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Koripot
+                </div>
+
+                <div class="insights-badge-description">
+                  Takes their time paying and rarely covers extra
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="insights-points-card">
+
+          <div class="insights-points-header">
+
+            <div>
+              <div class="insights-eyebrow">
+                YOUR REWARDS
+              </div>
+
+              <div class="insights-points-title">
+                OweMe Points
+              </div>
+            </div>
+
+            <div class="insights-points-icon">
+              🏆
+            </div>
+
+          </div>
+
 
           <div
             id="insightsPoints"
-            class="insights-points-value"
+            class="insights-points-number"
           >
             0
           </div>
 
-          <div class="muted">
+          <div class="insights-points-label">
             Points earned
           </div>
 
-          <p class="insights-points-message">
-            Keep using OweMe to unlock milestones and badges.
-          </p>
+
+          <div class="insights-progress-section">
+
+            <div class="insights-progress-header">
+              <span>Next milestone</span>
+
+              <strong id="insightsProgressText">
+                0 / 100
+              </strong>
+            </div>
+
+
+            <div class="insights-progress-track">
+
+              <div
+                id="insightsProgressBar"
+                class="insights-progress-bar"
+                style="width:0%"
+              ></div>
+
+            </div>
+
+
+            <div
+              id="insightsProgressMessage"
+              class="insights-progress-message"
+            >
+              Keep using OweMe to earn more points.
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="insights-section">
+
+          <div class="insights-section-title">
+            Milestones
+          </div>
+
+          <div
+            id="insightsMilestones"
+            class="insights-milestones"
+          ></div>
 
         </div>
 
@@ -2059,6 +2258,7 @@ async function loadHome(initialGroups = null, force = false) {
 
     try {
 
+      /* LOAD OweMe POINTS */
       const {
         data: pointsData,
         error: pointsError
@@ -2076,7 +2276,7 @@ async function loadHome(initialGroups = null, force = false) {
       }
 
       const points =
-        pointsData?.total_points || 0;
+        Number(pointsData?.total_points || 0);
 
       const pointsElement =
         $("#insightsPoints");
@@ -2084,6 +2284,593 @@ async function loadHome(initialGroups = null, force = false) {
       if (pointsElement) {
         pointsElement.textContent = points;
       }
+
+
+      /* UPDATE POINTS PROGRESS */
+      const progress =
+        Math.min(
+          100,
+          Math.max(
+            0,
+            (points / 100) * 100
+          )
+        );
+
+      const progressBar =
+        $("#insightsProgressBar");
+
+      if (progressBar) {
+        progressBar.style.width =
+          `${progress}%`;
+      }
+
+      const progressText =
+        $("#insightsProgressText");
+
+      if (progressText) {
+        progressText.textContent =
+          `${Math.min(points, 100)} / 100`;
+      }
+
+      const progressMessage =
+        $("#insightsProgressMessage");
+
+      if (progressMessage) {
+
+        const remaining =
+          Math.max(0, 100 - points);
+
+        progressMessage.textContent =
+          remaining > 0
+            ? `${remaining} more points to your next milestone.`
+            : "You've reached 100 points!";
+      }
+
+
+      /* LOAD PAYMENT STATS */
+
+      const {
+        data: insightsPayments,
+        error: insightsPaymentsError
+      } = await supabaseClient
+        .from("payment_submissions")
+        .select(`
+          id,
+          settlement_id,
+          group_id,
+          payer_user_id,
+          amount_paid,
+          status,
+          submitted_at,
+          confirmed_at
+        `)
+        .eq("payer_user_id", state.user.userId)
+        .eq("status", "CONFIRMED")
+        .not("confirmed_at", "is", null);
+
+      if (insightsPaymentsError) {
+        console.error(
+          "LOAD INSIGHTS PAYMENT STATS ERROR:",
+          insightsPaymentsError
+        );
+      }
+
+      const confirmedPayments =
+        (insightsPayments || [])
+          .filter(payment =>
+            payment.submitted_at &&
+            payment.confirmed_at
+          );
+
+      /* LOAD SETTLEMENT DATES */
+
+      const settlementIds =
+        confirmedPayments
+          .map(payment =>
+            payment.settlement_id
+          )
+          .filter(Boolean);
+
+      let settlementData = [];
+
+      if (settlementIds.length) {
+
+        const {
+          data,
+          error
+        } = await supabaseClient
+          .from("settlements")
+          .select(`
+            id,
+            created_at
+          `)
+          .in(
+            "id",
+            settlementIds
+          );
+
+        if (error) {
+
+          console.error(
+            "LOAD INSIGHTS SETTLEMENTS ERROR:",
+            error
+          );
+
+        } else {
+
+          settlementData =
+            data || [];
+
+        }
+
+      }
+
+      const settlementCreatedMap =
+        new Map(
+          settlementData.map(
+            settlement => [
+              String(settlement.id),
+              settlement.created_at
+            ]
+          )
+        );
+
+
+      const settlementDurations =
+        confirmedPayments
+          .map(payment => {
+
+            const createdAt =
+              settlementCreatedMap.get(
+                String(
+                  payment.settlement_id
+                )
+              );
+
+            if (!createdAt) {
+              return null;
+            }
+
+            const created =
+              new Date(
+                createdAt
+              ).getTime();
+
+            const confirmed =
+              new Date(
+                payment.confirmed_at
+              ).getTime();
+
+            const days =
+              (
+                confirmed -
+                created
+              ) /
+              (1000 * 60 * 60 * 24);
+
+            return days >= 0
+              ? days
+              : null;
+
+          })
+          .filter(days =>
+            days !== null
+          );
+
+      const averageDaysToSettle =
+        settlementDurations.length
+          ? settlementDurations.reduce(
+              (sum, days) =>
+                sum + days,
+              0
+            ) /
+            settlementDurations.length
+          : null;
+
+
+      const averageDaysToSettleElement =
+        $("#insightsAverageDaysToSettle");
+
+      if (averageDaysToSettleElement) {
+
+        averageDaysToSettleElement.textContent =
+          averageDaysToSettle === null
+            ? "—"
+            : `${averageDaysToSettle.toFixed(1)} days`;
+
+      }
+
+
+      const paymentDurations =
+        confirmedPayments
+          .map(payment => {
+
+            const submitted =
+              new Date(
+                payment.submitted_at
+              ).getTime();
+
+            const confirmed =
+              new Date(
+                payment.confirmed_at
+              ).getTime();
+
+            const days =
+              (
+                confirmed -
+                submitted
+              ) /
+              (1000 * 60 * 60 * 24);
+
+            return days >= 0
+              ? days
+              : null;
+
+          })
+          .filter(days =>
+            days !== null
+          );
+
+      const averageDaysToPay =
+        paymentDurations.length
+          ? paymentDurations.reduce(
+              (sum, days) =>
+                sum + days,
+              0
+            ) /
+            paymentDurations.length
+          : null;
+
+      const fastestPayment =
+        paymentDurations.length
+          ? Math.min(
+              ...paymentDurations
+            )
+          : null;
+
+      const settlementsCompleted =
+        confirmedPayments.length;
+
+      const totalPaid =
+        confirmedPayments.reduce(
+          (sum, payment) =>
+            sum +
+            Number(
+              payment.amount_paid || 0
+            ),
+          0
+        );
+
+      const averageDaysToPayElement =
+        $("#insightsAverageDaysToPay");
+
+      if (averageDaysToPayElement) {
+        averageDaysToPayElement.textContent =
+          averageDaysToPay === null
+            ? "—"
+            : `${averageDaysToPay.toFixed(1)} days`;
+      }
+
+      const fastestPaymentElement =
+        $("#insightsFastestPayment");
+
+      if (fastestPaymentElement) {
+
+        if (fastestPayment === null) {
+
+          fastestPaymentElement.textContent =
+            "—";
+
+        } else if (fastestPayment < 1) {
+
+          fastestPaymentElement.textContent =
+            "Same day";
+
+        } else {
+
+          fastestPaymentElement.textContent =
+            `${fastestPayment.toFixed(1)} days`;
+
+        }
+
+      }
+
+      const settlementsCompletedElement =
+        $("#insightsSettlementsCompleted");
+
+      if (settlementsCompletedElement) {
+        settlementsCompletedElement.textContent =
+          settlementsCompleted;
+      }
+
+      const totalPaidElement =
+        $("#insightsTotalPaid");
+
+      if (totalPaidElement) {
+        totalPaidElement.textContent =
+          `₱${totalPaid.toLocaleString(
+            "en-PH",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          )}`;
+      }
+
+
+      /* LOAD USER MILESTONES */
+
+      const milestoneDefinitions = [
+        {
+          key: "FIRST_GROUP",
+          icon: "👥",
+          name: "First Group",
+          description: "Create your first group",
+          points: 50
+        },
+        {
+          key: "FIRST_EXPENSE",
+          icon: "🧾",
+          name: "First Expense",
+          description: "Add your first expense",
+          points: 25
+        },
+        {
+          key: "FIRST_SETTLEMENT",
+          icon: "💸",
+          name: "First Settlement",
+          description: "Complete your first settlement",
+          points: 50
+        },
+        {
+          key: "FIVE_EXPENSES",
+          icon: "🧾",
+          name: "5 Expenses",
+          description: "Add 5 expenses",
+          points: 50
+        },
+        {
+          key: "TEN_EXPENSES",
+          icon: "🧾",
+          name: "10 Expenses",
+          description: "Add 10 expenses",
+          points: 75
+        },
+        {
+          key: "FIVE_SETTLEMENTS",
+          icon: "💸",
+          name: "5 Settlements",
+          description: "Complete 5 settlements",
+          points: 100
+        },
+        {
+          key: "TEN_SETTLEMENTS",
+          icon: "💸",
+          name: "10 Settlements",
+          description: "Complete 10 settlements",
+          points: 150
+        },
+        {
+          key: "PAID_10000",
+          icon: "💰",
+          name: "₱10,000 Paid",
+          description: "Pay a total of ₱10,000",
+          points: 100
+        },
+        {
+          key: "PAID_50000",
+          icon: "💰",
+          name: "₱50,000 Paid",
+          description: "Pay a total of ₱50,000",
+          points: 250
+        }
+      ];
+
+
+      const {
+        data: milestoneData,
+        error: milestoneError
+      } = await supabaseClient
+        .from("user_milestones")
+        .select(`
+          milestone_key,
+          unlocked_at
+        `)
+        .eq(
+          "user_id",
+          state.user.userId
+        )
+        .order(
+          "unlocked_at",
+          {
+            ascending: false
+          }
+        );
+
+      if (milestoneError) {
+
+        console.error(
+          "LOAD INSIGHTS MILESTONES ERROR:",
+          milestoneError
+        );
+
+      }
+
+
+      const unlockedMilestoneMap =
+        new Map(
+          (milestoneData || []).map(
+            milestone => [
+              milestone.milestone_key,
+              milestone
+            ]
+          )
+        );
+
+
+      const lockedMilestones =
+        milestoneDefinitions.filter(
+          milestone =>
+            !unlockedMilestoneMap.has(
+              milestone.key
+            )
+        );
+
+
+      const unlockedMilestones =
+        milestoneDefinitions
+          .filter(
+            milestone =>
+              unlockedMilestoneMap.has(
+                milestone.key
+              )
+          )
+          .sort(
+            (a, b) => {
+
+              const aDate =
+                new Date(
+                  unlockedMilestoneMap.get(
+                    a.key
+                  )?.unlocked_at || 0
+                ).getTime();
+
+              const bDate =
+                new Date(
+                  unlockedMilestoneMap.get(
+                    b.key
+                  )?.unlocked_at || 0
+                ).getTime();
+
+              return bDate - aDate;
+
+            }
+          )
+          .slice(0, 5);
+
+
+      const milestonesToRender = [
+        ...lockedMilestones,
+        ...unlockedMilestones
+      ];
+
+
+      const milestonesContainer =
+        $("#insightsMilestones");
+
+
+      if (milestonesContainer) {
+
+        milestonesContainer.innerHTML =
+          milestonesToRender
+            .map(milestone => {
+
+              const unlocked =
+                unlockedMilestoneMap.has(
+                  milestone.key
+                );
+
+              return `
+                <div
+                  class="insights-milestone ${
+                    unlocked
+                      ? "unlocked"
+                      : "locked"
+                  }"
+                  data-milestone-key="${milestone.key}"
+                >
+
+                  <div class="insights-milestone-icon">
+                    ${milestone.icon}
+                  </div>
+
+                  <div class="insights-milestone-content">
+
+                    <div class="insights-milestone-name">
+                      ${milestone.name}
+                    </div>
+
+                    <div class="insights-milestone-description">
+                      ${milestone.description}
+                    </div>
+
+                  </div>
+
+                  <div class="insights-milestone-points">
+                    ${
+                      unlocked
+                        ? "✓ Unlocked"
+                        : `+${milestone.points}`
+                    }
+                  </div>
+
+                </div>
+              `;
+
+            })
+            .join("");
+
+      }
+
+
+      /* LOAD USER BADGES */
+      const {
+        data: badgeData,
+        error: badgeError
+      } = await supabaseClient
+        .from("user_badges")
+        .select("badge_key")
+        .eq("user_id", state.user.userId);
+
+      if (badgeError) {
+        console.error(
+          "LOAD INSIGHTS BADGES ERROR:",
+          badgeError
+        );
+      }
+
+      const unlockedBadges =
+        new Set(
+          (badgeData || []).map(
+            badge =>
+              badge.badge_key
+          )
+        );
+
+
+      const badgeElements = {
+        GALANTE:
+          "#insightBadgeGalante",
+
+        KORIPOT:
+          "#insightBadgeKoripot"
+      };
+
+      Object.entries(
+        badgeElements
+      ).forEach(
+        ([key, selector]) => {
+
+          const element =
+            $(selector);
+
+          if (!element) return;
+
+          const unlocked =
+            unlockedBadges.has(key);
+
+          element.classList.toggle(
+            "unlocked",
+            unlocked
+          );
+
+          element.classList.toggle(
+            "locked",
+            !unlocked
+          );
+
+        }
+      );
 
     } catch (error) {
 
@@ -10087,7 +10874,30 @@ async function processConfirmPayment(paymentSubmissionId) {
       "Confirming payment..."
     );
 
-    const { error } = await supabaseClient
+    const {
+      data: payment,
+      error: paymentFetchError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        payer_user_id,
+        recipient_user_id,
+        status
+      `)
+      .eq("id", paymentSubmissionId)
+      .eq("recipient_user_id", state.user.userId)
+      .eq("status", "SUBMITTED")
+      .single();
+
+    if (paymentFetchError || !payment) {
+      throw paymentFetchError ||
+        new Error("Payment submission not found or already processed.");
+    }
+
+    const {
+      error: updateError
+    } = await supabaseClient
       .from("payment_submissions")
       .update({
         status: "CONFIRMED",
@@ -10097,9 +10907,73 @@ async function processConfirmPayment(paymentSubmissionId) {
       .eq("recipient_user_id", state.user.userId)
       .eq("status", "SUBMITTED");
 
-    if (error) {
-      throw error;
+    if (updateError) {
+      throw updateError;
     }
+
+    /* AWARD FIRST SETTLEMENT MILESTONE TO THE PAYER */
+    try {
+
+      const {
+        data: {
+          user
+        },
+        error: userError
+      } = await supabaseClient.auth.getUser();
+
+      console.log(
+        "FIRST_SETTLEMENT AUTH USER:",
+        user?.id,
+        "EXPECTED PAYER:",
+        payment.payer_user_id,
+        "AUTH ERROR:",
+        userError
+      );
+
+      const {
+        data: milestoneResult,
+        error: milestoneError
+      } = await supabaseClient.rpc("award_milestone", {
+        p_user_id: payment.payer_user_id,
+        p_milestone_key: "FIRST_SETTLEMENT",
+        p_points: 50
+      });
+
+      console.log(
+        "FIRST_SETTLEMENT RPC RESULT:",
+        milestoneResult,
+        "ERROR:",
+        milestoneError
+      );
+
+      if (milestoneError) {
+        toast(
+          "FIRST_SETTLEMENT ERROR: " +
+          milestoneError.message
+        );
+      } else {
+
+        toast(
+          "FIRST_SETTLEMENT RPC: " +
+          String(milestoneResult)
+        );
+
+      }
+
+    } catch (milestoneError) {
+
+      console.error(
+        "FIRST_SETTLEMENT RPC EXCEPTION:",
+        milestoneError
+      );
+
+      toast(
+        "FIRST_SETTLEMENT ERROR: " +
+        (milestoneError.message || "Unknown error")
+      );
+
+    }
+
 
     closeModal();
 
@@ -10111,11 +10985,20 @@ async function processConfirmPayment(paymentSubmissionId) {
 
   } catch (error) {
 
-    toast(error.message);
+    console.error(
+      "CONFIRM PAYMENT ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to confirm payment."
+    );
 
   } finally {
 
     setLoading(false);
+
   }
 }
 
