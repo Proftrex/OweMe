@@ -2,6 +2,8 @@ const SUPABASE_URL = "https://khrawdzhvfdfrvbhbhge.supabase.co";
 
 const SUPABASE_KEY = "sb_publishable_diLxiZhI5gM-L_WrCh2Hfg_er9qLNtB";
 
+const OWEME_VAPID_PUBLIC_KEY = "BPV5jBjAAtJWmhGRJ4ml6A5BE3zJvAd4hhDKEE0rttx21dmY63R0Id3Wo7JK766sinpJPVCNBQRsTkscsODwJmQ";
+
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY,
@@ -101,6 +103,8 @@ async function init() {
       createdAt: profile.created_at
     };
 
+    await initializePushNotifications();
+
     showApp();
 
     await loadNotificationCount();
@@ -129,6 +133,172 @@ async function init() {
     setLoading(false);
   }
 }
+
+
+/* =========================================================
+   PUSH NOTIFICATIONS
+   ========================================================= */
+
+
+async function initializeWebPushNotifications() {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.warn("Web Push is not supported in this browser.");
+      return;
+    }
+
+    if (!state.user?.userId) {
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+
+    let permission = Notification.permission;
+
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
+
+    if (permission !== "granted") {
+      console.warn("Web notification permission was not granted.");
+      return;
+    }
+
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          OWEME_VAPID_PUBLIC_KEY
+        )
+      });
+    }
+
+    const subscriptionJson = subscription.toJSON();
+
+    const { error } = await supabaseClient
+      .from("push_tokens")
+      .upsert(
+        {
+          user_id: state.user.userId,
+          token: JSON.stringify(subscriptionJson),
+          platform: "web",
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: "user_id,token" }
+      );
+
+    if (error) {
+      console.error("SAVE WEB PUSH SUBSCRIPTION ERROR:", error);
+    } else {
+      console.log("OWEME WEB PUSH SUBSCRIPTION SAVED");
+    }
+
+  } catch (error) {
+    console.error("OWEME WEB PUSH INITIALIZATION ERROR:", error);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+
+  return Uint8Array.from(
+    [...rawData].map(char => char.charCodeAt(0))
+  );
+}
+
+async function initializePushNotifications() {
+  try {
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    if (!window.Capacitor.Plugins || !window.Capacitor.Plugins.PushNotifications) {
+      console.warn("Push Notifications plugin is not available.");
+      return;
+    }
+
+    const { PushNotifications } = window.Capacitor.Plugins;
+
+    let permission = await PushNotifications.checkPermissions();
+
+    if (permission.receive === "prompt") {
+      permission = await PushNotifications.requestPermissions();
+    }
+
+    if (permission.receive !== "granted") {
+      console.warn("Push notification permission was not granted.");
+      return;
+    }
+
+    await PushNotifications.register();
+
+    PushNotifications.addListener("registration", async (token) => {
+      console.log("OWEME FCM TOKEN:", token.value);
+
+      if (!state.user?.userId || !token.value) {
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("push_tokens")
+        .upsert(
+          {
+            user_id: state.user.userId,
+            token: token.value,
+            platform: "android",
+            updated_at: new Date().toISOString()
+          },
+          {
+            onConflict: "user_id,token"
+          }
+        );
+
+      if (error) {
+        console.error(
+          "SAVE PUSH TOKEN ERROR:",
+          error
+        );
+      } else {
+        console.log("OWEME PUSH TOKEN SAVED");
+      }
+    });
+
+    PushNotifications.addListener("registrationError", (error) => {
+      console.error(
+        "OWEME PUSH REGISTRATION ERROR:",
+        error
+      );
+    });
+
+    PushNotifications.addListener("pushNotificationReceived", (notification) => {
+      console.log(
+        "OWEME PUSH NOTIFICATION RECEIVED:",
+        notification
+      );
+    });
+
+    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      console.log(
+        "OWEME PUSH NOTIFICATION ACTION:",
+        action
+      );
+    });
+
+  } catch (error) {
+    console.error(
+      "OWEME PUSH INITIALIZATION ERROR:",
+      error
+    );
+  }
+}
+
 
 /* =========================================================
    API
@@ -432,13 +602,163 @@ async function getSettlementsFromSupabase(groupId) {
 
   }
 
+  /*
+   * Reduce each settlement by payments that have already been
+   * submitted or confirmed.
+   *
+   * The settlement amount is the original obligation.
+   * Payables should show only the current outstanding balance.
+   */
+  const settlementIds =
+    settlements
+      .map(settlement => settlement.settlementId)
+      .filter(Boolean);
+
+  if (settlementIds.length) {
+
+    const {
+      data: paymentSubmissions,
+      error: paymentError
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        settlement_id,
+        amount_paid,
+        status
+      `)
+      .eq("group_id", groupId)
+      .in("settlement_id", settlementIds)
+      .in("status", ["SUBMITTED", "CONFIRMED"]);
+
+    if (paymentError) {
+      throw paymentError;
+    }
+
+    const paidBySettlement = {};
+
+    (paymentSubmissions || []).forEach(payment => {
+
+      const id =
+        String(payment.settlement_id);
+
+      if (!paidBySettlement[id]) {
+        paidBySettlement[id] = 0;
+      }
+
+      paidBySettlement[id] +=
+        Number(payment.amount_paid || 0);
+
+    });
+
+    settlements.forEach(settlement => {
+
+      const originalAmount =
+        Number(settlement.amount || 0);
+
+      const paidAmount =
+        Number(
+          paidBySettlement[
+            String(settlement.settlementId)
+          ] || 0
+        );
+
+      settlement.amount =
+        Math.max(
+          0,
+          Math.round(
+            (originalAmount - paidAmount) * 100
+          ) / 100
+        );
+
+      settlement.status =
+        settlement.amount <= 0
+          ? "PAID"
+          : "UNPAID";
+
+    });
+
+  }
+
+  /*
+   * Net reciprocal obligations between the same two users.
+   *
+   * Example:
+   *   A owes B ₱297
+   *   B owes A ₱45.50
+   *
+   * Display:
+   *   A owes B ₱251.50
+   *
+   * This only changes the settlement view.
+   * Expense records and original settlement records remain unchanged.
+   */
+  const settlementPairs = {};
+
+  settlements.forEach(settlement => {
+    const fromUserId = String(settlement.fromUserId);
+    const toUserId = String(settlement.toUserId);
+
+    const pairKey =
+      [fromUserId, toUserId].sort().join("|");
+
+    if (!settlementPairs[pairKey]) {
+      settlementPairs[pairKey] = [];
+    }
+
+    settlementPairs[pairKey].push(settlement);
+  });
+
+  const outstandingSettlements = [];
+
+  Object.values(settlementPairs).forEach(pair => {
+    if (pair.length === 1) {
+      const settlement = pair[0];
+
+      if (Number(settlement.amount || 0) > 0) {
+        outstandingSettlements.push(settlement);
+      }
+
+      return;
+    }
+
+    const first = pair[0];
+    const second = pair[1];
+
+    const firstAmount =
+      Number(first.amount || 0);
+
+    const secondAmount =
+      Number(second.amount || 0);
+
+    if (firstAmount === secondAmount) {
+      return;
+    }
+
+    const netAmount =
+      Math.round(
+        Math.abs(firstAmount - secondAmount) * 100
+      ) / 100;
+
+    const netSettlement =
+      firstAmount > secondAmount
+        ? first
+        : second;
+
+    netSettlement.amount = netAmount;
+    netSettlement.status = "UNPAID";
+
+    outstandingSettlements.push(
+      netSettlement
+    );
+  });
+
   return {
     success: true,
 
-    settlements,
+    settlements: outstandingSettlements,
 
     data: {
-      settlements
+      settlements: outstandingSettlements
     }
   };
 
@@ -2851,24 +3171,214 @@ async function loadGroupsData(force = false) {
       });
 
 
+    /*
+     * Calculate Payables / Receivables from direct obligations.
+     *
+     * Reciprocal obligations are netted between the same users.
+     *
+     * Example:
+     *   You owe Kofi      ₱297.00
+     *   Kofi owes you      ₱45.50
+     *   ---------------------------
+     *   Net payable       ₱251.50
+     *
+     * Do not use totalPaid - totalShare here because that
+     * produces a single group balance rather than showing
+     * who actually owes whom.
+     */
+
+    const obligations = {};
+
+    (expenseRows || []).forEach(expense => {
+
+      const payerId =
+        String(expense.paid_by_user_id);
+
+      (expense.expense_participants || [])
+        .forEach(participant => {
+
+          const participantId =
+            String(participant.user_id);
+
+          const shareAmount =
+            Number(participant.share_amount || 0);
+
+          if (
+            participantId === payerId ||
+            shareAmount <= 0
+          ) {
+            return;
+          }
+
+          const key =
+            `${participantId}|${payerId}`;
+
+          if (!obligations[key]) {
+            obligations[key] = {
+              fromUserId: participantId,
+              toUserId: payerId,
+              amount: 0
+            };
+          }
+
+          obligations[key].amount =
+            Math.round(
+              (
+                obligations[key].amount +
+                shareAmount
+              ) * 100
+            ) / 100;
+
+        });
+
+    });
+
+
+    /*
+     * Build reciprocal pairs.
+     */
+
+    const pairBalances = {};
+
+    Object.values(obligations)
+      .forEach(obligation => {
+
+        const fromUserId =
+          String(obligation.fromUserId);
+
+        const toUserId =
+          String(obligation.toUserId);
+
+        const pairKey =
+          [fromUserId, toUserId]
+            .sort()
+            .join("|");
+
+        if (!pairBalances[pairKey]) {
+          pairBalances[pairKey] = {};
+        }
+
+        pairBalances[pairKey][
+          `${fromUserId}|${toUserId}`
+        ] =
+          Number(obligation.amount || 0);
+
+      });
+
+
+    let calculatedPayables = 0;
+    let calculatedReceivables = 0;
+
+
+    Object.values(pairBalances)
+      .forEach(pair => {
+
+        const directions =
+          Object.keys(pair);
+
+        if (!directions.length) {
+          return;
+        }
+
+        if (directions.length === 1) {
+
+          const direction =
+            directions[0];
+
+          const amount =
+            Number(pair[direction] || 0);
+
+          const [
+            fromUserId,
+            toUserId
+          ] =
+            direction.split("|");
+
+          if (fromUserId === String(user.id)) {
+            calculatedPayables += amount;
+          }
+
+          if (toUserId === String(user.id)) {
+            calculatedReceivables += amount;
+          }
+
+          return;
+        }
+
+
+        const firstDirection =
+          directions[0];
+
+        const secondDirection =
+          directions[1];
+
+        const firstAmount =
+          Number(pair[firstDirection] || 0);
+
+        const secondAmount =
+          Number(pair[secondDirection] || 0);
+
+        const [
+          firstFrom,
+          firstTo
+        ] =
+          firstDirection.split("|");
+
+        const [
+          secondFrom,
+          secondTo
+        ] =
+          secondDirection.split("|");
+
+
+        if (firstAmount > secondAmount) {
+
+          const net =
+            firstAmount - secondAmount;
+
+          if (firstFrom === String(user.id)) {
+            calculatedPayables += net;
+          }
+
+          if (firstTo === String(user.id)) {
+            calculatedReceivables += net;
+          }
+
+        } else if (secondAmount > firstAmount) {
+
+          const net =
+            secondAmount - firstAmount;
+
+          if (secondFrom === String(user.id)) {
+            calculatedPayables += net;
+          }
+
+          if (secondTo === String(user.id)) {
+            calculatedReceivables += net;
+          }
+
+        }
+
+      });
+
+
+    group.payables =
+      Number(
+        calculatedPayables.toFixed(2)
+      );
+
+    group.receivables =
+      Number(
+        calculatedReceivables.toFixed(2)
+      );
+
     group.myBalance =
       Number(
         (
-          totalPaid -
-          totalShare +
-          paymentAdjustment
+          group.receivables -
+          group.payables
         ).toFixed(2)
       );
-
-    group.payables =
-      group.myBalance < 0
-        ? Math.abs(group.myBalance)
-        : 0;
-
-    group.receivables =
-      group.myBalance > 0
-        ? group.myBalance
-        : 0;
 
   }
 
@@ -3534,10 +4044,27 @@ async function openGroup(groupId) {
        9. FINALIZE SETTLEMENTS
        ===================================================== */
 
-    const settlements =
-      Object.values(
-        settlementMap
+    /*
+     * Use the Supabase settlement calculation as the single
+     * source of truth. This includes reciprocal netting, so
+     * obligations between the same two users are offset.
+     *
+     * Example:
+     *   You -> Kofi     297.00
+     *   Kofi -> You      45.50
+     *   Net             251.50
+     *
+     * Unrelated settlements (e.g. NADZ -> Kofi) are excluded.
+     */
+    const settlementResult =
+      await getSettlementsFromSupabase(
+        group.id
       );
+
+    const settlements =
+      settlementResult?.settlements ||
+      settlementResult?.data?.settlements ||
+      [];
 
 
     /* =====================================================
@@ -9328,6 +9855,56 @@ async function openSettlePayment(settlementId) {
       return;
     }
 
+    /*
+     * Calculate the current outstanding balance.
+     * settlement.amount is the original settlement amount;
+     * payments already confirmed/submitted must be deducted.
+     */
+    const settlementTransactions =
+      (state.currentGroup?.transactions || [])
+        .filter(transaction =>
+          String(transaction.type || "").toUpperCase() === "PAYMENT" &&
+          String(transaction.settlementId) ===
+            String(settlement.settlementId) &&
+          String(transaction.fromUserId) ===
+            String(state.user.userId)
+        );
+
+    const confirmedPaid =
+      settlementTransactions
+        .filter(transaction =>
+          String(transaction.status || "").toUpperCase() === "CONFIRMED"
+        )
+        .reduce(
+          (total, transaction) =>
+            total + Number(transaction.amountPaid || 0),
+          0
+        );
+
+    const pendingPaid =
+      settlementTransactions
+        .filter(transaction =>
+          String(transaction.status || "").toUpperCase() === "SUBMITTED"
+        )
+        .reduce(
+          (total, transaction) =>
+            total + Number(transaction.amountPaid || 0),
+          0
+        );
+
+    const remainingAmount =
+      Math.max(
+        0,
+        Number(settlement.amount || 0) -
+          confirmedPaid -
+          pendingPaid
+      );
+
+    if (remainingAmount <= 0) {
+      toast("This settlement has already been fully paid or is awaiting confirmation.");
+      return;
+    }
+
     if (
       String(settlement.fromUserId) !==
       String(state.user.userId)
@@ -9400,7 +9977,7 @@ async function openSettlePayment(settlementId) {
       existingAmount !== null &&
       existingAmount !== ""
         ? existingAmount
-        : Number(settlement.amount).toFixed(2);
+        : remainingAmount.toFixed(2);
 
 
     openModal(`
@@ -9437,7 +10014,7 @@ async function openSettlePayment(settlementId) {
           "
         >
 
-          ₱${Number(settlement.amount).toLocaleString(
+          ₱${remainingAmount.toLocaleString(
             "en-PH",
             {
               minimumFractionDigits: 2,
