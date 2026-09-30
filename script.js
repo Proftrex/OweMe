@@ -12409,6 +12409,8 @@ async function renderProfile() {
       testLocalNotificationButton.addEventListener(
         "click",
         async () => {
+          alert("OweMe local notification test button was clicked.");
+
           try {
             const registration =
               await navigator.serviceWorker.ready;
