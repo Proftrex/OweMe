@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oweme-shell-v1';
+const CACHE_NAME = 'oweme-shell-v2';
 const SUPABASE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 const APP_SHELL = [
   './',

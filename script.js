@@ -6062,9 +6062,6 @@ function openAddExpenseModal() {
                 ${escapeHtml(member.displayName || "Member")}
               </div>
 
-              <div class="user-handle">
-                ${escapeHtml(member.displayName)}
-              </div>
             </div>
 
             <div class="expense-share-input-wrap">
@@ -7256,12 +7253,13 @@ async function openReceivables() {
   try {
 
     const settlements =
-      await loadCurrentSettlements();
+      state.currentGroup?.settlements || [];
 
     const receivables =
       settlements.filter(item =>
         String(item.toUserId) ===
-        String(state.user.userId)
+        String(state.user.userId) &&
+        Number(item.amount || 0) > 0.009
       );
 
     const settlementIds =
