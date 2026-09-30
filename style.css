@@ -13182,3 +13182,33 @@ h3 {
 
 }
 
+
+/* Login links — plain text, no gray background */
+.auth-card .link-button,
+.auth-card #forgotPasswordButton,
+.auth-card #showRegister {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+}
+
+
+/* Login links — dark green */
+.auth-card .link-button,
+.auth-card #forgotPasswordButton,
+.auth-card #showRegister {
+  color: #193a27 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+}
+
