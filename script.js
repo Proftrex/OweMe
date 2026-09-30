@@ -2289,216 +2289,49 @@ async function loadHome(initialGroups = null, force = false) {
       /* LOAD PAYMENT STATS */
 
       const {
-        data: insightsPayments,
-        error: insightsPaymentsError
-      } = await supabaseClient
-        .from("payment_submissions")
-        .select(`
-          id,
-          settlement_id,
-          group_id,
-          payer_user_id,
-          amount_paid,
-          status,
-          submitted_at,
-          confirmed_at
-        `)
-        .eq("payer_user_id", state.user.userId)
-        .eq("status", "CONFIRMED")
-        .not("confirmed_at", "is", null);
+        data: paymentStats,
+        error: paymentStatsError
+      } = await supabaseClient.rpc(
+        "get_user_payment_stats"
+      );
 
-      if (insightsPaymentsError) {
+      if (paymentStatsError) {
         console.error(
           "LOAD INSIGHTS PAYMENT STATS ERROR:",
-          insightsPaymentsError
+          paymentStatsError
         );
       }
 
-      const confirmedPayments =
-        (insightsPayments || [])
-          .filter(payment =>
-            payment.submitted_at &&
-            payment.confirmed_at
-          );
-
-      /* LOAD SETTLEMENT DATES */
-
-      const settlementIds =
-        confirmedPayments
-          .map(payment =>
-            payment.settlement_id
-          )
-          .filter(Boolean);
-
-      let settlementData = [];
-
-      if (settlementIds.length) {
-
-        const {
-          data,
-          error
-        } = await supabaseClient
-          .from("settlements")
-          .select(`
-            id,
-            created_at
-          `)
-          .in(
-            "id",
-            settlementIds
-          );
-
-        if (error) {
-
-          console.error(
-            "LOAD INSIGHTS SETTLEMENTS ERROR:",
-            error
-          );
-
-        } else {
-
-          settlementData =
-            data || [];
-
-        }
-
-      }
-
-      const settlementCreatedMap =
-        new Map(
-          settlementData.map(
-            settlement => [
-              String(settlement.id),
-              settlement.created_at
-            ]
-          )
-        );
-
-
-      const settlementDurations =
-        confirmedPayments
-          .map(payment => {
-
-            const createdAt =
-              settlementCreatedMap.get(
-                String(
-                  payment.settlement_id
-                )
-              );
-
-            if (!createdAt) {
-              return null;
-            }
-
-            const created =
-              new Date(
-                createdAt
-              ).getTime();
-
-            const confirmed =
-              new Date(
-                payment.confirmed_at
-              ).getTime();
-
-            const days =
-              (
-                confirmed -
-                created
-              ) /
-              (1000 * 60 * 60 * 24);
-
-            return days >= 0
-              ? days
-              : null;
-
-          })
-          .filter(days =>
-            days !== null
-          );
-
-      const averageDaysToSettle =
-        settlementDurations.length
-          ? settlementDurations.reduce(
-              (sum, days) =>
-                sum + days,
-              0
-            ) /
-            settlementDurations.length
+      const averageDaysToPay =
+        paymentStats?.average_days_to_pay != null
+          ? Number(paymentStats.average_days_to_pay)
           : null;
 
+      const fastestPayment =
+        paymentStats?.fastest_payment != null
+          ? Number(paymentStats.fastest_payment)
+          : null;
+
+      const averageDaysToSettle =
+        paymentStats?.average_days_to_settle != null
+          ? Number(paymentStats.average_days_to_settle)
+          : null;
+
+      const settlementsCompleted =
+        Number(paymentStats?.payment_count || 0);
+
+      const totalPaid =
+        Number(paymentStats?.total_paid || 0);
 
       const averageDaysToSettleElement =
         $("#insightsAverageDaysToSettle");
 
       if (averageDaysToSettleElement) {
-
         averageDaysToSettleElement.textContent =
           averageDaysToSettle === null
             ? "—"
             : `${averageDaysToSettle.toFixed(1)} days`;
-
       }
-
-
-      const paymentDurations =
-        confirmedPayments
-          .map(payment => {
-
-            const submitted =
-              new Date(
-                payment.submitted_at
-              ).getTime();
-
-            const confirmed =
-              new Date(
-                payment.confirmed_at
-              ).getTime();
-
-            const days =
-              (
-                confirmed -
-                submitted
-              ) /
-              (1000 * 60 * 60 * 24);
-
-            return days >= 0
-              ? days
-              : null;
-
-          })
-          .filter(days =>
-            days !== null
-          );
-
-      const averageDaysToPay =
-        paymentDurations.length
-          ? paymentDurations.reduce(
-              (sum, days) =>
-                sum + days,
-              0
-            ) /
-            paymentDurations.length
-          : null;
-
-      const fastestPayment =
-        paymentDurations.length
-          ? Math.min(
-              ...paymentDurations
-            )
-          : null;
-
-      const settlementsCompleted =
-        confirmedPayments.length;
-
-      const totalPaid =
-        confirmedPayments.reduce(
-          (sum, payment) =>
-            sum +
-            Number(
-              payment.amount_paid || 0
-            ),
-          0
-        );
 
       const averageDaysToPayElement =
         $("#insightsAverageDaysToPay");
@@ -2514,24 +2347,14 @@ async function loadHome(initialGroups = null, force = false) {
         $("#insightsFastestPayment");
 
       if (fastestPaymentElement) {
-
         if (fastestPayment === null) {
-
-          fastestPaymentElement.textContent =
-            "—";
-
+          fastestPaymentElement.textContent = "—";
         } else if (fastestPayment < 1) {
-
-          fastestPaymentElement.textContent =
-            "Same day";
-
+          fastestPaymentElement.textContent = "Same day";
         } else {
-
           fastestPaymentElement.textContent =
             `${fastestPayment.toFixed(1)} days`;
-
         }
-
       }
 
       const settlementsCompletedElement =
@@ -2555,7 +2378,6 @@ async function loadHome(initialGroups = null, force = false) {
             }
           )}`;
       }
-
 
       /* LOAD USER MILESTONES */
 
