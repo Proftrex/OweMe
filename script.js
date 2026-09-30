@@ -2004,12 +2004,25 @@ async function loadHome(initialGroups = null, force = false) {
         hidden
       >
 
-        <div class="card empty">
+        <div class="card insights-points-card">
 
-          <h3>Insights</h3>
+          <div class="card-title">
+            🏆 OweMe Points
+          </div>
 
-          <p>
-            Your spending insights will appear here.
+          <div
+            id="insightsPoints"
+            class="insights-points-value"
+          >
+            0
+          </div>
+
+          <div class="muted">
+            Points earned
+          </div>
+
+          <p class="insights-points-message">
+            Keep using OweMe to unlock milestones and badges.
           </p>
 
         </div>
@@ -2039,6 +2052,47 @@ async function loadHome(initialGroups = null, force = false) {
 
 
     bindGroupCards();
+
+    /* ================================================
+       LOAD OweMe POINTS FOR INSIGHTS
+       ================================================ */
+
+    try {
+
+      const {
+        data: pointsData,
+        error: pointsError
+      } = await supabaseClient
+        .from("user_points")
+        .select("total_points")
+        .eq("user_id", state.user.userId)
+        .maybeSingle();
+
+      if (pointsError) {
+        console.error(
+          "LOAD INSIGHTS POINTS ERROR:",
+          pointsError
+        );
+      }
+
+      const points =
+        pointsData?.total_points || 0;
+
+      const pointsElement =
+        $("#insightsPoints");
+
+      if (pointsElement) {
+        pointsElement.textContent = points;
+      }
+
+    } catch (error) {
+
+      console.error(
+        "LOAD INSIGHTS POINTS ERROR:",
+        error
+      );
+
+    }
 
 
   } catch (error) {
@@ -6833,6 +6887,31 @@ async function createGroup(event) {
 
     await loadGroupsData(true);
 
+    /* ================================================
+       8. AWARD FIRST GROUP MILESTONE
+       ================================================ */
+
+    try {
+      const { error: milestoneError } =
+        await supabaseClient.rpc("award_milestone", {
+          p_user_id: user.id,
+          p_milestone_key: "FIRST_GROUP",
+          p_points: 50
+        });
+
+      if (milestoneError) {
+        console.error(
+          "FIRST GROUP MILESTONE ERROR:",
+          milestoneError
+        );
+      }
+    } catch (milestoneError) {
+      console.error(
+        "FIRST GROUP MILESTONE ERROR:",
+        milestoneError
+      );
+    }
+
     await openGroup(group.id);
 
   } catch (error) {
@@ -7658,6 +7737,31 @@ async function addExpense(event) {
       throw new Error(
         participantError.message ||
         "The expense could not be saved."
+      );
+    }
+
+    /* ================================================
+       AWARD FIRST EXPENSE MILESTONE
+       ================================================ */
+
+    try {
+      const { error: milestoneError } =
+        await supabaseClient.rpc("award_milestone", {
+          p_user_id: user.id,
+          p_milestone_key: "FIRST_EXPENSE",
+          p_points: 25
+        });
+
+      if (milestoneError) {
+        console.error(
+          "FIRST EXPENSE MILESTONE ERROR:",
+          milestoneError
+        );
+      }
+    } catch (milestoneError) {
+      console.error(
+        "FIRST EXPENSE MILESTONE ERROR:",
+        milestoneError
       );
     }
 
@@ -12474,6 +12578,10 @@ async function renderProfile() {
             ${escapeHtml(state.user.email)}
           </div>
 
+          <div class="profile-points">
+            🏆 <span id="profilePoints">0 OweMe Points</span>
+          </div>
+
         </div>
 
         <div class="profile-account-actions">
@@ -12559,6 +12667,44 @@ async function renderProfile() {
       "click",
       openPaymentDetailsForm
     );
+
+    try {
+
+      const {
+        data: pointsData,
+        error: pointsError
+      } = await supabaseClient
+        .from("user_points")
+        .select("total_points")
+        .eq("user_id", state.user.userId)
+        .maybeSingle();
+
+      if (pointsError) {
+        console.error(
+          "LOAD USER POINTS ERROR:",
+          pointsError
+        );
+      }
+
+      const points =
+        pointsData?.total_points || 0;
+
+      const pointsElement =
+        $("#profilePoints");
+
+      if (pointsElement) {
+        pointsElement.textContent =
+          `${points} OweMe Points`;
+      }
+
+    } catch (error) {
+
+      console.error(
+        "LOAD USER POINTS ERROR:",
+        error
+      );
+
+    }
 
     try {
 
