@@ -12355,6 +12355,14 @@ async function renderProfile() {
           🔔 Test PWA Notifications
         </button>
 
+        <button
+          class="secondary-button"
+          type="button"
+          id="testLocalNotificationButton"
+        >
+          📨 Test Local Notification
+        </button>
+
       </div>
 
 
@@ -12393,6 +12401,34 @@ async function renderProfile() {
       "click",
       runWebPushDiagnostics
     );
+
+    const testLocalNotificationButton =
+      $("#testLocalNotificationButton");
+
+    if (testLocalNotificationButton) {
+      testLocalNotificationButton.addEventListener(
+        "click",
+        async () => {
+          try {
+            const registration =
+              await navigator.serviceWorker.ready;
+
+            await registration.showNotification(
+              "OweMe Test",
+              {
+                body: "Local service-worker notification is working! 🔔",
+                tag: "oweme-local-test"
+              }
+            );
+          } catch (error) {
+            alert(
+              "Local notification failed: " +
+              (error?.message || error)
+            );
+          }
+        }
+      );
+    }
 
 
     try {
