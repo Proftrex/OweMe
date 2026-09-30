@@ -12339,6 +12339,27 @@ async function renderProfile() {
 
       <div class="card">
 
+        <div class="card-title">
+          Notifications
+        </div>
+
+        <p class="muted">
+          Test browser and PWA notification setup.
+        </p>
+
+        <button
+          class="secondary-button"
+          type="button"
+          id="testPwaNotificationsButton"
+        >
+          🔔 Test PWA Notifications
+        </button>
+
+      </div>
+
+
+      <div class="card">
+
         <button
           class="danger-button"
           onclick="logout()"
@@ -12366,6 +12387,11 @@ async function renderProfile() {
     $("#addPaymentDetailsButton").addEventListener(
       "click",
       openPaymentDetailsForm
+    );
+
+    $("#testPwaNotificationsButton").addEventListener(
+      "click",
+      runWebPushDiagnostics
     );
 
 
