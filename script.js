@@ -5424,7 +5424,7 @@ async function openCreateGroupModal() {
               </span>
 
               <small class="muted">
-                OweMe user
+                @${escapeHtml(user.username)}
               </small>
 
             </button>
