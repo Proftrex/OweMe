@@ -2640,6 +2640,28 @@ async function loadHome(initialGroups = null, force = false) {
       ];
 
 
+      /* SYNC HISTORICAL MILESTONES */
+
+      const {
+        data: milestoneSyncData,
+        error: milestoneSyncError
+      } = await supabaseClient.rpc(
+        "sync_user_milestones"
+      );
+
+      if (milestoneSyncError) {
+        console.error(
+          "SYNC INSIGHTS MILESTONES ERROR:",
+          milestoneSyncError
+        );
+      } else {
+        console.log(
+          "MILESTONES SYNCED:",
+          milestoneSyncData
+        );
+      }
+
+
       const {
         data: milestoneData,
         error: milestoneError
@@ -13642,11 +13664,7 @@ async function renderProfile() {
             ${escapeHtml(state.user.email)}
           </div>
 
-          <div class="profile-points">
-            🏆 <span id="profilePoints">0 OweMe Points</span>
           </div>
-
-        </div>
 
         <div class="profile-account-actions">
 
@@ -13748,17 +13766,6 @@ async function renderProfile() {
           "LOAD USER POINTS ERROR:",
           pointsError
         );
-      }
-
-      const points =
-        pointsData?.total_points || 0;
-
-      const pointsElement =
-        $("#profilePoints");
-
-      if (pointsElement) {
-        pointsElement.textContent =
-          `${points} OweMe Points`;
       }
 
     } catch (error) {
