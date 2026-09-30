@@ -1605,7 +1605,7 @@ input + button {
 .group-closed-banner {
   width: 100%;
   max-width: 520px;
-  margin: 28px auto 10px;
+  margin: 10px auto 10px;
   padding: 14px 16px;
   text-align: center;
   background: var(--green-soft);
@@ -4578,6 +4578,11 @@ input[type="checkbox"] {
 
 .history-list-icon.history-delete-button {
   color: var(--red) !important;
+}
+
+.history-list-icon.history-info-button {
+  color: var(--primary) !important;
+  opacity: 0.65;
 }
 
 .history-empty-message {
@@ -12942,3 +12947,238 @@ h3 {
   }
 
 }
+
+/* Closed group — tighten header to history banner */
+#groupDetail .group-header,
+.group-detail .group-header,
+.group-page .group-header {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+#groupDetail .group-closed-banner,
+.group-detail .group-closed-banner,
+.group-page .group-closed-banner {
+  margin-top: 4px !important;
+}
+
+
+/* FINAL — closed group: remove excess space between header and history banner */
+#groupDetail .group-header {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+#groupDetail .group-header h2 {
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+}
+
+#groupDetail .group-header p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#groupDetail .group-closed-banner {
+  margin: 6px auto 10px !important;
+}
+
+
+/* =========================================================
+   CLOSED GROUP — FORCE HEADER/BANNER SPACING
+   ========================================================= */
+
+#groupDetail .group-header,
+#groupDetail .group-header h2,
+#groupDetail .group-header p {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+#groupDetail .group-header {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+/* Closed-history banner immediately follows the group header */
+#groupDetail .group-closed-banner {
+  display: block !important;
+  position: relative !important;
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  transform: none !important;
+}
+
+/* Remove any generic first-child / section spacing */
+#groupDetail > .group-header + .group-closed-banner {
+  margin-top: 0 !important;
+}
+
+/* Make sure no hidden spacing element is involved */
+#groupDetail .group-header + .group-closed-banner::before {
+  display: none !important;
+  content: none !important;
+}
+
+
+/* =========================================================
+   CLOSED GROUP — COMPACT GROUP HEADER
+   ========================================================= */
+
+#groupDetail .group-header {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+#groupDetail .group-header h2 {
+  display: block !important;
+  margin: 0 0 2px !important;
+  padding: 0 !important;
+  line-height: 1.05 !important;
+}
+
+#groupDetail .group-header p {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.25 !important;
+}
+
+#groupDetail .group-header + .group-closed-banner {
+  display: block !important;
+  margin: 2px auto 10px !important;
+  padding: 12px 16px !important;
+}
+
+
+/* =========================================================
+   CLOSED GROUP — REMOVE EXCESS HEADER SPACE
+   ========================================================= */
+
+#content > .group-header:has(+ .group-closed-banner) {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+#content > .group-header:has(+ .group-closed-banner) h2 {
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  line-height: 1.2 !important;
+}
+
+#content > .group-header:has(+ .group-closed-banner) p {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+}
+
+#content > .group-header + .group-closed-banner {
+  margin-top: 8px !important;
+}
+
+
+/* Past Groups — muted info icon */
+.history-list-icon.history-info-button {
+  color: #9aa39b !important;
+  opacity: 1 !important;
+}
+
+
+/* =========================================================
+   ACTIVE GROUP — TIGHTEN HEADER TO ACTIONS
+   ========================================================= */
+
+#content > .group-header + .group-top-actions {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+#content > .group-header + .group-top-actions .group-top-actions {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+
+/* =========================================================
+   ACTIVE GROUP — REDUCE SPACE BEFORE ACTION BUTTONS
+   ========================================================= */
+
+#content > .group-header:has(+ .group-top-actions) {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+#content > .group-header:has(+ .group-top-actions) + .group-top-actions {
+  margin-top: 6px !important;
+}
+
+
+/* =========================================================
+   HOME — ACTIVE GROUPS / INSIGHTS / SPECIAL OFFERS
+   ========================================================= */
+
+.home-section-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 24px 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.home-section-tab {
+  flex: 1;
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 12px 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.home-section-tab.active {
+  color: var(--primary-dark);
+}
+
+.home-section-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--primary-dark);
+}
+
+.home-section-panel[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 500px) {
+
+  .home-section-tabs {
+    margin-top: 20px;
+    margin-bottom: 16px;
+  }
+
+  .home-section-tab {
+    font-size: 13px;
+    padding: 11px 3px;
+  }
+
+}
+

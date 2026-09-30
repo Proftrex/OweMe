@@ -1934,37 +1934,106 @@ async function loadHome(initialGroups = null, force = false) {
       </div>
 
 
-      <div class="section-title">
-        Your groups
+      <div class="home-section-tabs">
+
+        <button
+          type="button"
+          class="home-section-tab active"
+          data-home-tab="active"
+          onclick="switchHomeSectionTab('active')"
+        >
+          Active Groups
+        </button>
+
+        <button
+          type="button"
+          class="home-section-tab"
+          data-home-tab="insights"
+          onclick="switchHomeSectionTab('insights')"
+        >
+          Insights
+        </button>
+
+        <button
+          type="button"
+          class="home-section-tab"
+          data-home-tab="offers"
+          onclick="switchHomeSectionTab('offers')"
+        >
+          Special Offers
+        </button>
+
       </div>
 
 
-      ${
-        state.groups.length
+      <div id="homeSectionActive" class="home-section-panel">
 
-          ? state.groups
-              .map(renderGroupCard)
-              .join("")
+        ${
+          state.groups.length
 
-          : `
+            ? state.groups
+                .map(renderGroupCard)
+                .join("")
 
-            <div class="card empty">
+            : `
 
-              <p>
-                You don't have any groups yet.
-              </p>
+              <div class="card empty">
 
-              <button
-                class="primary-button"
-                onclick="openCreateGroupModal()"
-              >
-                Create a Group
-              </button>
+                <p>
+                  You don't have any groups yet.
+                </p>
 
-            </div>
+                <button
+                  class="primary-button"
+                  onclick="openCreateGroupModal()"
+                >
+                  Create a Group
+                </button>
 
-          `
-      }
+              </div>
+
+            `
+        }
+
+      </div>
+
+
+      <div
+        id="homeSectionInsights"
+        class="home-section-panel"
+        hidden
+      >
+
+        <div class="card empty">
+
+          <h3>Insights</h3>
+
+          <p>
+            Your spending insights will appear here.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="homeSectionOffers"
+        class="home-section-panel"
+        hidden
+      >
+
+        <div class="card empty">
+
+          <h3>Special Offers</h3>
+
+          <p>
+            Special offers and promos will appear here.
+          </p>
+
+        </div>
+
+      </div>
 
     `;
 
@@ -2426,7 +2495,7 @@ async function loadHistory() {
                 class="history-list-icon history-delete-button"
                 aria-label="Delete group"
                 title="Delete group"
-                onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
+                onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}', '${encodeURIComponent(group.groupName || "")}', false)"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -2952,44 +3021,83 @@ async function renderGroupsHistoryTab(container) {
               </svg>
             </button>
 
-            <button
-              type="button"
-              class="history-list-icon history-delete-button"
-              aria-label="Delete group"
-              title="Delete group"
-              onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}')"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M4 7h16"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M9 7V4h6v3"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M6 7l1 13h10l1-13"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M10 11v5M14 11v5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
+            ${
+              window.owemeGroupSubtab === "mine"
+                ? `
+                  <button
+                    type="button"
+                    class="history-list-icon history-delete-button"
+                    aria-label="Delete group"
+                    title="Delete group"
+                    onclick="event.stopPropagation(); deleteClosedGroup('${escapeHtml(group.groupId)}', '${encodeURIComponent(group.groupName || "")}', false)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 7h16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M9 7V4h6v3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M6 7l1 13h10l1-13"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M10 11v5M14 11v5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                  </button>
+                `
+                : `
+                  <button
+                    type="button"
+                    class="history-list-icon history-info-button"
+                    aria-label="Group deletion information"
+                    title="Group deletion information"
+                    onclick="event.stopPropagation(); showGroupDeleteInfo()"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      />
+                      <path
+                        d="M12 10.5v6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                      />
+                      <circle
+                        cx="12"
+                        cy="7.5"
+                        r="1"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                `
+            }
 
           </div>
 
@@ -3554,6 +3662,55 @@ async function loadGroupsData(force = false) {
 
 
   return state.groups;
+
+}
+
+
+function switchHomeSectionTab(tab) {
+
+  const tabs =
+    document.querySelectorAll(
+      ".home-section-tab"
+    );
+
+  tabs.forEach(button => {
+
+    button.classList.toggle(
+      "active",
+      button.dataset.homeTab === tab
+    );
+
+  });
+
+
+  const activePanel =
+    document.getElementById(
+      "homeSectionActive"
+    );
+
+  const insightsPanel =
+    document.getElementById(
+      "homeSectionInsights"
+    );
+
+  const offersPanel =
+    document.getElementById(
+      "homeSectionOffers"
+    );
+
+  if (!activePanel || !insightsPanel || !offersPanel) {
+    return;
+  }
+
+
+  activePanel.hidden =
+    tab !== "active";
+
+  insightsPanel.hidden =
+    tab !== "insights";
+
+  offersPanel.hidden =
+    tab !== "offers";
 
 }
 
@@ -5060,7 +5217,40 @@ async function confirmCloseGroup() {
 }
 
 
-async function deleteClosedGroup(groupId) {
+function showGroupDeleteInfo() {
+
+  openModal(`
+    <div class="close-group-confirmation">
+
+      <h2>Group deletion</h2>
+
+      <p class="close-group-confirmation-text">
+        Only the group owner can delete this group from the records.
+      </p>
+
+      <div class="close-group-confirmation-actions">
+
+        <button
+          type="button"
+          class="close-group-cancel-button"
+          onclick="closeModal()"
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+  `);
+
+}
+
+
+async function deleteClosedGroup(
+  groupId,
+  encodedGroupName = "",
+  showWarningIcon = true
+) {
 
   const group =
     (state.groups || []).find(
@@ -5068,14 +5258,22 @@ async function deleteClosedGroup(groupId) {
     );
 
   let groupName =
-    group?.groupName || "this group";
+    encodedGroupName
+      ? decodeURIComponent(encodedGroupName)
+      : (group?.groupName || "this group");
 
   openModal(`
     <div class="close-group-confirmation">
 
-      <div class="close-group-confirmation-icon">
-        !
-      </div>
+      ${
+        showWarningIcon
+          ? `
+            <div class="close-group-confirmation-icon">
+              !
+            </div>
+          `
+          : ""
+      }
 
       <h2>Delete this group?</h2>
 
