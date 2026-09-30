@@ -3416,10 +3416,37 @@ async function openGroup(groupId) {
 
       if (amount > 0) {
 
-        const settlementId =
-          `SET_${simpleHash(
-            `${groupId}|${debtor.userId}|${creditor.userId}`
-          )}`;
+        const {
+          data: settlementId,
+          error: settlementError
+        } = await supabaseClient.rpc(
+          "ensure_settlement",
+          {
+            p_group_id:
+              groupId,
+
+            p_from_user_id:
+              debtor.userId,
+
+            p_to_user_id:
+              creditor.userId,
+
+            p_amount:
+              amount
+          }
+        );
+
+        if (settlementError) {
+          console.error(
+            "ENSURE SETTLEMENT ERROR:",
+            settlementError
+          );
+
+          throw new Error(
+            settlementError.message ||
+            "Unable to create settlement."
+          );
+        }
 
 
         settlementMap[
@@ -13474,6 +13501,7 @@ async function createPayMeLink(paymentDetailId) {
       .join("");
 
     let qrPublicPath = "";
+    let qrImageDataUrl = "";
 
     if (detail.qrFileUrl) {
       const { data: qrFile, error: downloadError } =
@@ -13484,6 +13512,25 @@ async function createPayMeLink(paymentDetailId) {
       if (downloadError) {
         throw downloadError;
       }
+
+      qrImageDataUrl =
+        await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = () => {
+            resolve(reader.result);
+          };
+
+          reader.onerror = () => {
+            reject(
+              new Error(
+                "Unable to load payment QR code."
+              )
+            );
+          };
+
+          reader.readAsDataURL(qrFile);
+        });
 
       const originalPath = String(detail.qrFileUrl);
       const extensionMatch = originalPath.match(/\.([a-zA-Z0-9]+)$/);
@@ -13541,13 +13588,128 @@ async function createPayMeLink(paymentDetailId) {
         <div class="muted">Payment Method</div>
         <strong>${escapeHtml(detail.paymentOption)}</strong>
 
-        <div class="muted" style="margin-top:12px;">
-          PayMe Link
+        ${
+          detail.accountNumber
+            ? `
+              <div
+                class="muted"
+                style="margin-top:12px;"
+              >
+                Account Number
+              </div>
+
+              <div
+                style="
+                  display:flex;
+                  align-items:center;
+                  justify-content:space-between;
+                  gap:10px;
+                  margin-top:4px;
+                "
+              >
+                <strong
+                  style="
+                    min-width:0;
+                    overflow:hidden;
+                    text-overflow:ellipsis;
+                    white-space:nowrap;
+                  "
+                >
+                  ${escapeHtml(detail.accountNumber)}
+                </strong>
+
+                <button
+                  type="button"
+                  aria-label="Copy account number"
+                  title="Copy account number"
+                  onclick="copyPaymentAccountNumber('${escapeHtml(detail.accountNumber)}')"
+                  style="
+                    flex:0 0 auto;
+                    width:34px;
+                    height:34px;
+                    border:0;
+                    border-radius:50%;
+                    background:#eaf2e6;
+                    color:#185c36;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    cursor:pointer;
+                    padding:0;
+                  "
+                >
+                  <svg
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="9"
+                      y="9"
+                      width="13"
+                      height="13"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <path
+                      d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+            `
+            : ""
+        }
+
+        <div
+          class="muted"
+          style="margin-top:12px;"
+        >
+          QR Code
         </div>
 
-        <div class="payme-link-url">
-          ${escapeHtml(paymeUrl)}
-        </div>
+        ${
+          qrImageDataUrl
+            ? `
+              <div
+                style="
+                  margin-top:10px;
+                  display:flex;
+                  justify-content:center;
+                  align-items:center;
+                "
+              >
+                <img
+                  src="${escapeHtml(qrImageDataUrl)}"
+                  alt="Payment QR Code"
+                  style="
+                    width:220px;
+                    height:220px;
+                    max-width:100%;
+                    object-fit:contain;
+                    border-radius:12px;
+                    background:#fff;
+                    padding:10px;
+                    box-sizing:border-box;
+                  "
+                />
+              </div>
+            `
+            : `
+              <div
+                class="muted"
+                style="margin-top:10px;"
+              >
+                No payment QR code available.
+              </div>
+            `
+        }
       </div>
 
       <div class="payme-link-actions">
@@ -13567,13 +13729,6 @@ async function createPayMeLink(paymentDetailId) {
           Share
         </button>
 
-        <button
-          type="button"
-          class="secondary-button"
-          onclick="window.open('${escapeHtml(paymeUrl)}', '_blank', 'noopener,noreferrer')"
-        >
-          View PayMe Page
-        </button>
       </div>
     `);
 
@@ -13688,6 +13843,21 @@ async function createSettlementPayMeLink(settlementId) {
         throw downloadError;
       }
 
+      qrImageDataUrl =
+        await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = () =>
+            resolve(reader.result);
+
+          reader.onerror = () =>
+            reject(
+              new Error("Unable to load payment QR code.")
+            );
+
+          reader.readAsDataURL(qrFile);
+        });
+
       const originalPath =
         String(detail.qrFileUrl);
 
@@ -13785,16 +13955,128 @@ async function createSettlementPayMeLink(settlementId) {
           ${escapeHtml(detail.paymentOption)}
         </strong>
 
+        ${
+          detail.accountNumber
+            ? `
+              <div
+                class="muted"
+                style="margin-top:12px;"
+              >
+                Account Number
+              </div>
+
+              <div
+                style="
+                  display:flex;
+                  align-items:center;
+                  justify-content:space-between;
+                  gap:10px;
+                  margin-top:4px;
+                "
+              >
+                <strong
+                  style="
+                    min-width:0;
+                    overflow:hidden;
+                    text-overflow:ellipsis;
+                    white-space:nowrap;
+                  "
+                >
+                  ${escapeHtml(detail.accountNumber)}
+                </strong>
+
+                <button
+                  type="button"
+                  aria-label="Copy account number"
+                  title="Copy account number"
+                  onclick="copyPaymentAccountNumber('${escapeHtml(detail.accountNumber)}')"
+                  style="
+                    flex:0 0 auto;
+                    width:34px;
+                    height:34px;
+                    border:0;
+                    border-radius:50%;
+                    background:#eaf2e6;
+                    color:#185c36;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    cursor:pointer;
+                    padding:0;
+                  "
+                >
+                  <svg
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="9"
+                      y="9"
+                      width="13"
+                      height="13"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <path
+                      d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+            `
+            : ""
+        }
+
         <div
           class="muted"
           style="margin-top:12px;"
         >
-          PayMe Link
+          QR Code
         </div>
 
-        <div class="payme-link-url">
-          ${escapeHtml(paymeUrl)}
-        </div>
+        ${
+          qrImageDataUrl
+            ? `
+              <div
+                style="
+                  margin-top:10px;
+                  display:flex;
+                  justify-content:center;
+                  align-items:center;
+                "
+              >
+                <img
+                  src="${escapeHtml(qrImageDataUrl)}"
+                  alt="Payment QR Code"
+                  style="
+                    width:220px;
+                    height:220px;
+                    max-width:100%;
+                    object-fit:contain;
+                    border-radius:12px;
+                    background:#fff;
+                    padding:10px;
+                    box-sizing:border-box;
+                  "
+                />
+              </div>
+            `
+            : `
+              <div
+                class="muted"
+                style="margin-top:10px;"
+              >
+                No payment QR code available.
+              </div>
+            `
+        }
 
       </div>
 
@@ -13816,14 +14098,6 @@ async function createSettlementPayMeLink(settlementId) {
           Share
         </button>
 
-        <button
-          type="button"
-          class="secondary-button"
-          onclick="window.open('${escapeHtml(paymeUrl)}', '_blank', 'noopener,noreferrer')"
-        >
-          View PayMe Page
-        </button>
-
       </div>
     `);
 
@@ -13840,6 +14114,16 @@ async function createSettlementPayMeLink(settlementId) {
 
   } finally {
     setLoading(false);
+  }
+}
+
+
+async function copyPaymentAccountNumber(accountNumber) {
+  try {
+    await navigator.clipboard.writeText(accountNumber);
+    toast("Account number copied!");
+  } catch (error) {
+    toast("Unable to copy the account number.");
   }
 }
 
