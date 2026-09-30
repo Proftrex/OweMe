@@ -33,6 +33,27 @@
   --radius: 20px;
   --radius-small: 14px;
   --nav-height: 76px;
+
+  /* =====================================================
+     OweMe UI SYSTEM
+     Keep common spacing and control sizing consistent.
+     ===================================================== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --control-sm: 36px;
+  --control-md: 42px;
+
+  --text-body: 15px;
+  --text-secondary: 13px;
+  --text-label: 13px;
+  --text-section: 18px;
+  --text-page: 24px;
+
+  --control-radius: 12px;
 }
 
 /* =========================
@@ -10964,15 +10985,10 @@ input.participant-checkbox {
 #groupDetail .group-top-actions,.group-detail .group-top-actions,.group-page .group-top-actions { margin-top: -8px !important; }
 #groupDetail .group-header,.group-detail .group-header,.group-page .group-header { padding-bottom: 0 !important; }
 
-/* FINAL — group header/action spacing */
-#groupDetail .group-header,.group-detail .group-header,.group-page .group-header { margin-bottom: -25px !important; padding-bottom: 0 !important; }
+#groupDetail .group-header,.group-detail .group-header,.group-page .group-header { padding-bottom: 0 !important; }
 #groupDetail .group-top-actions,.group-detail .group-top-actions,.group-page .group-top-actions { margin-top: 0 !important; }
 
-/* FINAL — physically tighten group meta to action buttons */
-.group-top-actions { transform: translateY(-55px) !important; }
 
-/* FINAL — comfortable breather between group meta and actions */
-.group-top-actions { transform: translateY(-30px) !important; }
 
 /* Center View QR Code button */
 .payment-detail-qr { align-items: center !important; }
@@ -11348,11 +11364,7 @@ button.settle-payable-button {
 }
 
 
-/* Payment Details — pull icons closer to account information */
-#paymentDetailsList .payment-detail-actions {
-  transform: translateY(-35px) !important;
-  margin-bottom: -35px !important;
-}
+
 
 /* Header — match logo and notification to Refresh button */
 .brand-logo {
@@ -12621,4 +12633,282 @@ button.settle-payable-button {
     font-size: 9px !important;
   }
 
+}
+
+/* =========================================================
+   OweMe — GROUP TOP ACTIONS
+   Compact, consistent action sizing
+   ========================================================= */
+
+.group-top-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  gap: 0 !important;
+}
+
+.group-top-actions .add-expense-button {
+  flex: 0 0 auto !important;
+  margin-right: auto !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+}
+
+.group-icon-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin-left: 16px !important;
+  flex: 0 0 auto !important;
+}
+
+.group-top-actions .group-icon-action {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 36px !important;
+  box-sizing: border-box !important;
+}
+
+.group-top-actions .group-icon-action svg {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.group-top-actions .share-group-button,
+.group-top-actions .members-button {
+  color: var(--primary) !important;
+}
+
+.group-top-actions .close-group-button {
+  color: #a55454 !important;
+}
+
+.group-top-actions .group-icon-action:hover,
+.group-top-actions .group-icon-action:active,
+.group-top-actions .group-icon-action:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+@media (max-width: 600px) {
+
+  .group-icon-actions {
+    gap: 6px !important;
+    margin-left: 12px !important;
+  }
+
+  .group-top-actions .group-icon-action {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+    flex-basis: 34px !important;
+  }
+
+  .group-top-actions .group-icon-action svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+}
+
+/* =========================================================
+   OweMe UI SYSTEM — BASE CONTROL NORMALIZATION
+   ========================================================= */
+
+/* ---------- Typography ---------- */
+
+body {
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+
+.form-group label {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-label);
+  line-height: 1.3;
+}
+
+input,
+select,
+textarea {
+  font-size: var(--text-body);
+  line-height: 1.4;
+}
+
+
+/* ---------- Form spacing ---------- */
+
+.form-group {
+  margin-bottom: var(--space-4);
+}
+
+
+/* ---------- Standard buttons ---------- */
+
+.primary-button,
+button.primary-button,
+.secondary-button,
+button.secondary-button,
+.danger-button,
+button.danger-button,
+.success-button,
+button.success-button {
+  min-height: var(--control-md);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.primary-button,
+button.primary-button {
+  padding: 0 16px;
+}
+
+.secondary-button,
+button.secondary-button,
+.danger-button,
+button.danger-button,
+.success-button,
+button.success-button {
+  padding: 0 16px;
+}
+
+
+/* ---------- Compact buttons ---------- */
+
+.small-button {
+  min-height: var(--control-sm);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  line-height: 1.2;
+}
+
+
+/* ---------- Button groups ---------- */
+
+.button-row,
+.action-row {
+  gap: var(--space-2);
+  align-items: center;
+}
+
+
+/* ---------- Inputs ---------- */
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select {
+  min-height: var(--control-md);
+  box-sizing: border-box;
+  padding: 0 14px;
+}
+
+textarea {
+  padding: 10px 14px;
+  line-height: 1.4;
+}
+
+
+/* ---------- Consistent control radius ---------- */
+
+input,
+select,
+textarea {
+  border-radius: var(--control-radius);
+}
+
+
+/* ---------- Common headings ---------- */
+
+.page-title {
+  font-size: var(--text-page);
+  line-height: 1.2;
+}
+
+h2 {
+  line-height: 1.25;
+}
+
+h3 {
+  line-height: 1.3;
+}
+
+
+/* ---------- Common text rhythm ---------- */
+
+.muted,
+.text-muted,
+.helper-text,
+.form-help {
+  line-height: 1.4;
+}
+
+/* =========================================================
+   Group tabs → first settlement card
+   Reduce unnecessary vertical space
+   ========================================================= */
+
+.group-page .history-tabs + *,
+#groupDetail .history-tabs + *,
+.group-detail .history-tabs + * {
+  margin-top: 12px !important;
+}
+
+/* =========================================================
+   Transaction History — single-line rows
+   ========================================================= */
+
+.transaction-table th,
+.transaction-table td,
+.transactions-table th,
+.transactions-table td {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  vertical-align: middle !important;
+}
+
+.transaction-table tr,
+.transactions-table tr {
+  height: 56px !important;
+}
+
+.transaction-table td,
+.transactions-table td {
+  line-height: 1.2 !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
 }
