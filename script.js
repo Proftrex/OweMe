@@ -2286,47 +2286,6 @@ async function loadHome(initialGroups = null, force = false) {
       }
 
 
-      /* UPDATE POINTS PROGRESS */
-      const progress =
-        Math.min(
-          100,
-          Math.max(
-            0,
-            (points / 100) * 100
-          )
-        );
-
-      const progressBar =
-        $("#insightsProgressBar");
-
-      if (progressBar) {
-        progressBar.style.width =
-          `${progress}%`;
-      }
-
-      const progressText =
-        $("#insightsProgressText");
-
-      if (progressText) {
-        progressText.textContent =
-          `${Math.min(points, 100)} / 100`;
-      }
-
-      const progressMessage =
-        $("#insightsProgressMessage");
-
-      if (progressMessage) {
-
-        const remaining =
-          Math.max(0, 100 - points);
-
-        progressMessage.textContent =
-          remaining > 0
-            ? `${remaining} more points to your next milestone.`
-            : "You've reached 100 points!";
-      }
-
-
       /* LOAD PAYMENT STATS */
 
       const {
@@ -2637,6 +2596,13 @@ async function loadHome(initialGroups = null, force = false) {
           points: 75
         },
         {
+          key: "TWENTY_EXPENSES",
+          icon: "🧾",
+          name: "20 Expenses",
+          description: "Add 20 expenses",
+          points: 75
+        },
+        {
           key: "FIVE_SETTLEMENTS",
           icon: "💸",
           name: "5 Settlements",
@@ -2649,6 +2615,13 @@ async function loadHome(initialGroups = null, force = false) {
           name: "10 Settlements",
           description: "Complete 10 settlements",
           points: 150
+        },
+        {
+          key: "TWENTY_SETTLEMENTS",
+          icon: "💸",
+          name: "20 Settlements",
+          description: "Complete 20 settlements",
+          points: 75
         },
         {
           key: "PAID_10000",
@@ -2674,6 +2647,7 @@ async function loadHome(initialGroups = null, force = false) {
         .from("user_milestones")
         .select(`
           milestone_key,
+          points_awarded,
           unlocked_at
         `)
         .eq(
@@ -2706,6 +2680,73 @@ async function loadHome(initialGroups = null, force = false) {
             ]
           )
         );
+
+
+      /* UPDATE TOTAL MILESTONE PROGRESS */
+
+      const totalMilestonePoints =
+        milestoneDefinitions.reduce(
+          (total, milestone) =>
+            total + Number(milestone.points || 0),
+          0
+        );
+
+      const earnedMilestonePoints =
+        (milestoneData || []).reduce(
+          (total, milestone) =>
+            total +
+            Number(
+              milestone.points_awarded || 0
+            ),
+          0
+        );
+
+      const milestoneProgress =
+        totalMilestonePoints > 0
+          ? Math.min(
+              100,
+              Math.max(
+                0,
+                (earnedMilestonePoints /
+                  totalMilestonePoints) *
+                  100
+              )
+            )
+          : 0;
+
+      const progressBar =
+        $("#insightsProgressBar");
+
+      if (progressBar) {
+        progressBar.style.width =
+          `${milestoneProgress}%`;
+      }
+
+      const progressText =
+        $("#insightsProgressText");
+
+      if (progressText) {
+        progressText.textContent =
+          `${earnedMilestonePoints} / ${totalMilestonePoints}`;
+      }
+
+      const progressMessage =
+        $("#insightsProgressMessage");
+
+      if (progressMessage) {
+
+        const remainingPoints =
+          Math.max(
+            0,
+            totalMilestonePoints -
+              earnedMilestonePoints
+          );
+
+        progressMessage.textContent =
+          remainingPoints > 0
+            ? `${remainingPoints} more points to unlock all milestones.`
+            : "You've unlocked all milestones!";
+      }
 
 
       const lockedMilestones =
@@ -6740,7 +6781,7 @@ function renderGroup() {
       </div>
 
       <div
-        id="pendingPaymentsList"
+        id="groupPendingPaymentsList"
         class="pending-list-container"
       >
 
@@ -8528,6 +8569,103 @@ async function addExpense(event) {
     }
 
     /* ================================================
+       CHECK EXPENSE MILESTONES
+       ================================================ */
+
+    try {
+
+      const {
+        count: expenseCount,
+        error: expenseCountError
+      } = await supabaseClient
+        .from("expenses")
+        .select(
+          "id",
+          {
+            count: "exact",
+            head: true
+          }
+        )
+        .eq(
+          "created_by",
+          user.id
+        )
+        .eq(
+          "status",
+          "ACTIVE"
+        );
+
+      if (expenseCountError) {
+        throw expenseCountError;
+      }
+
+      const totalExpenses =
+        Number(expenseCount || 0);
+
+
+      const expenseMilestones = [
+        {
+          minimum: 5,
+          key: "FIVE_EXPENSES",
+          points: 50
+        },
+        {
+          minimum: 10,
+          key: "TEN_EXPENSES",
+          points: 75
+        },
+        {
+          minimum: 20,
+          key: "TWENTY_EXPENSES",
+          points: 75
+        }
+      ];
+
+
+      for (const milestone of expenseMilestones) {
+
+        if (
+          totalExpenses >=
+          milestone.minimum
+        ) {
+
+          const {
+            error: milestoneError
+          } = await supabaseClient.rpc(
+            "award_milestone",
+            {
+              p_user_id: user.id,
+              p_milestone_key:
+                milestone.key,
+              p_points:
+                milestone.points
+            }
+          );
+
+          if (milestoneError) {
+
+            console.error(
+              `${milestone.key} MILESTONE ERROR:`,
+              milestoneError
+            );
+
+          }
+
+        }
+
+      }
+
+    } catch (milestoneError) {
+
+      console.error(
+        "EXPENSE MILESTONE CHECK ERROR:",
+        milestoneError
+      );
+
+    }
+
+
+    /* ================================================
        AWARD FIRST EXPENSE MILESTONE
        ================================================ */
 
@@ -8700,7 +8838,7 @@ async function openBalancesModal() {
     `);
 
     await loadPendingPayables();
-    await loadPendingPayments();
+    await loadGroupPendingPayments();
 
   } catch (error) {
 
@@ -10034,6 +10172,56 @@ async function loadPendingPayments() {
 }
 
 
+async function loadGroupPendingPayments() {
+
+  const container =
+    $("#groupPendingPaymentsList");
+
+  if (!container) {
+    return;
+  }
+
+  try {
+
+    const result =
+      await getPendingPaymentsFromSupabase(
+        state.currentGroup.group.groupId
+      );
+
+    const payments =
+      result.payments ||
+      result.data?.payments ||
+      [];
+
+    if (!payments.length) {
+
+      container.innerHTML = `
+        <div class="muted" style="text-align:center;padding:10px;">
+          No pending payments.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      payments
+        .map(renderPendingPayment)
+        .join("");
+
+  } catch (error) {
+
+    container.innerHTML = `
+      <div class="muted">
+        ${escapeHtml(error.message)}
+      </div>
+    `;
+
+  }
+
+}
+
+
 function renderPendingPayment(payment) {
 
   return `
@@ -10869,6 +11057,8 @@ async function processConfirmPayment(paymentSubmissionId) {
 
   try {
 
+    toast("STEP 1: Confirm payment started.");
+
     setLoading(
       true,
       "Confirming payment..."
@@ -10911,51 +11101,47 @@ async function processConfirmPayment(paymentSubmissionId) {
       throw updateError;
     }
 
-    /* AWARD FIRST SETTLEMENT MILESTONE TO THE PAYER */
+    toast("STEP 2: Payment confirmed in database.");
+
+    /* ================================================
+       AWARD SETTLEMENT MILESTONES
+       ================================================ */
+
     try {
-
-      const {
-        data: {
-          user
-        },
-        error: userError
-      } = await supabaseClient.auth.getUser();
-
-      console.log(
-        "FIRST_SETTLEMENT AUTH USER:",
-        user?.id,
-        "EXPECTED PAYER:",
-        payment.payer_user_id,
-        "AUTH ERROR:",
-        userError
-      );
 
       const {
         data: milestoneResult,
         error: milestoneError
-      } = await supabaseClient.rpc("award_milestone", {
-        p_user_id: payment.payer_user_id,
-        p_milestone_key: "FIRST_SETTLEMENT",
-        p_points: 50
-      });
-
-      console.log(
-        "FIRST_SETTLEMENT RPC RESULT:",
-        milestoneResult,
-        "ERROR:",
-        milestoneError
+      } = await supabaseClient.rpc(
+        "award_settlement_milestones",
+        {
+          p_payment_submission_id:
+            paymentSubmissionId
+        }
       );
 
       if (milestoneError) {
-        toast(
-          "FIRST_SETTLEMENT ERROR: " +
-          milestoneError.message
+
+        console.error(
+          "SETTLEMENT MILESTONE ERROR:",
+          milestoneError
         );
-      } else {
 
         toast(
-          "FIRST_SETTLEMENT RPC: " +
-          String(milestoneResult)
+          "STEP 3 ERROR: " +
+          milestoneError.message
+        );
+
+      } else {
+
+        console.log(
+          "SETTLEMENT MILESTONES:",
+          milestoneResult
+        );
+
+        toast(
+          "STEP 3 SUCCESS: " +
+          JSON.stringify(milestoneResult)
         );
 
       }
@@ -10963,13 +11149,8 @@ async function processConfirmPayment(paymentSubmissionId) {
     } catch (milestoneError) {
 
       console.error(
-        "FIRST_SETTLEMENT RPC EXCEPTION:",
+        "SETTLEMENT MILESTONE EXCEPTION:",
         milestoneError
-      );
-
-      toast(
-        "FIRST_SETTLEMENT ERROR: " +
-        (milestoneError.message || "Unknown error")
       );
 
     }
@@ -16541,7 +16722,7 @@ function switchGroupTab(tab) {
 
   if (target === "pending") {
     loadPendingPayables();
-    loadPendingPayments();
+    loadGroupPendingPayments();
   }
 
 }
