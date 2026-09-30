@@ -103,6 +103,25 @@ async function init() {
       createdAt: profile.created_at
     };
 
+    // Evaluate badges for the currently authenticated user.
+    const {
+      data: badgeEvaluation,
+      error: badgeEvaluationError
+    } = await supabaseClient.rpc("evaluate_user_badges");
+
+    if (badgeEvaluationError) {
+      console.error(
+        "BADGE EVALUATION ERROR:",
+        badgeEvaluationError
+      );
+    } else {
+      console.log(
+        "BADGE EVALUATION:",
+        badgeEvaluation
+      );
+
+    }
+
     if (window.Capacitor?.isNativePlatform()) {
       await initializePushNotifications();
     } else {
@@ -2090,6 +2109,21 @@ async function loadHome(initialGroups = null, force = false) {
               </div>
             </div>
 
+            <div class="insights-stat-card">
+              <div class="insights-stat-icon">💰</div>
+              <div class="insights-stat-content">
+                <div class="insights-stat-label">
+                  Total spend
+                </div>
+                <div
+                  id="insightsTotalSpend"
+                  class="insights-stat-value"
+                >
+                  ₱0.00
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -2105,7 +2139,7 @@ async function loadHome(initialGroups = null, force = false) {
 
             <div
               class="insights-badge locked"
-              id="insightBadgeGalante"
+              id="insightBadgeLagingTaya"
             >
               <div class="insights-badge-icon">
                 💚
@@ -2113,18 +2147,45 @@ async function loadHome(initialGroups = null, force = false) {
 
               <div class="insights-badge-content">
                 <div class="insights-badge-name">
-                  Galante
+                  Laging Taya
                 </div>
 
                 <div class="insights-badge-description">
-                  Pays on time and often covers more than their share
+                  Covered over ₱50,000 in group expenses.
                 </div>
               </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="GALANTE"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
             </div>
 
             <div
               class="insights-badge locked"
-              id="insightBadgeKoripot"
+              id="insightBadgeMakunat"
             >
               <div class="insights-badge-icon">
                 🪙
@@ -2132,13 +2193,132 @@ async function loadHome(initialGroups = null, force = false) {
 
               <div class="insights-badge-content">
                 <div class="insights-badge-name">
-                  Koripot
+                  Makunat
                 </div>
 
                 <div class="insights-badge-description">
-                  Takes their time paying and rarely covers extra
+                  Joined or created 5 groups without covering a group expense.
                 </div>
               </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="KORIPOT"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div
+              class="insights-badge locked"
+              id="insightBadgeGoodPayer"
+            >
+              <div class="insights-badge-icon">
+                ⚡
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Good Payer
+                </div>
+
+                <div class="insights-badge-description">
+                  Settled 10 confirmed payables within a day.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="GOOD_PAYER"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div
+              class="insights-badge locked"
+              id="insightBadgeLatePayer"
+            >
+              <div class="insights-badge-icon">
+                ⏰
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Puro Bukas
+                </div>
+
+                <div class="insights-badge-description">
+                  Settled 10 confirmed payables for over a week.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="LATE_PAYER"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
             </div>
 
           </div>
@@ -2323,6 +2503,23 @@ async function loadHome(initialGroups = null, force = false) {
       const totalPaid =
         Number(paymentStats?.total_paid || 0);
 
+      const totalSpend =
+        (state.groups || []).reduce(
+          (sum, group) =>
+            sum + Number(group.amountYouSpent || 0),
+          0
+        );
+
+      console.log(
+        "ANALYTICS TOTAL SPEND:",
+        totalSpend,
+        "GROUPS:",
+        (state.groups || []).map(group => ({
+          name: group.groupName,
+          spend: Number(group.amountYouSpent || 0)
+        }))
+      );
+
       const averageDaysToSettleElement =
         $("#insightsAverageDaysToSettle");
 
@@ -2371,6 +2568,20 @@ async function loadHome(initialGroups = null, force = false) {
       if (totalPaidElement) {
         totalPaidElement.textContent =
           `₱${totalPaid.toLocaleString(
+            "en-PH",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          )}`;
+      }
+
+      const totalSpendElement =
+        $("#insightsTotalSpend");
+
+      if (totalSpendElement) {
+        totalSpendElement.textContent =
+          `₱${totalSpend.toLocaleString(
             "en-PH",
             {
               minimumFractionDigits: 2,
@@ -2725,10 +2936,16 @@ async function loadHome(initialGroups = null, force = false) {
 
       const badgeElements = {
         GALANTE:
-          "#insightBadgeGalante",
+          "#insightBadgeLagingTaya",
 
         KORIPOT:
-          "#insightBadgeKoripot"
+          "#insightBadgeMakunat",
+
+        GOOD_PAYER:
+          "#insightBadgeGoodPayer",
+
+        LATE_PAYER:
+          "#insightBadgeLatePayer"
       };
 
       Object.entries(
@@ -2753,6 +2970,15 @@ async function loadHome(initialGroups = null, force = false) {
             "locked",
             !unlocked
           );
+
+          const shareButton =
+            element.querySelector(
+              ".insights-badge-share"
+            );
+
+          if (shareButton) {
+            shareButton.hidden = !unlocked;
+          }
 
         }
       );
@@ -4099,6 +4325,12 @@ async function loadGroupsData(force = false) {
       Number(
         totalPaid.toFixed(2)
       );
+
+    console.log(
+      "ANALYTICS GROUP SPEND:",
+      group.groupName,
+      group.amountYouSpent
+    );
 
 
     const {
@@ -16694,3 +16926,316 @@ async function switchInvitesTab(tab) {
   }
 
 }
+
+
+/* ===== SHARE INSIGHT BADGE ===== */
+
+function getInsightBadgeData(badgeKey) {
+
+  const badges = {
+
+    GALANTE: {
+      name: "Laging Taya",
+      icon: "💚",
+      description:
+        "Covered over ₱50,000 in group expenses.",
+      message:
+        "At this point, ikaw na ang unofficial sponsor ng barkada. 😭💸",
+      meaning:
+        "You’re the friend who says “Ako na muna” a little too confidently.",
+      shareText:
+        "💚 Laging Taya unlocked! ₱50K+ na ang nailabas ko para sa barkada. Singil season na. 😂"
+    },
+
+    KORIPOT: {
+      name: "Makunat",
+      icon: "🪙",
+      description:
+        "Joined or created 5 groups without covering a group expense.",
+      message:
+        "Your wallet has successfully avoided several dangerous situations. 🫡",
+      meaning:
+        "Hindi madamot. Financially strategic. 😌",
+      shareText:
+        "🪙 Makunat unlocked! Five groups. Zero ambag. Financial discipline daw. 😂"
+    },
+
+    GOOD_PAYER: {
+      name: "Good Payer",
+      icon: "⚡",
+      description:
+        "Settled 10 confirmed payables within a day.",
+      message:
+        "Walang “send ko mamaya.” Walang “next week na lang.” 😌",
+      meaning:
+        "You actually pay your friends before they have to send a follow-up message.",
+      shareText:
+        "⚡ Good Payer unlocked! 10 payments settled on time. Hindi ako yung kailangan i-remind. 😂"
+    },
+
+    LATE_PAYER: {
+      name: "Puro Bukas",
+      icon: "⏰",
+      description:
+        "Settled 10 confirmed payables for over a week.",
+      message:
+        "But hey… at least nabayaran mo rin. 😭👏",
+      meaning:
+        "Master of the phrase: “Bukas na talaga.”",
+      shareText:
+        "⏰ Puro Bukas unlocked! 10 payments eventually settled. Keyword: eventually. 😂"
+    }
+
+  };
+
+  return badges[badgeKey] || null;
+}
+
+
+function closeInsightBadgeModal() {
+
+  const modal =
+    document.getElementById(
+      "insightBadgeCongratulationsModal"
+    );
+
+  if (!modal) return;
+
+  modal.classList.remove(
+    "is-visible"
+  );
+
+  document.body.classList.remove(
+    "oweme-badge-modal-open"
+  );
+
+  setTimeout(() => {
+
+    modal.remove();
+
+  }, 180);
+
+}
+
+
+async function shareInsightBadgeMessage(
+  badgeKey
+) {
+
+  const badge =
+    getInsightBadgeData(badgeKey);
+
+  if (!badge) return;
+
+  const username =
+    state.user?.username ||
+    state.user?.displayName ||
+    "An OweMe user";
+
+  const shareText =
+`${badge.shareText}
+
+— ${username}`;
+
+  try {
+
+    if (navigator.share) {
+
+      await navigator.share({
+        title:
+          `OweMe — ${badge.name}`,
+        text:
+          shareText
+      });
+
+      return;
+    }
+
+    if (navigator.clipboard) {
+
+      await navigator.clipboard.writeText(
+        shareText
+      );
+
+      toast(
+        "Badge share message copied!"
+      );
+
+      return;
+    }
+
+    alert(shareText);
+
+  } catch (error) {
+
+    if (error?.name === "AbortError") {
+      return;
+    }
+
+    console.error(
+      "SHARE BADGE ERROR:",
+      error
+    );
+
+  }
+
+}
+
+
+function shareInsightBadge(button) {
+
+  const badgeKey =
+    button?.dataset?.badgeKey;
+
+  const badge =
+    getInsightBadgeData(badgeKey);
+
+  if (!badge) return;
+
+  const existing =
+    document.getElementById(
+      "insightBadgeCongratulationsModal"
+    );
+
+  if (existing) {
+    existing.remove();
+  }
+
+  const modal =
+    document.createElement("div");
+
+  modal.id =
+    "insightBadgeCongratulationsModal";
+
+  modal.className =
+    "oweme-badge-modal";
+
+  modal.innerHTML = `
+
+    <div
+      class="oweme-badge-modal-backdrop"
+      onclick="closeInsightBadgeModal()"
+    ></div>
+
+    <div
+      class="oweme-badge-modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="insightBadgeCongratulationsTitle"
+    >
+
+      <button
+        type="button"
+        class="oweme-badge-modal-close"
+        aria-label="Close"
+        onclick="closeInsightBadgeModal()"
+      >
+        ×
+      </button>
+
+      <div class="oweme-badge-modal-icon">
+        ${badge.icon}
+      </div>
+
+      <div class="oweme-badge-modal-eyebrow">
+        BADGE UNLOCKED
+      </div>
+
+      <div
+        class="oweme-badge-modal-title"
+        id="insightBadgeCongratulationsTitle"
+      >
+        Congratulations! 🎉
+      </div>
+
+      <div class="oweme-badge-modal-earned">
+        You earned the
+        <strong>“${badge.name}”</strong>
+        badge!
+      </div>
+
+      <div class="oweme-badge-modal-message">
+        ${badge.message}
+      </div>
+
+      <div class="oweme-badge-modal-divider"></div>
+
+      <div class="oweme-badge-modal-label">
+        WHAT THIS MEANS
+      </div>
+
+      <div class="oweme-badge-modal-meaning">
+        ${badge.meaning}
+      </div>
+
+      <div class="oweme-badge-modal-description">
+        ${badge.description}
+      </div>
+
+      <button
+        type="button"
+        class="oweme-badge-modal-share"
+        onclick="shareInsightBadgeMessage('${badgeKey}')"
+      >
+
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+          <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+        </svg>
+
+        Share Badge
+
+      </button>
+
+      <button
+        type="button"
+        class="oweme-badge-modal-later"
+        onclick="closeInsightBadgeModal()"
+      >
+        Maybe later
+      </button>
+
+    </div>
+  `;
+
+  document.body.appendChild(
+    modal
+  );
+
+  document.body.classList.add(
+    "oweme-badge-modal-open"
+  );
+
+  requestAnimationFrame(() => {
+
+    modal.classList.add(
+      "is-visible"
+    );
+
+  });
+
+}
+
+
+window.shareInsightBadge =
+  shareInsightBadge;
+
+window.closeInsightBadgeModal =
+  closeInsightBadgeModal;
+
+window.shareInsightBadgeMessage =
+  shareInsightBadgeMessage;
+
