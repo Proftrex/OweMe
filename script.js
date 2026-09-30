@@ -5590,18 +5590,48 @@ function renderGroup() {
                 const spend =
                   Number(memberBalance.totalPaid || 0);
 
-                const balance =
-                  Number(memberBalance.balance || 0);
+                /*
+                 * Use the same payment-aware, reciprocal-netted
+                 * settlements as the main Payables / Receivables
+                 * cards.
+                 *
+                 * This prevents unrelated settlements between
+                 * other members from appearing as this member's
+                 * payable or receivable.
+                 */
+                const memberPayables =
+                  settlements
+                    .filter(item =>
+                      String(item.fromUserId) ===
+                      String(member.userId)
+                    )
+                    .reduce(
+                      (sum, item) =>
+                        sum + Number(item.amount || 0),
+                      0
+                    );
+
+                const memberReceivables =
+                  settlements
+                    .filter(item =>
+                      String(item.toUserId) ===
+                      String(member.userId)
+                    )
+                    .reduce(
+                      (sum, item) =>
+                        sum + Number(item.amount || 0),
+                      0
+                    );
 
                 const payables =
-                  balance < -0.009
-                    ? Math.abs(balance)
-                    : 0;
+                  Number(
+                    memberPayables.toFixed(2)
+                  );
 
                 const receivables =
-                  balance > 0.009
-                    ? balance
-                    : 0;
+                  Number(
+                    memberReceivables.toFixed(2)
+                  );
 
                 const role =
                   String(member.role || "").toUpperCase();
