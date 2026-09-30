@@ -12912,3 +12912,33 @@ h3 {
   padding-top: 10px !important;
   padding-bottom: 10px !important;
 }
+
+/* =========================================================
+   Mobile Bottom Navbar — dock directly to bottom
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  .bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    margin-bottom: 0 !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    height: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+
+    padding:
+      8px 10px
+      env(safe-area-inset-bottom, 0px) !important;
+
+    border-radius: 25px 25px 0 0 !important;
+
+    transform: none !important;
+    box-sizing: border-box !important;
+  }
+
+}
