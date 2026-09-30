@@ -4801,8 +4801,9 @@ input[type="checkbox"] {
 }
 
 .contact-list-username {
-  font-size: 15px !important;
-  font-weight: 700 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--muted) !important;
 }
 
 .contact-list-display-name {
@@ -12535,4 +12536,89 @@ button.settle-payable-button {
 /* Invitation accepted — stronger green */
 .invitation-status {
   color: #39744B !important;
+}
+
+/* Members — Name | Spend | Payables | Receivables | Role */
+.group-member-list-header {
+  display: grid !important;
+  grid-template-columns: 1.35fr .8fr .85fr 1fr .65fr !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 0 0 8px !important;
+  color: var(--muted) !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.group-member-list-item {
+  display: grid !important;
+  grid-template-columns: 1.35fr .8fr .85fr 1fr .65fr !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 10px 0 !important;
+}
+
+.group-member-list-name {
+  min-width: 0 !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.group-member-list-stat {
+  min-width: 0 !important;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+.group-member-list-role {
+  min-width: 0 !important;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 600px) {
+
+  .group-member-list-header,
+  .group-member-list-item {
+    grid-template-columns: 1.35fr .8fr .85fr 1fr .65fr !important;
+    min-width: 0 !important;
+  }
+
+  .group-member-list-header {
+    font-size: 8px !important;
+    gap: 4px !important;
+  }
+
+  .group-member-list-item {
+    gap: 4px !important;
+    padding: 10px 0 !important;
+  }
+
+  .group-member-list-name {
+    font-size: 12px !important;
+  }
+
+  .group-member-list-stat,
+  .group-member-list-role {
+    font-size: 9px !important;
+  }
+
 }

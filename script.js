@@ -4977,25 +4977,77 @@ function renderGroup() {
 
         ${
           members.length
-            ? members.map(member => `
-                <div class="group-member-list-item">
+            ? `
+              <div class="group-member-list-header">
+                <span>Name</span>
+                <span>Spend</span>
+                <span>Payables</span>
+                <span>Receivables</span>
+                <span>Role</span>
+              </div>
 
-                  <div class="group-member-list-name">
-                    ${escapeHtml(member.displayName || "Member")}
+              ${members.map(member => {
+
+                const memberBalance =
+                  balances.find(
+                    balance =>
+                      String(balance.userId) ===
+                      String(member.userId)
+                  ) || {};
+
+                const spend =
+                  Number(memberBalance.totalPaid || 0);
+
+                const balance =
+                  Number(memberBalance.balance || 0);
+
+                const payables =
+                  balance < -0.009
+                    ? Math.abs(balance)
+                    : 0;
+
+                const receivables =
+                  balance > 0.009
+                    ? balance
+                    : 0;
+
+                const role =
+                  String(member.role || "").toUpperCase();
+
+                return `
+                  <div class="group-member-list-item">
+
+                    <div class="group-member-list-name">
+                      ${escapeHtml(member.displayName || "Member")}
+                    </div>
+
+                    <div class="group-member-list-stat">
+                      ${formatMoney(spend)}
+                    </div>
+
+                    <div class="group-member-list-stat">
+                      ${formatMoney(payables)}
+                    </div>
+
+                    <div class="group-member-list-stat">
+                      ${formatMoney(receivables)}
+                    </div>
+
+                    <div class="group-member-list-role">
+                      ${
+                        role === "ADMIN"
+                          ? "Admin"
+                          : role === "MEMBER"
+                            ? "Member"
+                            : escapeHtml(String(member.role || ""))
+                      }
+                    </div>
+
                   </div>
+                `;
 
-                  ${
-                    member.role
-                      ? `
-                        <div class="group-member-list-role">
-                          ${escapeHtml(String(member.role).toUpperCase() === "ADMIN" ? "Admin" : String(member.role).toUpperCase() === "MEMBER" ? "Member" : String(member.role))}
-                        </div>
-                      `
-                      : ""
-                  }
-
-                </div>
-              `).join("")
+              }).join("")}
+            `
             : `
               <div class="muted">
                 No members found.
@@ -10630,12 +10682,7 @@ async function openMembersModal() {
               </span>
 
               <small class="muted">
-                ${contact.sharedGroups.length}
-                ${
-                  contact.sharedGroups.length === 1
-                    ? "shared group"
-                    : "shared groups"
-                }
+                @${escapeHtml(contact.username)}
               </small>
 
             </button>
@@ -13857,6 +13904,10 @@ function renderContactCard(contact) {
 
           <span class="contact-list-display-name">
             ${escapeHtml(contact.displayName || "Unknown")}
+          </span>
+
+          <span class="contact-list-username">
+            @${escapeHtml(contact.username || "")}
           </span>
 
         </div>
