@@ -1,3 +1,78 @@
+
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  let data = {};
+
+  try {
+    data = event.data.json();
+  } catch {
+    data = {
+      title: 'OweMe',
+      message: event.data.text()
+    };
+  }
+
+  const title = data.title || 'OweMe';
+  const options = {
+    body: data.message || '',
+    icon: './assets/owelogo.png',
+    badge: './assets/owelogo.png',
+    data: {
+      notificationId: data.notificationId || null,
+      groupId: data.groupId || null,
+      expenseId: data.expenseId || null,
+      settlementId: data.settlementId || null
+    },
+    tag: data.notificationId || undefined,
+    renotify: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }).then((clientList) => {
+
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.postMessage({
+            type: 'OWEME_NOTIFICATION_CLICK',
+            notificationId: data.notificationId,
+            groupId: data.groupId,
+            expenseId: data.expenseId,
+            settlementId: data.settlementId
+          });
+
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) {
+        let url = './';
+
+        if (data.groupId) {
+          url += '?group=' + encodeURIComponent(data.groupId);
+        }
+
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+
 const CACHE_NAME = 'oweme-shell-v2';
 const SUPABASE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 const APP_SHELL = [

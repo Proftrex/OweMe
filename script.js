@@ -103,7 +103,11 @@ async function init() {
       createdAt: profile.created_at
     };
 
-    await initializePushNotifications();
+    if (window.Capacitor?.isNativePlatform()) {
+      await initializePushNotifications();
+    } else {
+      await initializeWebPushNotifications();
+    }
 
     showApp();
 
@@ -214,96 +218,251 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function initializePushNotifications() {
+  const pushLog = (message, data = null) => {
+    const entry = {
+      time: new Date().toISOString(),
+      message,
+      data
+    };
+
+    console.log("OWEME PUSH:", message, data || "");
+
+    try {
+      const logs = JSON.parse(
+        localStorage.getItem("oweme_push_debug") || "[]"
+      );
+
+      logs.push(entry);
+
+      if (logs.length > 50) {
+        logs.splice(0, logs.length - 50);
+      }
+
+      localStorage.setItem(
+        "oweme_push_debug",
+        JSON.stringify(logs)
+      );
+    } catch (error) {
+      console.error("OWEME PUSH DEBUG LOG ERROR:", error);
+    }
+  };
+
   try {
-    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) {
+    pushLog("initializePushNotifications started");
+
+    if (!window.Capacitor) {
+      pushLog("Capacitor is not available");
       return;
     }
 
-    if (!window.Capacitor.Plugins || !window.Capacitor.Plugins.PushNotifications) {
-      console.warn("Push Notifications plugin is not available.");
+    if (!window.Capacitor.isNativePlatform()) {
+      pushLog("Not running on native platform");
       return;
     }
 
-    const { PushNotifications } = window.Capacitor.Plugins;
+    pushLog("Native platform detected");
 
-    let permission = await PushNotifications.checkPermissions();
+    if (
+      !window.Capacitor.Plugins ||
+      !window.Capacitor.Plugins.PushNotifications
+    ) {
+      pushLog("Push Notifications plugin is not available");
+      return;
+    }
+
+    const { PushNotifications } =
+      window.Capacitor.Plugins;
+
+    pushLog("Push Notifications plugin available");
+
+    let permission =
+      await PushNotifications.checkPermissions();
+
+    pushLog(
+      "Permission checked",
+      permission
+    );
 
     if (permission.receive === "prompt") {
-      permission = await PushNotifications.requestPermissions();
+      pushLog("Requesting notification permission");
+
+      permission =
+        await PushNotifications.requestPermissions();
+
+      pushLog(
+        "Permission request completed",
+        permission
+      );
     }
 
     if (permission.receive !== "granted") {
-      console.warn("Push notification permission was not granted.");
+      pushLog(
+        "Notification permission NOT granted",
+        permission
+      );
       return;
     }
 
-    await PushNotifications.register();
+    pushLog("Notification permission granted");
 
-    PushNotifications.addListener("registration", async (token) => {
-      console.log("OWEME FCM TOKEN:", token.value);
-
-      if (!state.user?.userId || !token.value) {
-        return;
-      }
-
-      const { error } = await supabaseClient
-        .from("push_tokens")
-        .upsert(
+    PushNotifications.addListener(
+      "registration",
+      async (token) => {
+        pushLog(
+          "FCM REGISTRATION EVENT RECEIVED",
           {
-            user_id: state.user.userId,
-            token: token.value,
-            platform: "android",
-            updated_at: new Date().toISOString()
-          },
-          {
-            onConflict: "user_id,token"
+            tokenLength: token?.value
+              ? token.value.length
+              : 0
           }
         );
 
-      if (error) {
-        console.error(
-          "SAVE PUSH TOKEN ERROR:",
+        console.log(
+          "OWEME FCM TOKEN:",
+          token?.value
+        );
+
+        if (!token?.value) {
+          pushLog("FCM token is empty");
+          return;
+        }
+
+        const userId =
+          state.user?.userId;
+
+        pushLog(
+          "Checking logged-in user",
+          {
+            hasUser: !!userId,
+            userId: userId || null
+          }
+        );
+
+        if (!userId) {
+          pushLog(
+            "FCM token received but user is not ready"
+          );
+          return;
+        }
+
+        pushLog(
+          "Saving FCM token to Supabase"
+        );
+
+        const { error } =
+          await supabaseClient
+            .from("push_tokens")
+            .upsert(
+              {
+                user_id: userId,
+                token: token.value,
+                platform: "android",
+                updated_at:
+                  new Date().toISOString()
+              },
+              {
+                onConflict:
+                  "user_id,token"
+              }
+            );
+
+        if (error) {
+          pushLog(
+            "SUPABASE PUSH TOKEN SAVE ERROR",
+            {
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint
+            }
+          );
+
+          console.error(
+            "SAVE PUSH TOKEN ERROR:",
+            error
+          );
+        } else {
+          pushLog(
+            "FCM TOKEN SAVED TO SUPABASE"
+          );
+
+          console.log(
+            "OWEME PUSH TOKEN SAVED"
+          );
+        }
+      }
+    );
+
+    PushNotifications.addListener(
+      "registrationError",
+      (error) => {
+        pushLog(
+          "FCM REGISTRATION ERROR",
           error
         );
-      } else {
-        console.log("OWEME PUSH TOKEN SAVED");
+
+        console.error(
+          "OWEME PUSH REGISTRATION ERROR:",
+          error
+        );
       }
-    });
+    );
 
-    PushNotifications.addListener("registrationError", (error) => {
-      console.error(
-        "OWEME PUSH REGISTRATION ERROR:",
-        error
-      );
-    });
+    PushNotifications.addListener(
+      "pushNotificationReceived",
+      (notification) => {
+        pushLog(
+          "PUSH NOTIFICATION RECEIVED",
+          notification
+        );
 
-    PushNotifications.addListener("pushNotificationReceived", (notification) => {
-      console.log(
-        "OWEME PUSH NOTIFICATION RECEIVED:",
-        notification
-      );
-    });
+        console.log(
+          "OWEME PUSH NOTIFICATION RECEIVED:",
+          notification
+        );
+      }
+    );
 
-    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      console.log(
-        "OWEME PUSH NOTIFICATION ACTION:",
-        action
-      );
-    });
+    PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action) => {
+        pushLog(
+          "PUSH NOTIFICATION ACTION",
+          action
+        );
 
+        console.log(
+          "OWEME PUSH NOTIFICATION ACTION:",
+          action
+        );
+      }
+    );
+
+    pushLog(
+      "Calling PushNotifications.register()"
+    );
+
+    await PushNotifications.register();
+
+    pushLog(
+      "PushNotifications.register() completed"
+    );
   } catch (error) {
+    pushLog(
+      "initializePushNotifications FAILED",
+      {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack
+      }
+    );
+
     console.error(
       "OWEME PUSH INITIALIZATION ERROR:",
       error
     );
   }
 }
-
-
-/* =========================================================
-   API
-   ========================================================= */
-
 
 async function getBalancesFromSupabase(groupId) {
   const { data: members, error: memberError } =
