@@ -12333,21 +12333,6 @@ async function renderProfile() {
 
       <div class="card">
 
-        <div class="card-title">
-          Notifications
-        </div>
-
-        <p class="muted">
-          Test browser and PWA notification setup.
-        </p>
-
-
-
-      </div>
-
-
-      <div class="card">
-
         <button
           class="danger-button"
           onclick="logout()"
