@@ -5577,7 +5577,7 @@ select#paymentOption {
 
 /* Pending tab — flat list, no cards */
 #pendingPaymentsSection,
-#pendingPaymentsList {
+#pendingPaymentsList, #groupPendingPaymentsList {
   background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -5586,8 +5586,8 @@ select#paymentOption {
   margin: 0 !important;
 }
 
-#pendingPaymentsList .settlement-row,
-#pendingPaymentsList .card {
+#pendingPaymentsList, #groupPendingPaymentsList .settlement-row,
+#pendingPaymentsList, #groupPendingPaymentsList .card {
   background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -11778,7 +11778,7 @@ button.settle-payable-button {
 ========================================================= */
 
 #pendingPayablesList,
-#pendingPaymentsList {
+#pendingPaymentsList, #groupPendingPaymentsList {
   width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -11790,7 +11790,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row,
-#pendingPaymentsList .pending-flat-row {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 90px 78px !important;
   align-items: center !important;
@@ -11803,12 +11803,12 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row + .pending-flat-row,
-#pendingPaymentsList .pending-flat-row + .pending-flat-row {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
   border-top: 1px solid #E1EADF !important;
 }
 
 #pendingPayablesList .pending-flat-label,
-#pendingPaymentsList .pending-flat-label {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
   grid-column: 1 !important;
   width: auto !important;
   min-width: 0 !important;
@@ -11822,7 +11822,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-amount,
-#pendingPaymentsList .pending-flat-amount {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
   grid-column: 2 !important;
   width: 90px !important;
   min-width: 90px !important;
@@ -11838,7 +11838,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-action,
-#pendingPaymentsList .pending-flat-action {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
   grid-column: 3 !important;
   width: 78px !important;
   min-width: 78px !important;
@@ -11863,7 +11863,7 @@ button.settle-payable-button {
   color: #FFFFFF !important;
 }
 
-#pendingPaymentsList .pending-review-action {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-review-action {
   background: #E6F0E0 !important;
   color: #39744B !important;
 }
@@ -11879,19 +11879,19 @@ button.settle-payable-button {
 
 @media (max-width: 600px) {
   #pendingPayablesList .pending-flat-row,
-  #pendingPaymentsList .pending-flat-row {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
     grid-template-columns: minmax(0, 1fr) 82px 72px !important;
     column-gap: 8px !important;
   }
 
   #pendingPayablesList .pending-flat-amount,
-  #pendingPaymentsList .pending-flat-amount {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
     width: 82px !important;
     min-width: 82px !important;
   }
 
   #pendingPayablesList .pending-flat-action,
-  #pendingPaymentsList .pending-flat-action {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
     width: 72px !important;
     min-width: 72px !important;
     max-width: 72px !important;
@@ -12192,7 +12192,7 @@ button.settle-payable-button {
    PENDING — ONE CARD PER SECTION
 ========================================================= */
 #pendingPayablesList,
-#pendingPaymentsList {
+#pendingPaymentsList, #groupPendingPaymentsList {
   width: 100% !important;
   box-sizing: border-box !important;
   margin: 0 0 24px !important;
@@ -12204,7 +12204,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row,
-#pendingPaymentsList .pending-flat-row {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto auto !important;
   align-items: center !important;
@@ -12220,12 +12220,12 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row + .pending-flat-row,
-#pendingPaymentsList .pending-flat-row + .pending-flat-row {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
   border-top: 0 !important;
 }
 
 #pendingPayablesList .pending-flat-label,
-#pendingPaymentsList .pending-flat-label {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
   margin: 0 !important;
   color: #193a27 !important;
   font-size: 15px !important;
@@ -12233,7 +12233,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-amount,
-#pendingPaymentsList .pending-flat-amount {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
   margin: 0 !important;
   color: #39744b !important;
   font-size: 17px !important;
@@ -12242,7 +12242,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-action,
-#pendingPaymentsList .pending-flat-action {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
   margin: 0 !important;
   min-width: 92px !important;
   height: 44px !important;
@@ -12259,7 +12259,7 @@ button.settle-payable-button {
   color: #ffffff !important;
 }
 
-#pendingPaymentsList .pending-review-action {
+#pendingPaymentsList, #groupPendingPaymentsList .pending-review-action {
   background: #e6f0e0 !important;
   border: 1px solid #e6f0e0 !important;
   color: #39744b !important;
@@ -12267,29 +12267,29 @@ button.settle-payable-button {
 
 @media (max-width: 600px) {
   #pendingPayablesList,
-  #pendingPaymentsList {
+  #pendingPaymentsList, #groupPendingPaymentsList {
     padding: 6px 14px !important;
     border-radius: 20px !important;
   }
 
   #pendingPayablesList .pending-flat-row,
-  #pendingPaymentsList .pending-flat-row {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
     gap: 9px !important;
     padding: 12px 0 !important;
   }
 
   #pendingPayablesList .pending-flat-label,
-  #pendingPaymentsList .pending-flat-label {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
     font-size: 14px !important;
   }
 
   #pendingPayablesList .pending-flat-amount,
-  #pendingPaymentsList .pending-flat-amount {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
     font-size: 15px !important;
   }
 
   #pendingPayablesList .pending-flat-action,
-  #pendingPaymentsList .pending-flat-action {
+  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
     min-width: 82px !important;
     height: 42px !important;
     padding: 0 12px !important;
@@ -13820,5 +13820,52 @@ h3 {
 /* Space between Badges and OweMe Points */
 .insights-points-card {
   margin-top: 18px;
+}
+
+
+
+/* Group page — darker Share icon */
+.group-top-actions .group-share-button,
+.group-top-actions button[onclick*="share"],
+.group-top-actions .share-button {
+  color: #193A27 !important;
+}
+
+.group-top-actions .group-share-button svg,
+.group-top-actions button[onclick*="share"] svg,
+.group-top-actions .share-button svg {
+  color: #193A27 !important;
+  stroke: #193A27 !important;
+}
+
+/* Payment Details — tighten space above action icons */
+#paymentDetailsList .payment-detail-card {
+  padding-bottom: 8px !important;
+}
+
+#paymentDetailsList .payment-detail-actions {
+  margin-top: 0 !important;
+  padding-top: 4px !important;
+}
+
+#paymentDetailsList .payment-detail-info {
+  gap: 0 !important;
+}
+
+#paymentDetailsList .payment-detail-row {
+  margin-bottom: 0 !important;
+}
+
+
+/* Payment Details — remove gap between account number and action icons */
+#paymentDetailsList > div > div > div:last-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+#paymentDetailsList .payment-detail-actions {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  gap: 2px !important;
 }
 

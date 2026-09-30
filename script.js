@@ -4228,6 +4228,70 @@ async function loadGroupsData(force = false) {
 
 
     /*
+     * Apply confirmed payments to the original obligations.
+     *
+     * Example:
+     *   You are owed ₱1,000
+     *   They already paid ₱400
+     *   Remaining receivable = ₱600
+     *
+     * Payments are applied in the same direction as
+     * the original obligation.
+     */
+
+    const paidByDirection = {};
+
+    (paymentRows || []).forEach(payment => {
+
+      const amountPaid =
+        Number(payment.amount_paid || 0);
+
+      if (amountPaid <= 0) {
+        return;
+      }
+
+      const payerId =
+        String(payment.payer_user_id);
+
+      const recipientId =
+        String(payment.recipient_user_id);
+
+      const key =
+        `${payerId}|${recipientId}`;
+
+      if (!paidByDirection[key]) {
+        paidByDirection[key] = 0;
+      }
+
+      paidByDirection[key] += amountPaid;
+
+    });
+
+
+    Object.values(obligations)
+      .forEach(obligation => {
+
+        const key =
+          `${String(obligation.fromUserId)}|${String(obligation.toUserId)}`;
+
+        const paidAmount =
+          Number(paidByDirection[key] || 0);
+
+        obligation.amount =
+          Math.max(
+            0,
+            Math.round(
+              (
+                Number(obligation.amount || 0) -
+                paidAmount
+              ) * 100
+            ) / 100
+          );
+
+      });
+
+
+    /*
      * Build reciprocal pairs.
      */
 
@@ -5900,7 +5964,7 @@ async function confirmCloseGroup() {
 
   if (outstandingAmount > 0.009) {
     toast(
-      `This group still has ${formatMoney(outstandingAmount)} outstanding.`
+      `This group can't be closed because it still has ${formatMoney(outstandingAmount)} outstanding.`
     );
     return;
   }
@@ -6152,7 +6216,7 @@ async function closeCurrentGroup() {
 
   if (outstandingAmount > 0.009) {
     toast(
-      `This group still has ${formatMoney(outstandingAmount)} outstanding.`
+      `This group can't be closed because it still has ${formatMoney(outstandingAmount)} outstanding.`
     );
     return;
   }
@@ -15595,12 +15659,20 @@ async function openNudgeConfirmation(settlementId) {
       .filter(p => p.status === "SUBMITTED")
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
-    const remaining = Math.max(
-      0,
-      Number(settlement.amount || 0) - confirmed
-    );
+    /*
+     * loadCurrentSettlements() already returns the
+     * remaining amount after confirmed and submitted
+     * payments have been deducted.
+     *
+     * Do not subtract payments again here.
+     */
+    const remaining =
+      Math.max(
+        0,
+        Number(settlement.amount || 0)
+      );
 
-    const availableToNudge = Math.max(0, remaining - pending);
+    const availableToNudge = remaining;
 
     if (remaining < 0.01) {
       toast("This receivable is already settled.");
@@ -15710,14 +15782,15 @@ async function sendNudge(settlementId) {
 
     if (paymentError) throw paymentError;
 
-    const unavailable = (payments || [])
-      .reduce(
-        (sum, payment) => sum + Number(payment.amount_paid || 0),
-        0
-      );
-
+    /*
+     * loadCurrentSettlements() already returns the
+     * amount still available after payments.
+     */
     const amountToNudge =
-      Number(settlement.amount || 0) - unavailable;
+      Math.max(
+        0,
+        Number(settlement.amount || 0)
+      );
 
     if (amountToNudge < 0.01) {
       throw new Error(
@@ -15736,9 +15809,43 @@ async function sendNudge(settlementId) {
     if (error) throw error;
 
     await loadNotificationCount();
-    await openReceivables();
 
-    toast("Nudge sent successfully!");
+    openModal(`
+      <div style="text-align:center;padding:12px 4px 4px;">
+
+        <div
+          style="
+            width:64px;
+            height:64px;
+            margin:0 auto 18px;
+            border-radius:50%;
+            background:var(--soft-green);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:30px;
+          "
+        >
+          ✓
+        </div>
+
+        <h2>Nudge Sent</h2>
+
+        <p class="muted">
+          Your payment reminder has been sent successfully.
+        </p>
+
+        <button
+          type="button"
+          class="primary-button"
+          style="margin-top:18px;width:100%;"
+          onclick="openReceivables()"
+        >
+          Back to Receivables
+        </button>
+
+      </div>
+    `);
 
   } catch (error) {
     toast(error.message || "Unable to send nudge.");
@@ -16069,48 +16176,18 @@ async function createSettlementPayMeLink(settlementId) {
       throw new Error("You can only create a PayMe link for money owed to you.");
     }
 
-    const { data: paymentRows, error: paymentError } =
-      await supabaseClient
-        .from("payment_submissions")
-        .select("*")
-        .eq("settlement_id", settlement.settlementId)
-        .eq("payer_user_id", settlement.fromUserId)
-        .in("status", ["CONFIRMED", "SUBMITTED"]);
+    /*
+     * loadCurrentSettlements() already returns the
+     * payment-adjusted remaining settlement amount.
+     *
+     * Do NOT subtract payment submissions again here.
+     */
 
-    if (paymentError) {
-      throw paymentError;
-    }
-
-    const confirmedPaid = (paymentRows || [])
-      .filter(
-        payment =>
-          String(payment.status).toUpperCase() ===
-          "CONFIRMED"
-      )
-      .reduce(
-        (total, payment) =>
-          total + Number(payment.amount_paid || 0),
-        0
+    const remainingAmount =
+      Math.max(
+        0,
+        Number(settlement.amount || 0)
       );
-
-    const pendingPaid = (paymentRows || [])
-      .filter(
-        payment =>
-          String(payment.status).toUpperCase() ===
-          "SUBMITTED"
-      )
-      .reduce(
-        (total, payment) =>
-          total + Number(payment.amount_paid || 0),
-        0
-      );
-
-    const remainingAmount = Math.max(
-      0,
-      Number(settlement.amount || 0) -
-        confirmedPaid -
-        pendingPaid
-    );
 
     if (remainingAmount <= 0.009) {
       throw new Error(
