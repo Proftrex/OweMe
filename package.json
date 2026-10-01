@@ -1,0 +1,29 @@
+{
+  "name": "oweme",
+  "version": "1.0.0",
+  "description": "Expense tracker for fair sharing among groups.",
+  "main": "script.js",
+  "scripts": {
+    "build:web": "node build-web.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Proftrex/OweMe.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Proftrex/OweMe/issues"
+  },
+  "homepage": "https://github.com/Proftrex/OweMe#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}
