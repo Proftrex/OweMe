@@ -16071,76 +16071,150 @@ async function openNudgeConfirmation(settlementId) {
 
     if (error) throw error;
 
-    const confirmed = (payments || [])
-      .filter(p => p.status === "CONFIRMED")
-      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-
     const pending = (payments || [])
       .filter(p => p.status === "SUBMITTED")
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
-    /*
-     * loadCurrentSettlements() already returns the
-     * remaining amount after confirmed and submitted
-     * payments have been deducted.
-     *
-     * Do not subtract payments again here.
-     */
-    const remaining =
-      Math.max(
-        0,
-        Number(settlement.amount || 0)
-      );
-
-    const availableToNudge = remaining;
+    const remaining = Math.max(
+      0,
+      Number(settlement.amount || 0)
+    );
 
     if (remaining < 0.01) {
       toast("This receivable is already settled.");
       return;
     }
 
-    if (availableToNudge < 0.01) {
-      toast("The remaining amount is awaiting payment approval.");
-      return;
-    }
+    window.currentNudgeDraft = {
+      settlementId: settlement.settlementId,
+      recipientName:
+        settlement.fromDisplayName ||
+        settlement.fromUsername ||
+        "there",
+      amount: remaining
+    };
 
-    const username = escapeHtml(settlement.fromUsername);
+    const name = escapeHtml(
+      settlement.fromDisplayName ||
+      settlement.fromUsername ||
+      "Unknown"
+    );
+
+    const amount = formatMoney(remaining);
 
     openModal(`
-      <h2>Nudge ${escapeHtml(settlement.fromDisplayName || settlement.fromUsername || "Unknown")}</h2>
+      <h2>Nudge ${name}</h2>
 
       <p class="muted">
-        Send a friendly payment reminder?
+        Pick a Nudge 😂
       </p>
 
-      <div class="card">
-        <div class="user-name">${escapeHtml(settlement.fromDisplayName || settlement.fromUsername || "Unknown")}</div>
-        <div style="margin-top: 8px;">
-          Outstanding: <strong>${formatMoney(remaining)}</strong>
-        </div>
-        ${
-          pending > 0
-            ? `
-              <div class="muted" style="margin-top: 6px;">
-                Awaiting approval: ${formatMoney(pending)}
-              </div>
-            `
-            : ""
-        }
-        <div style="margin-top: 8px;">
-          Reminder amount:
-          <strong>${formatMoney(availableToNudge)}</strong>
-        </div>
+      <div
+        class="nudge-options"
+        style="
+          display:flex;
+          flex-direction:column;
+          gap:10px;
+          margin-top:16px;
+        "
+      >
+
+        <button
+          type="button"
+          class="nudge-option"
+          onclick="selectNudgeTemplate('forgotten')"
+          style="
+            width:100%;
+            text-align:left;
+            padding:14px;
+            border:1px solid var(--border-color, #dfe7dc);
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+          "
+        >
+          <strong>😂 Baka Nakalimutan Mo</strong>
+          <div class="muted" style="margin-top:5px;">
+            Uy ${name}, baka nakalimutan mo na may utang kang ${amount} 😌 OweMe remembers.
+          </div>
+        </button>
+
+        <button
+          type="button"
+          class="nudge-option"
+          onclick="selectNudgeTemplate('pressure')"
+          style="
+            width:100%;
+            text-align:left;
+            padding:14px;
+            border:1px solid var(--border-color, #dfe7dc);
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+          "
+        >
+          <strong>🥲 No Pressure</strong>
+          <div class="muted" style="margin-top:5px;">
+            Hi ${name}! No pressure… pero yung ${amount} ko may pressure na. 🥲
+          </div>
+        </button>
+
+        <button
+          type="button"
+          class="nudge-option"
+          onclick="selectNudgeTemplate('relationship')"
+          style="
+            width:100%;
+            text-align:left;
+            padding:14px;
+            border:1px solid var(--border-color, #dfe7dc);
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+          "
+        >
+          <strong>😭 Relationship</strong>
+          <div class="muted" style="margin-top:5px;">
+            Uy ${name}, yung ${amount} mo parang relationship natin—ang tagal nang walang progress. 😭
+          </div>
+        </button>
+
+        <button
+          type="button"
+          class="nudge-option"
+          onclick="openCustomNudge()"
+          style="
+            width:100%;
+            text-align:left;
+            padding:14px;
+            border:1px solid var(--border-color, #dfe7dc);
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+          "
+        >
+          <strong>✍️ Custom</strong>
+          <div class="muted" style="margin-top:5px;">
+            Write your own message
+          </div>
+        </button>
+
       </div>
 
-      <p class="muted" style="margin-top: 14px;">
-        Your group member will receive a notification
-        reminding them about this payment.
-      </p>
+      ${
+        pending > 0
+          ? `
+            <div class="muted" style="margin-top:14px;">
+              Awaiting approval: ${formatMoney(pending)}
+            </div>
+          `
+          : ""
+      }
 
-      <div class="close-group-confirmation-actions"
-           style="margin-top: 20px;">
-
+      <div
+        class="close-group-confirmation-actions"
+        style="margin-top:20px;"
+      >
         <button
           type="button"
           class="secondary-button"
@@ -16148,16 +16222,6 @@ async function openNudgeConfirmation(settlementId) {
         >
           Cancel
         </button>
-
-        <button
-          type="button"
-          class="small-button nudge-button"
-          id="confirmNudgeButton"
-          onclick="sendNudge('${settlement.settlementId}')"
-        >
-          Send Nudge
-        </button>
-
       </div>
     `);
 
@@ -16166,6 +16230,170 @@ async function openNudgeConfirmation(settlementId) {
   } finally {
     setLoading(false);
   }
+}
+
+
+function selectNudgeTemplate(type) {
+  const draft = window.currentNudgeDraft;
+
+  if (!draft) {
+    toast("Nudge information is no longer available.");
+    return;
+  }
+
+  const templates = {
+    forgotten:
+      "Uy {name}, baka nakalimutan mo na may utang kang {amount} 😌 OweMe remembers.",
+
+    pressure:
+      "Hi {name}! No pressure… pero yung {amount} ko may pressure na. 🥲",
+
+    relationship:
+      "Uy {name}, yung {amount} mo parang relationship natin—ang tagal nang walang progress. 😭"
+  };
+
+  const template = templates[type];
+
+  if (!template) {
+    toast("Nudge template not found.");
+    return;
+  }
+
+  const message = template
+    .replaceAll("{name}", draft.recipientName)
+    .replaceAll("{amount}", formatMoney(draft.amount));
+
+  showNudgePreview(message);
+}
+
+
+function openCustomNudge() {
+  const draft = window.currentNudgeDraft;
+
+  if (!draft) {
+    toast("Nudge information is no longer available.");
+    return;
+  }
+
+  openModal(`
+    <h2>Nudge ${escapeHtml(draft.recipientName)}</h2>
+
+    <p class="muted">
+      Write your own message ✍️
+    </p>
+
+    <textarea
+      id="customNudgeMessage"
+      maxlength="300"
+      placeholder="Type your message here..."
+      style="
+        width:100%;
+        min-height:120px;
+        resize:vertical;
+        margin-top:12px;
+      "
+    ></textarea>
+
+    <div
+      class="muted"
+      style="margin-top:6px;text-align:right;"
+    >
+      Maximum 300 characters
+    </div>
+
+    <div
+      class="close-group-confirmation-actions"
+      style="margin-top:20px;"
+    >
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="openNudgeConfirmation('${escapeHtml(draft.settlementId)}')"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        class="small-button nudge-button"
+        onclick="sendCustomNudge()"
+      >
+        Preview
+      </button>
+    </div>
+  `);
+}
+
+
+function sendCustomNudge() {
+  const draft = window.currentNudgeDraft;
+  const input = document.getElementById("customNudgeMessage");
+
+  if (!draft || !input) {
+    toast("Nudge information is no longer available.");
+    return;
+  }
+
+  const message = input.value.trim();
+
+  if (!message) {
+    toast("Please write a message first.");
+    return;
+  }
+
+  showNudgePreview(message);
+}
+
+
+function showNudgePreview(message) {
+  const draft = window.currentNudgeDraft;
+
+  if (!draft) {
+    toast("Nudge information is no longer available.");
+    return;
+  }
+
+  window.currentNudgeDraft.message = message;
+
+  openModal(`
+    <h2>Nudge ${escapeHtml(draft.recipientName)}</h2>
+
+    <p class="muted">
+      Your message
+    </p>
+
+    <div
+      class="card"
+      style="
+        margin-top:12px;
+        line-height:1.5;
+      "
+    >
+      ${escapeHtml(message)}
+    </div>
+
+    <div
+      class="close-group-confirmation-actions"
+      style="margin-top:20px;"
+    >
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="openNudgeConfirmation('${escapeHtml(draft.settlementId)}')"
+      >
+        Change Nudge
+      </button>
+
+      <button
+        type="button"
+        class="small-button nudge-button"
+        id="confirmNudgeButton"
+        onclick="sendNudge('${escapeHtml(draft.settlementId)}')"
+      >
+        Send Nudge
+      </button>
+    </div>
+  `);
 }
 
 
@@ -16218,12 +16446,16 @@ async function sendNudge(settlementId) {
       );
     }
 
+    const nudgeMessage =
+      window.currentNudgeDraft?.message?.trim() || "";
+
     const { error } = await supabaseClient
       .from("nudges")
       .insert({
         settlement_id: settlement.settlementId,
         sender_user_id: state.user.userId,
-        recipient_user_id: settlement.fromUserId
+        recipient_user_id: settlement.fromUserId,
+        message: nudgeMessage
       });
 
     if (error) throw error;
@@ -16233,23 +16465,24 @@ async function sendNudge(settlementId) {
     openModal(`
       <div style="text-align:center;padding:12px 4px 4px;">
 
-        <div
+        <h2
           style="
-            width:64px;
-            height:64px;
-            margin:0 auto 18px;
-            border-radius:50%;
-            background:var(--soft-green);
             display:flex;
             align-items:center;
             justify-content:center;
-            font-size:30px;
+            gap:10px;
           "
         >
-          ✓
-        </div>
-
-        <h2>Nudge Sent</h2>
+          <span
+            style="
+              color:var(--primary-dark);
+              font-size:32px;
+              line-height:1;
+              font-weight:700;
+            "
+          >✓</span>
+          <span>Nudge Sent</span>
+        </h2>
 
         <p class="muted">
           Your payment reminder has been sent successfully.
