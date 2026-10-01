@@ -1,0 +1,332 @@
+/* =====================================================
+   OWIE AI ASSISTANT — STEP 1 UI
+   Character shell only. No AI/data logic yet.
+   ===================================================== */
+
+#owieAssistant {
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--nav-height, 76px) + 18px);
+  z-index: 70;
+  font-family: inherit;
+}
+
+#owieLauncher {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: var(--card, #fffef8);
+  box-shadow: 0 10px 28px rgba(38, 68, 58, 0.20);
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+#owieLauncher:hover {
+  transform: translateY(-3px) rotate(-2deg);
+  box-shadow: 0 14px 32px rgba(38, 68, 58, 0.24);
+}
+
+#owieLauncher:active {
+  transform: translateY(1px) scale(.98);
+}
+
+#owieLauncher .owie-mini-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+#owieLauncher .owie-mini-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+#owieLauncher .owie-mini-face {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.owie-face-eye,
+.owie-face-mouth,
+.owie-face-cheek {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.owie-mini-face .owie-face-eye {
+  width: 5px;
+  height: 7px;
+  top: 38%;
+  background: #17352a;
+  border-radius: 50%;
+}
+
+.owie-mini-face .owie-face-eye.left { left: 38%; }
+.owie-mini-face .owie-face-eye.right { right: 38%; }
+
+.owie-mini-face .owie-face-mouth {
+  width: 8px;
+  height: 5px;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%);
+  border-bottom: 2px solid #17352a;
+  border-radius: 0 0 10px 10px;
+}
+
+.owie-mini-face .owie-face-cheek {
+  width: 5px;
+  height: 3px;
+  top: 49%;
+  border-radius: 50%;
+  background: #ef8f7f;
+  opacity: .8;
+}
+
+.owie-mini-face .owie-face-cheek.left { left: 30%; }
+.owie-mini-face .owie-face-cheek.right { right: 30%; }
+
+#owieLauncher::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  right: 2px;
+  top: 1px;
+  border-radius: 50%;
+  background: var(--yellow, #f3d66b);
+  border: 3px solid var(--card, #fffef8);
+  box-sizing: content-box;
+}
+
+#owiePanel {
+  position: absolute;
+  right: 0;
+  bottom: 76px;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(620px, calc(100vh - 150px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card, #fffef8);
+  border: 1px solid var(--border, #dce9df);
+  border-radius: 26px;
+  box-shadow: 0 18px 50px rgba(38, 68, 58, 0.22);
+  transform-origin: bottom right;
+  animation: owiePanelIn .18s ease-out;
+}
+
+@keyframes owiePanelIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.owie-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 16px;
+  background: var(--primary-soft, #e5f3ea);
+  border-bottom: 1px solid var(--border, #dce9df);
+}
+
+.owie-panel-avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  position: relative;
+}
+
+.owie-panel-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.owie-panel-avatar .owie-face-eye {
+  width: 5px;
+  height: 7px;
+  top: 37%;
+  background: #17352a;
+  border-radius: 50%;
+}
+
+.owie-panel-avatar .owie-face-eye.left { left: 36%; }
+.owie-panel-avatar .owie-face-eye.right { right: 36%; }
+
+.owie-panel-avatar .owie-face-mouth {
+  width: 9px;
+  height: 6px;
+  left: 50%;
+  top: 49%;
+  transform: translateX(-50%);
+  border-bottom: 2px solid #17352a;
+  border-radius: 0 0 10px 10px;
+}
+
+.owie-panel-avatar .owie-face-cheek {
+  width: 6px;
+  height: 4px;
+  top: 48%;
+  border-radius: 50%;
+  background: #ef8f7f;
+  opacity: .8;
+}
+
+.owie-panel-avatar .owie-face-cheek.left { left: 28%; }
+.owie-panel-avatar .owie-face-cheek.right { right: 28%; }
+
+.owie-panel-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.owie-panel-heading strong {
+  display: block;
+  color: var(--text, #26443a);
+  font-size: 17px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.owie-panel-heading span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted, #6f8279);
+  font-size: 12px;
+}
+
+#owieClose {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.72);
+  color: var(--text, #26443a);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.owie-panel-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.owie-greeting {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.owie-message {
+  max-width: 88%;
+  padding: 11px 13px;
+  background: var(--primary-soft, #e5f3ea);
+  color: var(--text, #26443a);
+  border-radius: 16px 16px 16px 5px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.owie-message strong {
+  font-weight: 900;
+}
+
+.owie-quick-title {
+  margin: 18px 0 9px;
+  color: var(--muted, #6f8279);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.owie-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.owie-quick-action {
+  padding: 9px 11px;
+  background: #fff;
+  border: 1px solid var(--border, #dce9df);
+  border-radius: 13px;
+  color: var(--text, #26443a);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.owie-quick-action:hover {
+  background: var(--primary-soft, #e5f3ea);
+  color: var(--primary-dark, #4e9277);
+}
+
+.owie-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--border, #dce9df);
+  background: var(--card-soft, #f8fbf7);
+}
+
+#owieInput {
+  min-width: 0;
+  flex: 1;
+  height: 42px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  border: 1px solid var(--border, #dce9df);
+  background: #fff;
+  font-size: 14px;
+}
+
+#owieSend {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  flex: 0 0 42px;
+  border-radius: 13px;
+  background: var(--primary-dark, #4e9277);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.owie-coming-soon {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  #owieAssistant {
+    right: 14px;
+    bottom: calc(var(--nav-height, 76px) + 14px);
+  }
+
+  #owieLauncher {
+    width: 60px;
+    height: 60px;
+    border-radius: 20px;
+  }
+
+  #owiePanel {
+    right: -2px;
+    bottom: 72px;
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100vh - 138px);
+    border-radius: 23px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #owiePanel {
+    animation: none;
+  }
+}
