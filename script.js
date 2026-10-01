@@ -13772,14 +13772,19 @@ async function renderProfile() {
 
         <div class="profile-account-details">
 
-          <div>
+          <div class="profile-identity-row">
             <strong>Display Name:</strong>
-            ${escapeHtml(state.user.displayName || "Member")}
+            <span>${escapeHtml(state.user.displayName || "Member")}</span>
           </div>
 
-          <div>
-            <strong>Email:</strong>
-            ${escapeHtml(state.user.email)}
+          <div class="profile-identity-row">
+            <strong>Username:</strong>
+            <span>@${escapeHtml(state.user.username || "")}</span>
+          </div>
+
+          <div class="profile-identity-row">
+            <strong>Email Address:</strong>
+            <span>${escapeHtml(state.user.email)}</span>
           </div>
 
           </div>
@@ -17018,53 +17023,125 @@ function closeInsightBadgeModal() {
 }
 
 
+let owemeBadgeShareInProgress = false;
+
 async function shareInsightBadgeMessage(
   badgeKey
 ) {
+
+  if (owemeBadgeShareInProgress) {
+    return;
+  }
+
+  owemeBadgeShareInProgress = true;
 
   const badge =
     getInsightBadgeData(badgeKey);
 
   if (!badge) return;
 
-  const username =
-    state.user?.username ||
-    state.user?.displayName ||
-    "An OweMe user";
+  const card =
+    document.querySelector(
+      "#insightBadgeCongratulationsModal .oweme-badge-modal-card"
+    );
 
-  const shareText =
-`${badge.shareText}
-
-— ${username}`;
+  if (!card) {
+    toast("Badge card is not ready yet.");
+    return;
+  }
 
   try {
 
-    if (navigator.share) {
+    /* Load html2canvas only when needed */
+    if (!window.html2canvas) {
+
+      await new Promise((resolve, reject) => {
+
+        const script =
+          document.createElement("script");
+
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+
+        script.onload = resolve;
+        script.onerror = reject;
+
+        document.head.appendChild(script);
+
+      });
+
+    }
+
+    /* Capture the actual badge card */
+    const canvas =
+      await html2canvas(card, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+    const blob =
+      await new Promise(resolve =>
+        canvas.toBlob(
+          resolve,
+          "image/png"
+        )
+      );
+
+    if (!blob) {
+      throw new Error(
+        "Could not create badge image."
+      );
+    }
+
+    const file =
+      new File(
+        [blob],
+        `OweMe-${badge.name.replace(/[^a-z0-9]+/gi, "-")}-Badge.png`,
+        {
+          type: "image/png"
+        }
+      );
+
+    /* Share the actual image */
+    if (
+      navigator.share &&
+      (!navigator.canShare ||
+        navigator.canShare({
+          files: [file]
+        }))
+    ) {
 
       await navigator.share({
         title:
-          `OweMe — ${badge.name}`,
-        text:
-          shareText
+          `OweMe — ${badge.name} Badge`,
+        files: [file]
       });
 
       return;
     }
 
-    if (navigator.clipboard) {
+    /* Browser fallback */
+    const imageUrl =
+      URL.createObjectURL(blob);
 
-      await navigator.clipboard.writeText(
-        shareText
-      );
+    const link =
+      document.createElement("a");
 
-      toast(
-        "Badge share message copied!"
-      );
+    link.href = imageUrl;
+    link.download =
+      `OweMe-${badge.name.replace(/[^a-z0-9]+/gi, "-")}-Badge.png`;
 
-      return;
-    }
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-    alert(shareText);
+    setTimeout(() => {
+      URL.revokeObjectURL(imageUrl);
+    }, 1000);
+
+    toast("Badge image created.");
 
   } catch (error) {
 
@@ -17076,6 +17153,14 @@ async function shareInsightBadgeMessage(
       "SHARE BADGE ERROR:",
       error
     );
+
+    toast(
+      "Unable to create badge image."
+    );
+
+  } finally {
+
+    owemeBadgeShareInProgress = false;
 
   }
 

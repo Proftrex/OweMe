@@ -14222,3 +14222,147 @@ body.oweme-badge-modal-open {
   display: none !important;
 }
 
+
+/* Profile username shown below display name */
+.profile-username {
+  margin-top: 4px;
+  margin-left: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+
+/* Profile username shown below display name */
+.profile-username {
+  margin-top: 4px;
+  margin-left: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+
+/* Tighten profile account identity spacing */
+.profile-account-details .profile-display-name-row {
+  margin-bottom: 2px;
+}
+
+.profile-account-details .profile-username {
+  margin-top: 0;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.profile-account-details .profile-username + div {
+  margin-top: 0;
+}
+
+
+/* Tighten Display Name / Username / Email spacing */
+.profile-account-details {
+  gap: 0 !important;
+}
+
+.profile-account-details .profile-display-name-row {
+  margin: 0 0 2px 0 !important;
+  line-height: 1.35;
+}
+
+.profile-account-details .profile-username {
+  margin: 0 0 5px 0 !important;
+  line-height: 1.2;
+}
+
+.profile-account-details .profile-username + div {
+  margin: 0 !important;
+  line-height: 1.35;
+}
+
+
+/* PayMe Link action buttons — equal size and closer together */
+.payme-link-actions {
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+.payme-link-actions > button {
+  flex: 1 1 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+
+/* Profile identity — uniform label and value styling */
+.profile-account-details .profile-identity-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 !important;
+  line-height: 1.35;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.profile-account-details .profile-identity-row strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.profile-account-details .profile-identity-row span {
+  font-weight: 500;
+  color: var(--text);
+}
+
+
+/* Restore compact My Account text sizing */
+.profile-account-details {
+  gap: 4px !important;
+}
+
+.profile-account-details > div {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 500 !important;
+}
+
+.profile-account-details > div strong {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.profile-username {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 500 !important;
+  margin-top: 0 !important;
+  color: var(--muted) !important;
+}
+
+
+/* Remove the extra vertical space between account info and action icons */
+.payment-detail-content {
+  gap: 0 !important;
+}
+
+.payment-detail-actions {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  gap: 0 !important;
+}
+
+/* Keep the action icons close to the account number */
+.payment-detail-info {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.payment-detail-row:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
