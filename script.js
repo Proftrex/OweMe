@@ -10341,38 +10341,15 @@ async function loadPendingPayables() {
 
   try {
 
-    const { data: settlements, error } =
-      await supabaseClient
-        .from("settlements")
-        .select(`
-          id,
-          group_id,
-          from_user_id,
-          to_user_id,
-          amount,
-          status
-        `)
-        .eq(
-          "group_id",
-          state.currentGroup.group.groupId
-        )
-        .eq(
-          "from_user_id",
-          state.user.userId
-        )
-        .eq(
-          "status",
-          "UNPAID"
-        )
-        .order("created_at", {
-          ascending: true
-        });
+    const settlements =
+      await loadCurrentSettlements();
 
-    if (error) {
-      throw error;
-    }
-
-    const rows = settlements || [];
+    const rows =
+      settlements.filter(item =>
+        String(item.fromUserId) ===
+          String(state.user.userId) &&
+        Number(item.amount || 0) > 0
+      );
 
     if (!rows.length) {
 
@@ -10384,28 +10361,6 @@ async function loadPendingPayables() {
 
       return;
     }
-
-    const membersResult =
-      await supabaseClient.rpc(
-        "get_group_members",
-        {
-          lookup_group_id:
-            state.currentGroup.group.groupId
-        }
-      );
-
-    if (membersResult.error) {
-      throw membersResult.error;
-    }
-
-    const memberMap = {};
-
-    (membersResult.data || []).forEach(member => {
-
-      memberMap[String(member.user_id)] =
-        member.display_name || "";
-
-    });
 
     container.innerHTML =
       rows.map(item => `
@@ -10423,7 +10378,7 @@ async function loadPendingPayables() {
           <button
             type="button"
             class="pending-flat-action pending-settle-action"
-            onclick="openSettlePayment('${escapeHtml(item.id)}')"
+            onclick="openSettlePayment('${escapeHtml(item.settlementId)}')"
           >
             Settle
           </button>
@@ -11693,6 +11648,66 @@ function renderSettlement(item) {
 }
 
 
+function copySettlementAccountNumber(button) {
+
+  const accountNumber =
+    button?.dataset?.accountNumber || "";
+
+  if (!accountNumber) {
+    toast("Account number unavailable.");
+    return;
+  }
+
+  navigator.clipboard
+    .writeText(accountNumber)
+    .then(() => {
+
+      const originalHtml = button.innerHTML;
+
+      button.innerHTML = `
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M5 12.5 9.5 17 19 7.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      `;
+
+      button.classList.add("copied");
+
+      toast("Account number copied.");
+
+      setTimeout(() => {
+
+        if (button.isConnected) {
+          button.innerHTML = originalHtml;
+          button.classList.remove("copied");
+        }
+
+      }, 1500);
+
+    })
+    .catch(error => {
+
+      console.error(
+        "COPY ACCOUNT NUMBER ERROR:",
+        error
+      );
+
+      toast("Unable to copy account number.");
+
+    });
+
+}
+
+
 async function openSettlePayment(settlementId) {
 
   if (
@@ -11943,9 +11958,43 @@ async function openSettlePayment(settlementId) {
                         ${
                           detail.accountNumber
                             ? `
-                              <div class="muted">
-                                <strong>Account Number:</strong>
-                                ${escapeHtml(detail.accountNumber)}
+                              <div class="settle-account-number-row">
+                                <div class="muted settle-account-number">
+                                  <strong>Account Number:</strong>
+                                  <span>${escapeHtml(detail.accountNumber)}</span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  class="settle-copy-account-button"
+                                  data-account-number="${escapeHtml(detail.accountNumber)}"
+                                  onclick="copySettlementAccountNumber(this)"
+                                  aria-label="Copy account number"
+                                  title="Copy account number"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                  >
+                                    <rect
+                                      x="8"
+                                      y="8"
+                                      width="11"
+                                      height="11"
+                                      rx="2"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                    />
+                                    <path
+                                      d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      stroke-linecap="round"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
                             `
                             : ""
@@ -11978,17 +12027,23 @@ async function openSettlePayment(settlementId) {
                         ${
                           detail.qrDisplayUrl
                             ? `
-                              <a
-                                href="${escapeHtml(
-                                  detail.qrDisplayUrl
-                                )}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="secondary-button settle-payment-qr-button"
-                                style="text-decoration:none;"
-                              >
-                                View QR Code
-                              </a>
+                              <div class="settle-payment-qr">
+                                <div class="muted settle-payment-qr-label">
+                                  Payment QR Code
+                                </div>
+
+                                <a
+                                  href="${escapeHtml(detail.qrDisplayUrl)}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <img
+                                    src="${escapeHtml(detail.qrDisplayUrl)}"
+                                    alt="Payment QR Code"
+                                    class="settle-payment-qr-image"
+                                  >
+                                </a>
+                              </div>
                             `
                             : ""
                         }
