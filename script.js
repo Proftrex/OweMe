@@ -16424,22 +16424,11 @@ async function createPayMeLink(paymentDetailId) {
         ${
           detail.accountNumber
             ? `
-              <div
-                class="muted"
-                style="margin-top:12px;"
-              >
+              <div class="payme-account-label">
                 Account Number
               </div>
 
-              <div
-                style="
-                  display:flex;
-                  align-items:center;
-                  justify-content:space-between;
-                  gap:10px;
-                  margin-top:4px;
-                "
-              >
+              <div class="payme-account-number-row">
                 <strong
                   style="
                     min-width:0;
@@ -16761,30 +16750,12 @@ async function createSettlementPayMeLink(settlementId) {
         ${
           detail.accountNumber
             ? `
-              <div
-                class="muted"
-                style="margin-top:12px;"
-              >
+              <div class="payme-account-label">
                 Account Number
               </div>
 
-              <div
-                style="
-                  display:flex;
-                  align-items:center;
-                  justify-content:space-between;
-                  gap:10px;
-                  margin-top:4px;
-                "
-              >
-                <strong
-                  style="
-                    min-width:0;
-                    overflow:hidden;
-                    text-overflow:ellipsis;
-                    white-space:nowrap;
-                  "
-                >
+              <div class="payme-account-number-row">
+                <strong>
                   ${escapeHtml(detail.accountNumber)}
                 </strong>
 
@@ -16836,13 +16807,6 @@ async function createSettlementPayMeLink(settlementId) {
             `
             : ""
         }
-
-        <div
-          class="muted"
-          style="margin-top:12px;"
-        >
-          QR Code
-        </div>
 
         ${
           qrImageDataUrl

@@ -14439,3 +14439,89 @@ body.oweme-badge-modal-open {
   margin-bottom: 18px !important;
 }
 
+
+/* PayMe — keep account number and copy button on the same line */
+.payme-link-card .payme-account-number-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.payme-link-card .payme-account-number-row > strong {
+  flex: 0 1 auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+}
+
+.payme-link-card .payme-account-number-row > button {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  margin: 0 !important;
+}
+
+
+/* PayMe — small gap between payment method and account number */
+.payme-link-card .payme-account-label {
+  margin-top: 8px !important;
+}
+
+
+/* PayMe — tighten Account Number to the account value */
+.payme-link-card .payme-account-label {
+  margin-bottom: 2px !important;
+  line-height: 1.2 !important;
+}
+
+.payme-link-card .payme-account-number-row {
+  margin-top: 0 !important;
+  line-height: 1.2 !important;
+}
+
+
+/* Receivables PayMe modal — keep Account Number tight to its value */
+.payme-link-card .payme-account-label {
+  margin-top: 8px !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.payme-link-card .payme-account-number-row {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+  gap: 8px !important;
+  line-height: 1.2 !important;
+  align-items: center !important;
+}
+
+.payme-link-card .payme-account-number-row strong {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.2 !important;
+}
+
+/* Receivables PayMe — match Profile PayMe account-number spacing */
+.payme-link-card .payme-account-label {
+  margin-top: 8px !important;
+  margin-bottom: -4px !important;
+  line-height: 1.2 !important;
+}
+
+.payme-link-card .payme-account-number-row {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.payme-link-card .payme-account-number-row > strong {
+  line-height: 1.2 !important;
+}
+
