@@ -3075,7 +3075,7 @@ async function loadHome(initialGroups = null, force = false) {
                   <div class="insights-milestone-points">
                     ${
                       unlocked
-                        ? "✓ Unlocked"
+                        ? `${milestone.points} XP earned`
                         : `+${milestone.points}`
                     }
                   </div>
