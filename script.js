@@ -8361,7 +8361,7 @@ function openAddExpenseModal() {
             ? (
                 previous !== undefined
                   ? previous
-                  : "0.00"
+                  : ""
               )
             : equalShare.toFixed(2);
 
@@ -12299,39 +12299,484 @@ async function openSettlePayment(settlementId) {
 }
 
 
-function preparePaymentProof(file) {
+/* =========================================================
+   PAYMENT QR CROPPER
+   ========================================================= */
 
-  return new Promise(
-    (resolve, reject) => {
+let owemeQrCropState = null;
 
-      if (!file) {
+function openPaymentQrCropper(file, input) {
 
-        reject(
-          new Error(
-            "Payment proof file is required."
-          )
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    toast("Payment QR code must be an image.");
+    input.value = "";
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    toast("Payment QR code must be 10 MB or smaller.");
+    input.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+
+    const image = new Image();
+
+    image.onload = () => {
+
+      const maxWidth = 320;
+      const maxHeight = 420;
+
+      const scale = Math.min(
+        maxWidth / image.naturalWidth,
+        maxHeight / image.naturalHeight,
+        1
+      );
+
+      owemeQrCropState = {
+        image,
+        input,
+        scale,
+        zoom: 1,
+        x: 0,
+        y: 0,
+        dragging: false,
+        startX: 0,
+        startY: 0,
+        startImageX: 0,
+        startImageY: 0
+      };
+
+      renderPaymentQrCropper();
+
+    };
+
+    image.onerror = () => {
+      toast("Unable to read the QR code image.");
+      input.value = "";
+    };
+
+    image.src = String(reader.result || "");
+
+  };
+
+  reader.onerror = () => {
+    toast("Unable to read the QR code image.");
+    input.value = "";
+  };
+
+  reader.readAsDataURL(file);
+}
+
+
+function renderPaymentQrCropper() {
+
+  const state = owemeQrCropState;
+
+  if (!state) return;
+
+  closeModal();
+
+  openModal(`
+
+    <div class="qr-crop-modal">
+
+      <h2>Adjust QR Code</h2>
+
+      <p class="muted">
+        Move and zoom the image so only the QR code is inside the square.
+      </p>
+
+      <div
+        id="qrCropViewport"
+        class="qr-crop-viewport"
+      >
+        <img
+          id="qrCropImage"
+          src="${String(state.image.src).replace(/"/g, "&quot;")}"
+          draggable="false"
+        >
+
+        <div class="qr-crop-overlay"></div>
+
+        <div class="qr-crop-frame"></div>
+
+      </div>
+
+      <div class="qr-crop-controls">
+
+        <label>
+          Zoom
+          <input
+            id="qrCropZoom"
+            type="range"
+            min="1"
+            max="3"
+            step="0.01"
+            value="1"
+          >
+        </label>
+
+      </div>
+
+      <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+          margin-top:18px;
+        "
+      >
+
+        <button
+          type="button"
+          class="secondary-button"
+          id="qrCropCancel"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          id="qrCropUse"
+        >
+          Use QR Code
+        </button>
+
+      </div>
+
+    </div>
+
+  `);
+
+  const viewport = $("#qrCropViewport");
+  const image = $("#qrCropImage");
+  const zoom = $("#qrCropZoom");
+  const cancel = $("#qrCropCancel");
+  const use = $("#qrCropUse");
+
+  if (!viewport || !image) return;
+
+  function updateImage() {
+
+    const cropSize =
+      Math.min(
+        viewport.clientWidth,
+        viewport.clientHeight
+      );
+
+    const baseScale =
+      Math.max(
+        cropSize / state.image.naturalWidth,
+        cropSize / state.image.naturalHeight
+      );
+
+    const scale =
+      baseScale * Number(state.zoom || 1);
+
+    const width =
+      state.image.naturalWidth * scale;
+
+    const height =
+      state.image.naturalHeight * scale;
+
+    const maxX =
+      Math.max(
+        0,
+        (width - cropSize) / 2
+      );
+
+    const maxY =
+      Math.max(
+        0,
+        (height - cropSize) / 2
+      );
+
+    state.x =
+      Math.max(
+        -maxX,
+        Math.min(maxX, state.x)
+      );
+
+    state.y =
+      Math.max(
+        -maxY,
+        Math.min(maxY, state.y)
+      );
+
+    image.style.width = `${width}px`;
+    image.style.height = `${height}px`;
+
+    image.style.left =
+      `calc(50% + ${state.x}px)`;
+
+    image.style.top =
+      `calc(50% + ${state.y}px)`;
+
+    image.style.transform =
+      "translate(-50%, -50%)";
+
+  }
+
+  requestAnimationFrame(updateImage);
+
+  zoom.addEventListener("input", () => {
+
+    state.zoom =
+      Number(zoom.value || 1);
+
+    updateImage();
+
+  });
+
+  viewport.addEventListener(
+    "pointerdown",
+    event => {
+
+      event.preventDefault();
+
+      state.dragging = true;
+
+      state.startX = event.clientX;
+      state.startY = event.clientY;
+
+      state.startImageX = state.x;
+      state.startImageY = state.y;
+
+      viewport.setPointerCapture(
+        event.pointerId
+      );
+
+    }
+  );
+
+  viewport.addEventListener(
+    "pointermove",
+    event => {
+
+      if (!state.dragging) return;
+
+      state.x =
+        state.startImageX +
+        (event.clientX - state.startX);
+
+      state.y =
+        state.startImageY +
+        (event.clientY - state.startY);
+
+      updateImage();
+
+    }
+  );
+
+  viewport.addEventListener(
+    "pointerup",
+    () => {
+      state.dragging = false;
+    }
+  );
+
+  viewport.addEventListener(
+    "pointercancel",
+    () => {
+      state.dragging = false;
+    }
+  );
+
+  cancel.addEventListener(
+    "click",
+    () => {
+
+      state.input.value = "";
+
+      owemeQrCropState = null;
+
+      closeModal();
+
+    }
+  );
+
+  use.addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        use.disabled = true;
+        use.textContent = "Preparing...";
+
+        const cropped =
+          await createCroppedPaymentQr();
+
+        /*
+         * Store the cropped image separately.
+         * The original file input is kept populated so
+         * existing save/update flows continue to work.
+         */
+        state.input.dataset.croppedQr =
+          cropped.base64Data;
+
+        state.input.dataset.croppedQrName =
+          cropped.fileName;
+
+        state.input.dataset.croppedQrMime =
+          cropped.mimeType;
+
+        state.input.dataset.qrCropped =
+          "true";
+
+        closeModal();
+
+        toast("QR code adjusted.");
+
+        owemeQrCropState = null;
+
+      } catch (error) {
+
+        console.error(
+          "QR CROPPER ERROR:",
+          error
         );
 
-        return;
-      }
-
-      if (file.size > 10 * 1024 * 1024) {
-
-        reject(
-          new Error(
-            "Payment proof must be 10 MB or smaller."
-          )
+        toast(
+          error?.message ||
+          "Unable to prepare QR code."
         );
 
-        return;
+        use.disabled = false;
+        use.textContent = "Use QR Code";
+
       }
 
-      const reader =
-        new FileReader();
+    }
+  );
 
-      reader.onload = () => {
+}
 
-        try {
+
+function createCroppedPaymentQr() {
+
+  return new Promise((resolve, reject) => {
+
+    const state = owemeQrCropState;
+
+    if (!state) {
+      reject(
+        new Error("QR crop session expired.")
+      );
+      return;
+    }
+
+    const viewport =
+      $("#qrCropViewport");
+
+    if (!viewport) {
+      reject(
+        new Error("QR crop area is unavailable.")
+      );
+      return;
+    }
+
+    const cropSize =
+      Math.min(
+        viewport.clientWidth,
+        viewport.clientHeight
+      );
+
+    const baseScale =
+      Math.max(
+        cropSize / state.image.naturalWidth,
+        cropSize / state.image.naturalHeight
+      );
+
+    const scale =
+      baseScale * Number(state.zoom || 1);
+
+    const displayedWidth =
+      state.image.naturalWidth * scale;
+
+    const displayedHeight =
+      state.image.naturalHeight * scale;
+
+    const imageLeft =
+      (viewport.clientWidth - displayedWidth) / 2 +
+      state.x;
+
+    const imageTop =
+      (viewport.clientHeight - displayedHeight) / 2 +
+      state.y;
+
+    const sourceX =
+      Math.max(
+        0,
+        (0 - imageLeft) / scale
+      );
+
+    const sourceY =
+      Math.max(
+        0,
+        (0 - imageTop) / scale
+      );
+
+    const sourceSize =
+      Math.min(
+        cropSize / scale,
+        state.image.naturalWidth - sourceX,
+        state.image.naturalHeight - sourceY
+      );
+
+    const outputSize = 1600;
+
+    const canvas =
+      document.createElement("canvas");
+
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+
+    const context =
+      canvas.getContext("2d");
+
+    if (!context) {
+      reject(
+        new Error("Unable to create QR crop.")
+      );
+      return;
+    }
+
+    context.drawImage(
+      state.image,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      outputSize,
+      outputSize
+    );
+
+    canvas.toBlob(
+      blob => {
+
+        if (!blob) {
+          reject(
+            new Error(
+              "Unable to create cropped QR code."
+            )
+          );
+          return;
+        }
+
+        const reader =
+          new FileReader();
+
+        reader.onload = () => {
 
           const result =
             String(
@@ -12341,1410 +12786,435 @@ function preparePaymentProof(file) {
           const commaIndex =
             result.indexOf(",");
 
-          if (
-            commaIndex === -1
-          ) {
-
+          if (commaIndex === -1) {
             reject(
               new Error(
-                "Unable to read payment proof."
+                "Unable to read cropped QR code."
               )
             );
-
             return;
           }
 
-          const base64Data =
-            result.substring(
-              commaIndex + 1
-            );
+          resolve({
+            base64Data:
+              result.substring(
+                commaIndex + 1
+              ),
 
-          if (!base64Data) {
+            fileName:
+              "payment-qr.png",
 
-            reject(
-              new Error(
-                "Payment proof is empty."
-              )
-            );
+            mimeType:
+              "image/png"
+          });
 
-            return;
-          }
+        };
 
-          if (
-            !file.type.startsWith("image/") ||
-            file.size <= 2 * 1024 * 1024
-          ) {
+        reader.onerror = () => {
+          reject(
+            new Error(
+              "Unable to read cropped QR code."
+            )
+          );
+        };
 
-            resolve({
-              base64Data,
-              fileName: file.name,
-              mimeType: file.type
-            });
+        reader.readAsDataURL(blob);
 
-            return;
-          }
+      },
+      "image/png"
+    );
 
-          const image = new Image();
-
-          image.onload = () => {
-
-            try {
-
-              const maxDimension = 1600;
-              const scale = Math.min(
-                1,
-                maxDimension / Math.max(
-                  image.naturalWidth,
-                  image.naturalHeight
-                )
-              );
-              const canvas = document.createElement("canvas");
-
-              canvas.width = Math.max(
-                1,
-                Math.round(image.naturalWidth * scale)
-              );
-              canvas.height = Math.max(
-                1,
-                Math.round(image.naturalHeight * scale)
-              );
-
-              canvas
-                .getContext("2d")
-                .drawImage(
-                  image,
-                  0,
-                  0,
-                  canvas.width,
-                  canvas.height
-                );
-
-              const compressed =
-                canvas.toDataURL("image/jpeg", 0.82);
-              const compressedCommaIndex =
-                compressed.indexOf(",");
-
-              resolve({
-                base64Data:
-                  compressed.substring(
-                    compressedCommaIndex + 1
-                  ),
-                fileName:
-                  file.name.replace(
-                    /\.[^.]+$/,
-                    ".jpg"
-                  ),
-                mimeType: "image/jpeg"
-              });
-
-            } catch (error) {
-
-              reject(
-                new Error(
-                  "Unable to prepare payment proof."
-                )
-              );
-
-            }
-
-          };
-
-          image.onerror = () => {
-
-            reject(
-              new Error(
-                "Unable to read payment proof."
-              )
-            );
-
-          };
-
-          image.src = result;
-
-        } catch (error) {
-
-          reject(error);
-
-        }
-
-      };
-
-      reader.onerror = () => {
-
-        reject(
-          new Error(
-            "Unable to read payment proof."
-          )
-        );
-
-      };
-
-      reader.onabort = () => {
-
-        reject(
-          new Error(
-            "Payment proof upload was cancelled."
-          )
-        );
-
-      };
-
-      reader.readAsDataURL(file);
-
-    }
-  );
+  });
 
 }
 
 
 
-async function uploadPaymentProofToSupabase(
-  proof,
-  groupId,
-  settlementId
-) {
-  if (!proof || !proof.base64Data) {
-    throw new Error("Payment proof is required.");
-  }
+/* Open the QR cropper immediately after selecting an image. */
+document.addEventListener(
+  "change",
+  event => {
 
-  const binaryString =
-    atob(proof.base64Data);
+    const input = event.target;
 
-  const bytes =
-    new Uint8Array(binaryString.length);
-
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] =
-      binaryString.charCodeAt(i);
-  }
-
-  const safeName =
-    String(proof.fileName || "payment-proof")
-      .replace(/[^a-zA-Z0-9._-]/g, "_");
-
-  const extension =
-    proof.mimeType === "image/jpeg"
-      ? "jpg"
-      : (safeName.split(".").pop() || "bin");
-
-  const filePath =
-    `${groupId}/${settlementId}/${crypto.randomUUID()}.${extension}`;
-
-  const blob =
-    new Blob(
-      [bytes],
-      {
-        type:
-          proof.mimeType ||
-          "application/octet-stream"
-      }
-    );
-
-  const { error } =
-    await supabaseClient.storage
-      .from("payment-proofs")
-      .upload(
-        filePath,
-        blob,
-        {
-          contentType:
-            proof.mimeType ||
-            "application/octet-stream",
-          upsert: false
-        }
-      );
-
-  if (error) {
-    throw new Error(
-      error.message ||
-      "Unable to upload payment proof."
-    );
-  }
-
-  /*
-   * The bucket is private, so store the storage path
-   * rather than pretending it is a public URL.
-   */
-  return filePath;
-}
-
-async function submitSettlementPayment(event, settlement) {
-
-  event.preventDefault();
-
-  if (
-    String(state.currentGroup?.group?.status).toUpperCase() ===
-    "CLOSED"
-  ) {
-    toast("This group is closed. New payments cannot be submitted.");
-    return;
-  }
-
-  try {
-
-    const selected =
-      document.querySelector(
-        'input[name="settlePaymentMethod"]:checked'
-      );
-
-    if (!selected) {
-
-      toast(
-        "Please select a payment method."
-      );
-
+    if (
+      !input ||
+      input.id !== "paymentQrFile"
+    ) {
       return;
     }
 
-    const paymentDetailId =
-      selected.value;
-
-    const amountInput =
-      $("#settleAmountPaid");
-
-    const amountPaid =
-      Number(
-        amountInput.value
-      );
-
-    const notesInput =
-      $("#settlePaymentNotes");
-
-    const notes =
-      notesInput
-        ? notesInput.value.trim()
-        : "";
-
-    const proofInput =
-      $("#settlePaymentProof");
-
-    const proofFile =
-      proofInput &&
-      proofInput.files &&
-      proofInput.files.length
-        ? proofInput.files[0]
+    const file =
+      input.files &&
+      input.files.length
+        ? input.files[0]
         : null;
 
+    if (!file) return;
 
-    if (
-      !Number.isFinite(amountPaid) ||
-      amountPaid <= 0
-    ) {
-
-      toast(
-        "Please enter a valid amount paid."
-      );
-
-      return;
-    }
-
-
-    if (
-      amountPaid >
-      Number(settlement.amount) + 0.01
-    ) {
-
-      toast(
-        "Amount paid cannot exceed the amount due."
-      );
-
-      return;
-    }
-
-
-    setLoading(
-      true,
-      "Checking payment..."
+    openPaymentQrCropper(
+      file,
+      input
     );
 
-    /*
-     * Use the already-loaded group transactions instead of
-     * querying payment_submissions again.
-     */
-
-    const transactions =
-      (state.currentGroup?.transactions || [])
-        .filter(transaction =>
-          String(transaction.type || "").toUpperCase() === "PAYMENT"
-        );
-
-    const settlementPayments =
-      transactions.filter(
-        transaction =>
-          String(transaction.settlementId) ===
-            String(settlement.settlementId) &&
-          String(transaction.fromUserId) ===
-            String(state.user.userId)
-      );
-
-    const confirmedPaid =
-      settlementPayments
-        .filter(
-          transaction =>
-            String(transaction.status || "").toUpperCase() ===
-            "CONFIRMED"
-        )
-        .reduce(
-          (total, transaction) =>
-            total + Number(transaction.amountPaid || 0),
-          0
-        );
-
-    const pendingPaid =
-      settlementPayments
-        .filter(
-          transaction =>
-            String(transaction.status || "").toUpperCase() ===
-            "SUBMITTED"
-        )
-        .reduce(
-          (total, transaction) =>
-            total + Number(transaction.amountPaid || 0),
-          0
-        );
-
-    const settlementAmount =
-      Number(settlement.amount || 0);
-
-    const remainingAmount =
-      Math.max(
-        0,
-        settlementAmount -
-          confirmedPaid -
-          pendingPaid
-      );
-
-    if (
-      amountPaid >
-      remainingAmount + 0.01
-    ) {
-      toast(
-        `Amount paid cannot exceed the remaining balance of ${formatMoney(
-          remainingAmount
-        )}.`
-      );
-      return;
-    }
-
-    /*
-     * --------------------------------------------------
-     * NEW PAYMENT
-     * --------------------------------------------------
-     */
-
-    let proofFileUrl = "";
-
-    if (proofFile) {
-      setLoading(
-        true,
-        "Preparing payment proof..."
-      );
-
-      const proof =
-        await preparePaymentProof(
-          proofFile
-        );
-
-      setLoading(
-        true,
-        "Uploading payment proof..."
-      );
-
-      proofFileUrl =
-        await uploadPaymentProofToSupabase(
-          proof,
-          settlement.groupId,
-          settlement.settlementId
-        );
-    }
+  }
+);
 
 
-    /*
-     * --------------------------------------------------
-     * SUBMIT PAYMENT
-     * --------------------------------------------------
-     */
+function openPaymentQrCropper(file) {
+  return new Promise((resolve, reject) => {
 
-    setLoading(
-      true,
-      "Submitting payment..."
-    );
+    const reader = new FileReader();
 
+    reader.onload = () => {
 
-    const { error: submissionError } =
-      await supabaseClient
-        .from("payment_submissions")
-        .insert({
-          settlement_id: settlement.settlementId,
-          group_id: settlement.groupId,
-          payer_user_id: state.user.userId,
-          recipient_user_id: settlement.toUserId,
-          payment_option:
-            selected.dataset?.paymentOption ||
-            selected.value,
-          payment_detail_id: paymentDetailId,
-          amount_due: Number(settlement.amount),
-          amount_paid: amountPaid,
-          proof_file_url: proofFileUrl || null,
-          notes: notes || "",
-          status: "SUBMITTED"
+      const image = new Image();
+
+      image.onload = () => {
+
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const cropSize = 280;
+
+        const modal = document.createElement("div");
+
+        modal.className = "oweme-qr-cropper";
+
+        modal.innerHTML = `
+          <div class="oweme-qr-cropper-backdrop"></div>
+
+          <div class="oweme-qr-cropper-modal">
+
+            <h2>Adjust QR Code</h2>
+
+            <p class="muted">
+              Drag the image until only the QR code is inside the square.
+            </p>
+
+            <div class="oweme-qr-crop-area">
+              <canvas
+                class="oweme-qr-crop-canvas"
+                width="${cropSize}"
+                height="${cropSize}"
+              ></canvas>
+            </div>
+
+            <label class="oweme-qr-zoom">
+              Zoom
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.01"
+                value="1"
+                id="owemeQrZoom"
+              >
+            </label>
+
+            <div class="oweme-qr-crop-actions">
+
+              <button
+                type="button"
+                class="secondary-button"
+                id="owemeQrCancel"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                class="primary-button"
+                id="owemeQrUse"
+              >
+                Use QR Code
+              </button>
+
+            </div>
+
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const canvas =
+          modal.querySelector(".oweme-qr-crop-canvas");
+
+        const ctx = canvas.getContext("2d");
+
+        const zoom =
+          modal.querySelector("#owemeQrZoom");
+
+        let dragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        function draw() {
+
+          ctx.clearRect(
+            0,
+            0,
+            cropSize,
+            cropSize
+          );
+
+          const imageRatio =
+            image.naturalWidth /
+            image.naturalHeight;
+
+          let drawWidth;
+          let drawHeight;
+
+          if (imageRatio >= 1) {
+            drawHeight =
+              cropSize * scale;
+
+            drawWidth =
+              drawHeight * imageRatio;
+
+          } else {
+
+            drawWidth =
+              cropSize * scale;
+
+            drawHeight =
+              drawWidth / imageRatio;
+          }
+
+          const x =
+            (cropSize - drawWidth) / 2 +
+            offsetX;
+
+          const y =
+            (cropSize - drawHeight) / 2 +
+            offsetY;
+
+          ctx.drawImage(
+            image,
+            x,
+            y,
+            drawWidth,
+            drawHeight
+          );
+        }
+
+        draw();
+
+        zoom.addEventListener("input", () => {
+
+          scale =
+            Number(zoom.value);
+
+          draw();
+
         });
 
-    if (submissionError) {
-      throw submissionError;
-    }
+        canvas.addEventListener(
+          "pointerdown",
+          event => {
 
-    /*
-     * The settlement returned by the balance calculation is
-     * already the source record for this payment. Do not create
-     * a second settlement row here.
-     */
+            dragging = true;
 
+            startX =
+              event.clientX - offsetX;
 
-    if (
-      window.owemeSettlementDrafts &&
-      window.owemeSettlementDrafts[
-        settlement.settlementId
-      ]
-    ) {
+            startY =
+              event.clientY - offsetY;
 
-      delete window.owemeSettlementDrafts[
-        settlement.settlementId
-      ];
-
-    }
-
-
-    /*
-     * IMPORTANT:
-     * Refresh the entire group after the payment
-     * has been successfully saved.
-     *
-     * This reloads:
-     * - balances
-     * - settlements
-     * - transactions
-     *
-     * so the new payment appears immediately
-     * in the Transactions section.
-     */
-
-    closeModal();
-
-    await new Promise(resolve =>
-      requestAnimationFrame(resolve)
-    );
-
-    await refreshCurrentGroup();
-
-
-    toast(
-      "Payment submitted for confirmation."
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      "SUBMIT PAYMENT ERROR:",
-      error
-    );
-
-
-    toast(
-      error &&
-      error.message
-        ? error.message
-        : "Something went wrong. Please try again."
-    );
-
-
-  } finally {
-
-    setLoading(false);
-
-  }
-
-}
-
-async function markSettlementPaid(settlementId) {
-
-  if (!confirm("Mark this settlement as paid?")) {
-    return;
-  }
-
-  try {
-
-    setLoading(true, "Saving settlement...");
-
-    const settlementResult =
-      await getSettlementsFromSupabase(
-        state.currentGroup.group.groupId
-      );
-
-    const settlements =
-      settlementResult.settlements ||
-      settlementResult.data?.settlements ||
-      [];
-
-    const settlement =
-      settlements.find(
-        item => item.settlementId === settlementId
-      );
-
-    if (!settlement) {
-      toast("Settlement not found.");
-      return;
-    }
-
-    const { error: settlementError } =
-      await supabaseClient
-        .from("settlements")
-        .update({
-          status: "PAID",
-          paid_at: new Date().toISOString()
-        })
-        .eq("id", settlement.settlementId)
-        .eq("group_id", settlement.groupId);
-
-    if (settlementError) {
-      throw settlementError;
-    }
-
-    toast("Settlement marked as paid.");
-
-    await openSettlementsModal();
-
-  } catch (error) {
-
-    toast(error.message);
-
-  } finally {
-
-    setLoading(false);
-
-  }
-}
-
-
-/* =========================================================
-   MEMBERS
-   ========================================================= */
-
-async function loadContactSuggestions() {
-
-  /*
-   * Add Members should search all existing OweMe users,
-   * not only people who already share a group with you.
-   */
-  const currentUserId =
-    String(state.user.userId);
-
-  const {
-    data: profiles,
-    error
-  } = await supabaseClient
-    .from("profiles")
-    .select(
-      "id, username, username_normalized, display_name, status"
-    )
-    .neq(
-      "id",
-      currentUserId
-    )
-    .eq(
-      "status",
-      "ACTIVE"
-    )
-    .order(
-      "username_normalized",
-      {
-        ascending: true
-      }
-    );
-
-  if (error) {
-    throw error;
-  }
-
-  return (profiles || [])
-    .filter(profile =>
-      profile.username
-    )
-    .map(profile => ({
-      userId:
-        String(profile.id),
-
-      username:
-        profile.username,
-
-      displayName:
-        profile.display_name || "",
-
-      sharedGroups: []
-    }));
-
-}
-
-async function openMembersModal() {
-
-  const members =
-    state.currentGroup.members || [];
-
-  openModal(`
-
-    <h2>Members</h2>
-
-    <div class="card members-list-card">
-
-      ${members.map(member => `
-
-        <div class="member-row">
-
-          <div class="member-identity">
-
-            <span class="member-display-name">
-              ${escapeHtml(member.displayName || "Member")}
-            </span>
-
-          </div>
-
-          <small class="member-role">
-            ${escapeHtml(String(member.role).toLowerCase().replace(/^\w/, c => c.toUpperCase()))}
-          </small>
-
-        </div>
-
-      `).join("")}
-
-    </div>
-
-    <div class="section-title">
-      Add members
-    </div>
-
-    <form id="inviteMemberForm">
-
-      <div class="contacts-search invite-contacts-search">
-
-        <input
-          type="search"
-          id="inviteMemberSearch"
-          placeholder="Search OweMe users by username..."
-          autocomplete="off"
-        >
-
-      </div>
-
-      <div
-        id="inviteMemberSuggestions"
-        class="invite-contact-suggestions"
-      ></div>
-
-      <div class="selected-members-title">
-        Selected members
-      </div>
-
-      <div
-        id="inviteSelectedMembers"
-        class="selected-members-list"
-      ></div>
-
-      <input
-        type="hidden"
-        id="inviteMemberUsernames"
-      >
-
-      <button
-        class="primary-button"
-        type="submit"
-      >
-        Send Invitation
-      </button>
-
-    </form>
-
-  `);
-
-  const searchInput =
-    $("#inviteMemberSearch");
-
-  const suggestions =
-    $("#inviteMemberSuggestions");
-
-  const selectedList =
-    $("#inviteSelectedMembers");
-
-  const hiddenUsernames =
-    $("#inviteMemberUsernames");
-
-  const selectedMembers = [];
-
-  let contacts = [];
-
-  try {
-
-    contacts =
-      await loadContactSuggestions();
-
-  } catch (error) {
-
-    console.error(
-      "LOAD MEMBER CONTACTS ERROR:",
-      error
-    );
-
-  }
-
-  function syncSelectedMembers() {
-
-    hiddenUsernames.value =
-      selectedMembers
-        .map(member => member.username)
-        .join("\n");
-
-  }
-
-  function renderSelectedMembers() {
-
-    if (!selectedMembers.length) {
-
-      selectedList.innerHTML = `
-        <div class="selected-members-empty">
-          No members selected yet.
-        </div>
-      `;
-
-      syncSelectedMembers();
-
-      return;
-    }
-
-    selectedList.innerHTML =
-      selectedMembers.map(member => `
-
-        <div
-          class="selected-member-row"
-          data-selected-user-id="${escapeHtml(String(member.userId))}"
-        >
-
-          <div>
-
-            <div class="user-name">
-              ${escapeHtml(member.displayName || "Member")}
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            class="selected-member-remove"
-            data-remove-user-id="${escapeHtml(String(member.userId))}"
-            aria-label="Remove ${escapeHtml(member.username)}"
-          >
-            ×
-          </button>
-
-        </div>
-
-      `).join("");
-
-    selectedList
-      .querySelectorAll(
-        ".selected-member-remove"
-      )
-      .forEach(button => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            const userId =
-              String(
-                button.dataset.removeUserId || ""
-              );
-
-            const index =
-              selectedMembers.findIndex(
-                member =>
-                  String(member.userId) === userId
-              );
-
-            if (index !== -1) {
-              selectedMembers.splice(index, 1);
-            }
-
-            renderSelectedMembers();
-
-            renderMemberSuggestions(
-              searchInput.value
+            canvas.setPointerCapture(
+              event.pointerId
             );
-
           }
         );
 
-      });
+        canvas.addEventListener(
+          "pointermove",
+          event => {
 
-    syncSelectedMembers();
-
-  }
-
-  function addSelectedMember(member) {
-
-    const userId =
-      String(member.userId);
-
-    const username =
-      String(member.username || "")
-        .trim()
-        .replace(/^@/, "");
-
-    if (!username) {
-      return;
-    }
-
-    const alreadySelected =
-      selectedMembers.some(
-        selected =>
-          String(selected.userId) === userId ||
-          String(selected.username).toLowerCase() ===
-            username.toLowerCase()
-      );
-
-    if (alreadySelected) {
-      toast("That member is already selected.");
-      return;
-    }
-
-    selectedMembers.push({
-      userId,
-      username,
-      displayName:
-        member.displayName || ""
-    });
-
-    searchInput.value = "";
-
-    suggestions.innerHTML = "";
-
-    renderSelectedMembers();
-
-    searchInput.focus();
-
-  }
-
-  function renderMemberSuggestions(query = "") {
-
-    const normalizedQuery =
-      String(query || "")
-        .trim()
-        .replace(/^@/, "")
-        .toLowerCase();
-
-    if (!normalizedQuery) {
-
-      suggestions.innerHTML = "";
-
-      return;
-    }
-
-    const selectedUserIds =
-      new Set(
-        selectedMembers.map(member =>
-          String(member.userId)
-        )
-      );
-
-    const selectedUsernames =
-      new Set(
-        selectedMembers.map(member =>
-          String(member.username).toLowerCase()
-        )
-      );
-
-    const filtered =
-      contacts.filter(contact => {
-
-        const userId =
-          String(contact.userId);
-
-        const username =
-          String(contact.username || "")
-            .toLowerCase();
-
-        if (
-          selectedUserIds.has(userId) ||
-          selectedUsernames.has(username)
-        ) {
-          return false;
-        }
-
-        return (
-          username.includes(normalizedQuery) ||
-          String(contact.displayName || "")
-            .toLowerCase()
-            .includes(normalizedQuery)
-        );
-
-      });
-
-    suggestions.innerHTML =
-      filtered.length
-        ? filtered.map(contact => `
-
-            <button
-              type="button"
-              class="invite-contact-suggestion"
-              data-contact-user-id="${escapeHtml(String(contact.userId))}"
-            >
-
-              <span>
-
-                <strong>
-                  ${escapeHtml(contact.displayName || "Member")}
-                </strong>
-
-              </span>
-
-              <small class="muted">
-                @${escapeHtml(contact.username)}
-              </small>
-
-            </button>
-
-          `).join("")
-        : `
-            <div class="invite-contact-empty">
-              No OweMe user found with that username.
-            </div>
-          `;
-
-    suggestions
-      .querySelectorAll(
-        ".invite-contact-suggestion"
-      )
-      .forEach(button => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            const userId =
-              String(
-                button.dataset.contactUserId || ""
-              );
-
-            const contact =
-              contacts.find(
-                item =>
-                  String(item.userId) === userId
-              );
-
-            if (contact) {
-              addSelectedMember(contact);
+            if (!dragging) {
+              return;
             }
 
+            offsetX =
+              event.clientX - startX;
+
+            offsetY =
+              event.clientY - startY;
+
+            draw();
           }
         );
 
-      });
+        canvas.addEventListener(
+          "pointerup",
+          () => {
+            dragging = false;
+          }
+        );
 
-  }
+        canvas.addEventListener(
+          "pointercancel",
+          () => {
+            dragging = false;
+          }
+        );
 
-  searchInput.addEventListener(
-    "input",
-    event => {
+        modal.querySelector(
+          "#owemeQrCancel"
+        ).addEventListener("click", () => {
 
-      renderMemberSuggestions(
-        event.target.value
-      );
+          modal.remove();
 
-    }
-  );
-
-  searchInput.addEventListener(
-    "keydown",
-    event => {
-
-      if (
-        event.key === "Enter" &&
-        String(searchInput.value || "").trim()
-      ) {
-
-        event.preventDefault();
-
-        const query =
-          String(searchInput.value || "")
-            .trim()
-            .replace(/^@/, "")
-            .toLowerCase();
-
-        const exactContact =
-          contacts.find(contact =>
-            String(contact.username || "")
-              .toLowerCase() === query
+          reject(
+            new Error(
+              "QR code selection cancelled."
+            )
           );
 
-        if (exactContact) {
+        });
 
-          addSelectedMember(exactContact);
+        modal.querySelector(
+          "#owemeQrUse"
+        ).addEventListener("click", () => {
 
-        } else {
+          const output =
+            document.createElement("canvas");
 
-          toast(
-            "No OweMe user found with that username."
+          output.width = 1200;
+          output.height = 1200;
+
+          const outputCtx =
+            output.getContext("2d");
+
+          outputCtx.drawImage(
+            canvas,
+            0,
+            0,
+            1200,
+            1200
           );
 
-        }
-
-      }
-
-    }
-  );
-
-  renderSelectedMembers();
-
-  $("#inviteMemberForm").addEventListener(
-    "submit",
-    inviteMember
-  );
-
-}
-
-
-async function inviteMember(event) {
-
-  event.preventDefault();
-
-  const rawUsernames =
-    String(
-      $("#inviteMemberUsernames")?.value || ""
-    );
-
-  const usernames =
-    [...new Set(
-      rawUsernames
-        .split("\n")
-        .map(username =>
-          username.trim().replace(/^@/, "")
-        )
-        .filter(Boolean)
-        .map(username =>
-          username.toLowerCase()
-        )
-    )];
-
-  if (!usernames.length) {
-    toast("Please select at least one member.");
-    return;
-  }
-
-  try {
-
-    setLoading(true, "Sending invitations...");
-
-    const {
-      data: {
-        user
-      },
-      error: userError
-    } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      throw new Error(
-        "Your session has expired. Please log in again."
-      );
-    }
-
-    /* ================================================
-       1. FIND ALL INVITED USERS
-       ================================================ */
-
-    const {
-      data: invitedProfiles,
-      error: profileError
-    } = await supabaseClient
-      .from("profiles")
-      .select(
-        "id, username, username_normalized"
-      )
-      .in(
-        "username_normalized",
-        usernames
-      );
-
-    if (profileError) {
-      throw profileError;
-    }
-
-    const profiles =
-      invitedProfiles || [];
-
-    if (!profiles.length) {
-      throw new Error(
-        "None of the selected usernames were found."
-      );
-    }
-
-    /* ================================================
-       2. VALIDATE ALL USERS
-       ================================================ */
-
-    const invitations = [];
-    const skipped = [];
-
-    for (const profile of profiles) {
-
-      if (String(profile.id) === String(user.id)) {
-        skipped.push(profile.username);
-        continue;
-      }
-
-      const {
-        data: existingMember,
-        error: memberError
-      } = await supabaseClient
-        .from("group_members")
-        .select("user_id")
-        .eq(
-          "group_id",
-          state.currentGroup.group.groupId
-        )
-        .eq(
-          "user_id",
-          profile.id
-        )
-        .eq(
-          "status",
-          "ACTIVE"
-        )
-        .maybeSingle();
-
-      if (memberError) {
-        throw memberError;
-      }
-
-      if (existingMember) {
-        skipped.push(profile.username);
-        continue;
-      }
-
-      const {
-        data: existingInvitation,
-        error: existingInvitationError
-      } = await supabaseClient
-        .from("invitations")
-        .select("id")
-        .eq(
-          "group_id",
-          state.currentGroup.group.groupId
-        )
-        .eq(
-          "invited_user_id",
-          profile.id
-        )
-        .eq(
-          "status",
-          "PENDING"
-        )
-        .maybeSingle();
-
-      if (existingInvitationError) {
-        throw existingInvitationError;
-      }
-
-      if (existingInvitation) {
-        skipped.push(profile.username);
-        continue;
-      }
-
-      invitations.push({
-        group_id:
-          state.currentGroup.group.groupId,
-
-        invited_user_id:
-          profile.id,
-
-        invited_by_user_id:
-          user.id,
-
-        status:
-          "PENDING"
-      });
-
-    }
-
-    /* ================================================
-       3. CREATE ALL INVITATIONS
-       ================================================ */
-
-    if (!invitations.length) {
-
-      throw new Error(
-        "No new invitations could be sent. The selected users may already be members or have pending invitations."
-      );
-
-    }
-
-    const {
-      error: invitationError
-    } = await supabaseClient
-      .from("invitations")
-      .insert(invitations);
-
-    if (invitationError) {
-      throw invitationError;
-    }
-
-    closeModal();
-
-    const sentCount =
-      invitations.length;
-
-    toast(
-      sentCount === 1
-        ? "Invitation sent."
-        : `${sentCount} invitations sent.`
-    );
-
-  } catch (error) {
-
-    console.error(
-      "INVITE MEMBERS ERROR:",
-      error
-    );
-
-    toast(
-      error.message ||
-      "Unable to send invitations."
-    );
-
-  } finally {
-
-    setLoading(false);
-
-  }
-}
-
-
-
-/* =========================================================
-   INVITATIONS
-   ========================================================= */
-
-async function loadInvitations() {
-
-  $("#pageTitle").textContent = "Invites";
-
-  const { data: invitationRows, error } =
-    await supabaseClient
-      .from("invitations")
-      .select(`
-        id,
-        group_id,
-        invited_user_id,
-        invited_by_user_id,
-        status,
-        created_at,
-        responded_at,
-        groups (
-          id,
-          group_name
-        )
-      `)
-      .eq("invited_user_id", state.user.userId)
-      .order("created_at", { ascending: false });
-
-  if (error) {
-    throw error;
-  }
-
-  const invitations = invitationRows || [];
-  const inviterMap = {};
-
-  /*
-   * Resolve each inviter through the dedicated profile RPC.
-   * The invited user is not an active group member yet,
-   * so get_group_members() cannot be used here.
-   */
-  for (const invitation of invitations) {
-
-    if (!invitation.invited_by_user_id) continue;
-
-    const { data: profileRows, error: profileError } =
-      await supabaseClient.rpc(
-        "get_profile_by_id",
-        {
-          lookup_user_id: invitation.invited_by_user_id
-        }
-      );
-
-    if (profileError) {
-      console.error(
-        "LOAD INVITER PROFILE ERROR:",
-        profileError
-      );
-      continue;
-    }
-
-    const profile = profileRows?.[0];
-
-    if (profile) {
-      inviterMap[String(invitation.invited_by_user_id)] = {
-        username: profile.username || "",
-        displayName: profile.display_name || ""
+          output.toBlob(
+            blob => {
+
+              if (!blob) {
+
+                modal.remove();
+
+                reject(
+                  new Error(
+                    "Unable to prepare QR code."
+                  )
+                );
+
+                return;
+              }
+
+              const blobReader =
+                new FileReader();
+
+              blobReader.onload = () => {
+
+                const result =
+                  String(
+                    blobReader.result || ""
+                  );
+
+                const commaIndex =
+                  result.indexOf(",");
+
+                modal.remove();
+
+                if (commaIndex === -1) {
+
+                  reject(
+                    new Error(
+                      "Unable to read prepared QR code."
+                    )
+                  );
+
+                  return;
+                }
+
+                resolve({
+                  base64Data:
+                    result.substring(
+                      commaIndex + 1
+                    ),
+
+                  fileName:
+                    "payment-qr.png",
+
+                  mimeType:
+                    "image/png"
+                });
+
+              };
+
+              blobReader.readAsDataURL(blob);
+
+            },
+            "image/png"
+          );
+
+        });
+
       };
-    }
-  }
 
-  state.invitations =
-    invitations.map(invitation => {
-      const inviter =
-        inviterMap[String(invitation.invited_by_user_id)] || {};
+      image.onerror = () => {
 
-      return {
-        invitationId: invitation.id,
-        groupId: invitation.group_id,
-        invitedUserId: invitation.invited_user_id,
-        invitedByUserId: invitation.invited_by_user_id,
-        status: invitation.status,
-        createdAt: invitation.created_at,
-        respondedAt: invitation.responded_at,
-        groupName: invitation.groups?.group_name || "Group",
-        invitedByUsername:
-          inviter.username || "",
-        invitedByDisplayName:
-          inviter.displayName || ""
+        reject(
+          new Error(
+            "Unable to read payment QR code."
+          )
+        );
+
       };
-    });
 
-  if (!document.getElementById("invitesTabContent")) {
-    $("#content").innerHTML = `
-      ${renderInvitesTabs()}
-      <div id="invitesTabContent"></div>
-    `;
-  }
+      image.src =
+        String(reader.result || "");
 
-  $("#invitesTabContent").innerHTML = `
+    };
 
-    <div class="history-intro page-intro">
-      <h2>Your invitations</h2>
-      <p>Group invitations waiting for your response.</p>
-    </div>
+    reader.onerror = () => {
 
-    ${
-      state.invitations.length
-      ? state.invitations.map(renderInvitation).join("")
-      : `
-        <div class="card empty">
-          You have no pending invitations.
-        </div>
-      `
-    }
+      reject(
+        new Error(
+          "Unable to read payment QR code."
+        )
+      );
 
-  `;
+    };
+
+    reader.readAsDataURL(file);
+
+  });
 }
 
+
+function preparePaymentProof(file) {
+
+  if (!file) {
+    return Promise.reject(
+      new Error("Payment proof file is required.")
+    );
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    return Promise.reject(
+      new Error("Payment QR code must be 10 MB or smaller.")
+    );
+  }
+
+  if (!file.type.startsWith("image/")) {
+    return Promise.reject(
+      new Error("Payment QR code must be an image.")
+    );
+  }
+
+  return openPaymentQrCropper(file);
+}
 
 function renderInvitation(invitation) {
 

@@ -14629,3 +14629,212 @@ body.oweme-badge-modal-open {
   color: #1d7650;
 }
 
+
+/* =========================================================
+   OweMe QR Cropper
+   ========================================================= */
+
+.oweme-qr-crop-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oweme-qr-crop-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.oweme-qr-crop-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 430px);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.oweme-qr-crop-dialog h2 {
+  margin: 0;
+}
+
+.oweme-qr-crop-dialog > p {
+  margin-top: 6px;
+}
+
+.oweme-qr-crop-area {
+  position: relative;
+  width: min(82vw, 320px);
+  height: min(82vw, 320px);
+  margin: 18px auto;
+  overflow: hidden;
+  background: #111;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.oweme-qr-crop-area:active {
+  cursor: grabbing;
+}
+
+.oweme-qr-crop-area img {
+  position: absolute;
+  max-width: none;
+  max-height: none;
+  transform: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.oweme-qr-crop-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.35);
+}
+
+.oweme-qr-crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.oweme-qr-crop-controls input[type="range"] {
+  flex: 1;
+}
+
+.oweme-qr-crop-controls button {
+  min-width: 42px;
+  width: 42px;
+  padding: 8px;
+}
+
+.oweme-qr-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.oweme-qr-crop-actions button {
+  min-width: 120px;
+}
+
+@media (max-width: 480px) {
+
+  .oweme-qr-crop-dialog {
+    width: calc(100vw - 24px);
+    padding: 18px;
+  }
+
+  .oweme-qr-crop-actions {
+    flex-direction: column-reverse;
+  }
+
+  .oweme-qr-crop-actions button {
+    width: 100%;
+  }
+
+}
+
+
+/* =====================================================
+   OweMe QR Code Cropper
+   ===================================================== */
+
+.oweme-qr-cropper {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oweme-qr-cropper-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.oweme-qr-cropper-modal {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 420px);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.oweme-qr-cropper-modal h2 {
+  margin: 0 0 6px;
+}
+
+.oweme-qr-crop-area {
+  width: 280px;
+  height: 280px;
+  margin: 18px auto;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #111;
+  touch-action: none;
+}
+
+.oweme-qr-crop-canvas {
+  display: block;
+  width: 280px;
+  height: 280px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.oweme-qr-crop-canvas:active {
+  cursor: grabbing;
+}
+
+.oweme-qr-zoom {
+  display: block;
+  margin: 16px 0;
+}
+
+.oweme-qr-zoom input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.oweme-qr-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 480px) {
+
+  .oweme-qr-cropper-modal {
+    width: calc(100vw - 28px);
+    padding: 18px;
+  }
+
+  .oweme-qr-crop-area,
+  .oweme-qr-crop-canvas {
+    width: min(280px, 72vw);
+    height: min(280px, 72vw);
+  }
+
+}
+
