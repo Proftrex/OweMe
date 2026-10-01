@@ -14366,3 +14366,35 @@ body.oweme-badge-modal-open {
   padding-bottom: 0 !important;
 }
 
+
+/* Keep Total Paid and Total Spend values consistent with the other insight stats */
+.insights-stat-card:nth-last-child(-n+2) .insights-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+
+/* Match Total Paid and Total Spend to the other payment stat values */
+.insights-stat-card:nth-last-child(-n+2) .insights-stat-value {
+  font-size: 18px !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+
+/* Smaller values for long Total Paid / Total Spend amounts */
+.insights-stat-card:nth-last-child(-n+2) .insights-stat-value {
+  font-size: 12px !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+
+/* Total Paid and Total Spend value size */
+.insights-stat-card:nth-last-child(-n+2) .insights-stat-value {
+  font-size: 14px !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+

@@ -17234,9 +17234,7 @@ function shareInsightBadge(button) {
       </div>
 
       <div class="oweme-badge-modal-earned">
-        You earned the
-        <strong>“${badge.name}”</strong>
-        badge!
+        “${badge.name}”
       </div>
 
       <div class="oweme-badge-modal-message">
@@ -17244,14 +17242,6 @@ function shareInsightBadge(button) {
       </div>
 
       <div class="oweme-badge-modal-divider"></div>
-
-      <div class="oweme-badge-modal-label">
-        WHAT THIS MEANS
-      </div>
-
-      <div class="oweme-badge-modal-meaning">
-        ${badge.meaning}
-      </div>
 
       <div class="oweme-badge-modal-description">
         ${badge.description}
