@@ -2139,10 +2139,66 @@ async function loadHome(initialGroups = null, force = false) {
 
             <div
               class="insights-badge locked"
+              id="insightBadgeCertifiedOweMe"
+            >
+              <div class="insights-badge-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 4h8v4.5c0 3-1.6 5.2-4 5.2S8 11.5 8 8.5V4Z"></path>
+                  <path d="M8 6H5v1.5c0 2.4 1.5 4 3.5 4"></path>
+                  <path d="M16 6h3v1.5c0 2.4-1.5 4-3.5 4"></path>
+                  <path d="M12 13.7V18"></path>
+                  <path d="M8.5 21h7"></path>
+                  <path d="M9.5 18h5"></path>
+                </svg>
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Certified OweMe
+                </div>
+
+                <div class="insights-badge-description">
+                  A certified game changer in the abono industry.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="CERTIFIED_OWEME"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
+            </div>
+
+
+            <div
+              class="insights-badge locked"
               id="insightBadgeLagingTaya"
             >
               <div class="insights-badge-icon">
-                💚
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20.8 8.7c0 5.5-8.8 10.3-8.8 10.3S3.2 14.2 3.2 8.7C3.2 5.9 5.2 4 7.8 4c1.7 0 3.2.9 4.2 2.3C13 4.9 14.5 4 16.2 4c2.6 0 4.6 1.9 4.6 4.7Z"></path>
+                </svg>
               </div>
 
               <div class="insights-badge-content">
@@ -2183,58 +2239,15 @@ async function loadHome(initialGroups = null, force = false) {
               </button>
             </div>
 
-            <div
-              class="insights-badge locked"
-              id="insightBadgeMakunat"
-            >
-              <div class="insights-badge-icon">
-                🪙
-              </div>
-
-              <div class="insights-badge-content">
-                <div class="insights-badge-name">
-                  Makunat
-                </div>
-
-                <div class="insights-badge-description">
-                  Joined or created 5 groups without covering a group expense.
-                </div>
-              </div>
-
-              <button
-                type="button"
-                class="insights-badge-share"
-                data-badge-key="KORIPOT"
-                aria-label="Share badge"
-                onclick="shareInsightBadge(this)"
-                hidden
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="19"
-                  height="19"
-                  aria-hidden="true"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="18" cy="5" r="3"></circle>
-                  <circle cx="6" cy="12" r="3"></circle>
-                  <circle cx="18" cy="19" r="3"></circle>
-                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
-                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
-                </svg>
-              </button>
-            </div>
 
             <div
               class="insights-badge locked"
               id="insightBadgeGoodPayer"
             >
               <div class="insights-badge-icon">
-                ⚡
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13.2 2.8 5.5 13h5.8l-.5 8.2L18.5 11h-5.8l.5-8.2Z"></path>
+                </svg>
               </div>
 
               <div class="insights-badge-content">
@@ -2275,12 +2288,17 @@ async function loadHome(initialGroups = null, force = false) {
               </button>
             </div>
 
+
             <div
               class="insights-badge locked"
               id="insightBadgeLatePayer"
             >
               <div class="insights-badge-icon">
-                ⏰
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="13" r="8"></circle>
+                  <path d="M9 2h6"></path>
+                  <path d="M12 9v4l2.5 1.5"></path>
+                </svg>
               </div>
 
               <div class="insights-badge-content">
@@ -2321,21 +2339,72 @@ async function loadHome(initialGroups = null, force = false) {
               </button>
             </div>
 
+
+            <div
+              class="insights-badge locked"
+              id="insightBadgeMakunat"
+            >
+              <div class="insights-badge-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="8"></circle>
+                  <path d="M14.8 8.8c-.7-.6-1.7-.9-2.8-.9-1.7 0-3 .8-3 2s1.2 1.8 3 2.1c1.8.3 3 .9 3 2.1s-1.3 2-3 2c-1.1 0-2.1-.3-2.8-.9"></path>
+                  <path d="M12 7v10"></path>
+                </svg>
+              </div>
+
+              <div class="insights-badge-content">
+                <div class="insights-badge-name">
+                  Makunat
+                </div>
+
+                <div class="insights-badge-description">
+                  Joined or created 5 groups without covering a group expense.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="insights-badge-share"
+                data-badge-key="KORIPOT"
+                aria-label="Share badge"
+                onclick="shareInsightBadge(this)"
+                hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="19"
+                  height="19"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line>
+                </svg>
+              </button>
+            </div>
+
           </div>
 
         </div>
 
 
 
+        <div class="insights-section-title insights-rewards-heading">
+          Rewards
+        </div>
+
         <div class="insights-points-card">
 
           <div class="insights-points-header">
 
             <div>
-              <div class="insights-eyebrow">
-                YOUR REWARDS
-              </div>
-
               <div class="insights-points-title">
                 OweMe Points
               </div>
@@ -2945,7 +3014,10 @@ async function loadHome(initialGroups = null, force = false) {
           "#insightBadgeGoodPayer",
 
         LATE_PAYER:
-          "#insightBadgeLatePayer"
+          "#insightBadgeLatePayer",
+
+        CERTIFIED_OWEME:
+          "#insightBadgeCertifiedOweMe"
       };
 
       Object.entries(
@@ -16941,7 +17013,9 @@ function getInsightBadgeData(badgeKey) {
 
     GALANTE: {
       name: "Laging Taya",
-      icon: "💚",
+      icon: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.8 8.7c0 5.5-8.8 10.3-8.8 10.3S3.2 14.2 3.2 8.7C3.2 5.9 5.2 4 7.8 4c1.7 0 3.2.9 4.2 2.3C13 4.9 14.5 4 16.2 4c2.6 0 4.6 1.9 4.6 4.7Z"></path>
+    </svg>`,
       description:
         "Covered over ₱50,000 in group expenses.",
       message:
@@ -16954,7 +17028,11 @@ function getInsightBadgeData(badgeKey) {
 
     KORIPOT: {
       name: "Makunat",
-      icon: "🪙",
+      icon: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="8"></circle>
+      <path d="M14.8 8.8c-.7-.6-1.7-.9-2.8-.9-1.7 0-3 .8-3 2s1.2 1.8 3 2.1c1.8.3 3 .9 3 2.1s-1.3 2-3 2c-1.1 0-2.1-.3-2.8-.9"></path>
+      <path d="M12 7v10"></path>
+    </svg>`,
       description:
         "Joined or created 5 groups without covering a group expense.",
       message:
@@ -16967,7 +17045,9 @@ function getInsightBadgeData(badgeKey) {
 
     GOOD_PAYER: {
       name: "Good Payer",
-      icon: "⚡",
+      icon: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13.2 2.8 5.5 13h5.8l-.5 8.2L18.5 11h-5.8l.5-8.2Z"></path>
+    </svg>`,
       description:
         "Settled 10 confirmed payables within a day.",
       message:
@@ -16980,7 +17060,11 @@ function getInsightBadgeData(badgeKey) {
 
     LATE_PAYER: {
       name: "Puro Bukas",
-      icon: "⏰",
+      icon: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="13" r="8"></circle>
+      <path d="M9 2h6"></path>
+      <path d="M12 9v4l2.5 1.5"></path>
+    </svg>`,
       description:
         "Settled 10 confirmed payables for over a week.",
       message:
@@ -16989,6 +17073,26 @@ function getInsightBadgeData(badgeKey) {
         "Master of the phrase: “Bukas na talaga.”",
       shareText:
         "⏰ Puro Bukas unlocked! 10 payments eventually settled. Keyword: eventually. 😂"
+    },
+
+    CERTIFIED_OWEME: {
+      name: "Certified OweMe",
+      icon: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 4h8v4.5c0 3-1.6 5.2-4 5.2S8 11.5 8 8.5V4Z"></path>
+      <path d="M8 6H5v1.5c0 2.4 1.5 4 3.5 4"></path>
+      <path d="M16 6h3v1.5c0 2.4-1.5 4-3.5 4"></path>
+      <path d="M12 13.7V18"></path>
+      <path d="M8.5 21h7"></path>
+      <path d="M9.5 18h5"></path>
+    </svg>`,
+      description:
+        "A certified game changer in the abono industry.",
+      message:
+        "You’re one of the few who believe that ‘Ako na muna’ deserves an upgrade. 💸",
+      meaning:
+        "A certified game changer in the abono industry.",
+      shareText:
+        "🏆 Certified OweMe unlocked! A certified game changer in the abono industry. 💸"
     }
 
   };
@@ -17218,10 +17322,6 @@ function shareInsightBadge(button) {
         ×
       </button>
 
-      <div class="oweme-badge-modal-icon">
-        ${badge.icon}
-      </div>
-
       <div class="oweme-badge-modal-eyebrow">
         BADGE UNLOCKED
       </div>
@@ -17231,6 +17331,10 @@ function shareInsightBadge(button) {
         id="insightBadgeCongratulationsTitle"
       >
         Congratulations! 🎉
+      </div>
+
+      <div class="oweme-badge-modal-icon">
+        ${badge.icon}
       </div>
 
       <div class="oweme-badge-modal-earned">

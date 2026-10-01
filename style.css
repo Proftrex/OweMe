@@ -14398,3 +14398,44 @@ body.oweme-badge-modal-open {
   line-height: 1.2;
 }
 
+
+/* ===== INSIGHT BADGE SVG ICONS ===== */
+
+.insights-badge-icon svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.oweme-badge-modal-icon svg {
+  width: 52px;
+  height: 52px;
+  display: block;
+}
+
+
+/* ===== BADGE MODAL VERTICAL RHYTHM ===== */
+
+.oweme-badge-modal-title {
+  margin-bottom: 18px !important;
+}
+
+.oweme-badge-modal-icon {
+  margin-bottom: 18px !important;
+}
+
+
+/* ===== OWE ME REWARDS SECTION HEADER ===== */
+
+.insights-rewards-heading {
+  margin-top: 34px;
+  margin-bottom: 18px;
+}
+
+
+/* Reduce gap between Badges and Rewards */
+.insights-rewards-heading {
+  margin-top: 14px !important;
+  margin-bottom: 18px !important;
+}
+
