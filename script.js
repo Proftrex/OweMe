@@ -13216,6 +13216,554 @@ function preparePaymentProof(file) {
   return openPaymentQrCropper(file);
 }
 
+async function loadInvitations() {
+
+  $("#pageTitle").textContent = "Invites";
+
+  const { data: invitationRows, error } =
+    await supabaseClient
+      .from("invitations")
+      .select(`
+        id,
+        group_id,
+        invited_user_id,
+        invited_by_user_id,
+        status,
+        created_at,
+        responded_at,
+        groups (
+          id,
+          group_name
+        )
+      `)
+      .eq("invited_user_id", state.user.userId)
+      .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const invitations = invitationRows || [];
+  const inviterMap = {};
+
+  /*
+   * Resolve each inviter through the dedicated profile RPC.
+   * The invited user is not an active group member yet,
+   * so get_group_members() cannot be used here.
+   */
+  for (const invitation of invitations) {
+
+    if (!invitation.invited_by_user_id) continue;
+
+    const { data: profileRows, error: profileError } =
+      await supabaseClient.rpc(
+        "get_profile_by_id",
+        {
+          lookup_user_id: invitation.invited_by_user_id
+        }
+      );
+
+    if (profileError) {
+      console.error(
+        "LOAD INVITER PROFILE ERROR:",
+        profileError
+      );
+      continue;
+    }
+
+    const profile = profileRows?.[0];
+
+    if (profile) {
+      inviterMap[String(invitation.invited_by_user_id)] = {
+        username: profile.username || "",
+        displayName: profile.display_name || ""
+      };
+    }
+  }
+
+  state.invitations =
+    invitations.map(invitation => {
+      const inviter =
+        inviterMap[String(invitation.invited_by_user_id)] || {};
+
+      return {
+        invitationId: invitation.id,
+        groupId: invitation.group_id,
+        invitedUserId: invitation.invited_user_id,
+        invitedByUserId: invitation.invited_by_user_id,
+        status: invitation.status,
+        createdAt: invitation.created_at,
+        respondedAt: invitation.responded_at,
+        groupName: invitation.groups?.group_name || "Group",
+        invitedByUsername:
+          inviter.username || "",
+        invitedByDisplayName:
+          inviter.displayName || ""
+      };
+    });
+
+  if (!document.getElementById("invitesTabContent")) {
+    $("#content").innerHTML = `
+      ${renderInvitesTabs()}
+      <div id="invitesTabContent"></div>
+    `;
+  }
+
+  $("#invitesTabContent").innerHTML = `
+
+    <div class="history-intro page-intro">
+      <h2>Your invitations</h2>
+      <p>Group invitations waiting for your response.</p>
+    </div>
+
+    ${
+      state.invitations.length
+      ? state.invitations.map(renderInvitation).join("")
+      : `
+        <div class="card empty">
+          You have no pending invitations.
+        </div>
+      `
+    }
+
+  `;
+}
+
+async function openMembersModal() {
+
+  const members =
+    state.currentGroup?.members || [];
+
+  openModal(`
+    <h2>Members</h2>
+
+    <div class="card members-list-card">
+      ${
+        members.length
+          ? members.map(member => `
+              <div class="member-row">
+
+                <div>
+                  <div class="user-name">
+                    ${escapeHtml(member.displayName || "Member")}
+                  </div>
+
+                  <div class="user-handle">
+                    @${escapeHtml(member.username || "")}
+                  </div>
+                </div>
+
+                <small class="muted">
+                  ${escapeHtml(member.role || "MEMBER")}
+                </small>
+
+              </div>
+            `).join("")
+          : `
+              <div class="muted">
+                No members yet.
+              </div>
+            `
+      }
+    </div>
+
+    <div class="section-title">
+      Add member
+    </div>
+
+    <div class="contacts-search create-group-member-search">
+
+      <input
+        type="search"
+        id="groupMemberSearch"
+        placeholder="Search OweMe users by name or username..."
+        autocomplete="off"
+      >
+
+    </div>
+
+    <div
+      id="groupMemberSuggestions"
+      class="invite-contact-suggestions"
+    ></div>
+
+    <div
+      id="selectedGroupMember"
+      style="display:none;"
+    ></div>
+
+    <button
+      id="sendGroupMemberInvitation"
+      class="primary-button"
+      type="button"
+      disabled
+      style="display:none;"
+    >
+      Send Invitation
+    </button>
+
+    <small
+      class="field-help"
+      style="display:block; margin-top:12px;"
+    >
+      Search any active OweMe user. They do not need to be in your Contacts.
+    </small>
+  `);
+
+  const searchInput =
+    $("#groupMemberSearch");
+
+  const suggestions =
+    $("#groupMemberSuggestions");
+
+  const selectedContainer =
+    $("#selectedGroupMember");
+
+  const sendButton =
+    $("#sendGroupMemberInvitation");
+
+  if (
+    !searchInput ||
+    !suggestions ||
+    !selectedContainer ||
+    !sendButton
+  ) {
+    return;
+  }
+
+  let users = [];
+  let selectedUser = null;
+
+
+  /* ============================================
+     LOAD ALL ACTIVE OweMe USERS
+     ============================================ */
+
+  try {
+
+    const {
+      data: profiles,
+      error
+    } = await supabaseClient
+      .from("profiles")
+      .select(`
+        id,
+        username,
+        username_normalized,
+        display_name,
+        status
+      `)
+      .eq("status", "ACTIVE")
+      .order(
+        "username_normalized",
+        {
+          ascending: true
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    users =
+      (profiles || [])
+        .filter(profile =>
+          profile.username
+        )
+        .map(profile => ({
+          userId:
+            String(profile.id),
+
+          username:
+            profile.username,
+
+          displayName:
+            profile.display_name || ""
+        }));
+
+  } catch (error) {
+
+    console.error(
+      "LOAD GROUP MEMBER USERS ERROR:",
+      error
+    );
+
+    toast(
+      error.message ||
+      "Unable to load OweMe users."
+    );
+
+    return;
+  }
+
+
+  /* ============================================
+     RENDER SEARCH RESULTS
+     ============================================ */
+
+  function renderUserSuggestions(query = "") {
+
+    const normalizedQuery =
+      String(query || "")
+        .trim()
+        .replace(/^@/, "")
+        .toLowerCase();
+
+    if (!normalizedQuery) {
+
+      suggestions.innerHTML = "";
+
+      return;
+    }
+
+
+    const existingMemberIds =
+      new Set(
+        members.map(member =>
+          String(member.userId)
+        )
+      );
+
+
+    const filtered =
+      users.filter(user => {
+
+        if (
+          existingMemberIds.has(
+            String(user.userId)
+          )
+        ) {
+          return false;
+        }
+
+        const username =
+          String(user.username || "")
+            .toLowerCase();
+
+        const displayName =
+          String(user.displayName || "")
+            .toLowerCase();
+
+        return (
+          username.includes(normalizedQuery) ||
+          displayName.includes(normalizedQuery)
+        );
+
+      });
+
+
+    suggestions.innerHTML =
+      filtered.length
+        ? filtered.map(user => `
+
+            <button
+              type="button"
+              class="invite-contact-suggestion"
+              data-user-id="${escapeHtml(String(user.userId))}"
+            >
+
+              <span>
+                <strong>
+                  ${escapeHtml(
+                    user.displayName || "Member"
+                  )}
+                </strong>
+              </span>
+
+              <small class="muted">
+                @${escapeHtml(user.username)}
+              </small>
+
+            </button>
+
+          `).join("")
+
+        : `
+            <div class="invite-contact-empty">
+              No OweMe user found.
+            </div>
+          `;
+
+
+    suggestions
+      .querySelectorAll(
+        ".invite-contact-suggestion"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const userId =
+              String(
+                button.dataset.userId || ""
+              );
+
+            selectedUser =
+              users.find(
+                user =>
+                  String(user.userId) === userId
+              );
+
+            if (!selectedUser) {
+              return;
+            }
+
+
+            /* Show selected user */
+
+            selectedContainer.style.display =
+              "block";
+
+            selectedContainer.innerHTML = `
+              <div class="card">
+                <div class="user-name">
+                  ${escapeHtml(
+                    selectedUser.displayName ||
+                    "Member"
+                  )}
+                </div>
+
+                <div class="user-handle">
+                  @${escapeHtml(
+                    selectedUser.username
+                  )}
+                </div>
+              </div>
+            `;
+
+
+            /* ENABLE INVITATION BUTTON */
+
+            sendButton.disabled = false;
+            sendButton.style.display = "block";
+
+
+            /* Clear search */
+
+            searchInput.value = "";
+
+            suggestions.innerHTML = "";
+
+          }
+        );
+
+      });
+
+  }
+
+
+  /* ============================================
+     SEARCH
+     ============================================ */
+
+  searchInput.addEventListener(
+    "input",
+    event => {
+
+      selectedUser = null;
+
+      selectedContainer.style.display =
+        "none";
+
+      sendButton.disabled = true;
+      sendButton.style.display = "none";
+
+      renderUserSuggestions(
+        event.target.value
+      );
+
+    }
+  );
+
+
+  /* ============================================
+     SEND INVITATION
+     ============================================ */
+
+  sendButton.addEventListener(
+    "click",
+    async () => {
+
+      if (!selectedUser) {
+        toast("Select a user first.");
+        return;
+      }
+
+      try {
+
+        setLoading(
+          true,
+          "Sending invitation..."
+        );
+
+        const { data: targetProfile, error: profileError } =
+          await supabaseClient
+            .from("profiles")
+            .select("id, username")
+            .eq("id", selectedUser.userId)
+            .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (!targetProfile) {
+          throw new Error("User not found.");
+        }
+
+        const { error: invitationError } =
+          await supabaseClient
+            .from("invitations")
+            .insert({
+              group_id:
+                state.currentGroup.group.groupId,
+
+              invited_user_id:
+                targetProfile.id,
+
+              invited_by_user_id:
+                state.user.userId,
+
+              status:
+                "PENDING"
+            });
+
+        if (invitationError) {
+          throw invitationError;
+        }
+
+        closeModal();
+
+        toast(
+          `Invitation sent to @${selectedUser.username}.`
+        );
+
+      } catch (error) {
+
+        console.error(
+          "INVITE MEMBER ERROR:",
+          error
+        );
+
+        toast(
+          error.message ||
+          "Unable to send invitation."
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    }
+  );
+
+}
+
+
 function renderInvitation(invitation) {
 
   const status =
@@ -16780,7 +17328,7 @@ function switchGroupTab(tab) {
    Invitations | Contacts
 ========================================================= */
 
-let invitesActiveTab = "invitations";
+var invitesActiveTab = "invitations";
 
 function renderInvitesTabs() {
   return `
