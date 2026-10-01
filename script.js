@@ -122,6 +122,65 @@ async function init() {
 
     }
 
+    /*
+     * NEW USER WELCOME BADGE
+     *
+     * Certified OweMe is automatically awarded to new users.
+     * Create a one-time notification for that badge.
+     */
+    try {
+
+      const { data: existingWelcome, error: welcomeCheckError } =
+        await supabaseClient
+          .from("notifications")
+          .select("id")
+          .eq("user_id", state.user.userId)
+          .eq("type", "WELCOME_BADGE")
+          .limit(1);
+
+      if (welcomeCheckError) {
+        console.error(
+          "WELCOME BADGE CHECK ERROR:",
+          welcomeCheckError
+        );
+      } else if (!existingWelcome?.length) {
+
+        const { error: welcomeInsertError } =
+          await supabaseClient
+            .from("notifications")
+            .insert({
+              user_id: state.user.userId,
+              actor_user_id: null,
+              type: "WELCOME_BADGE",
+              title: "Welcome to OweMe!",
+              message:
+                "You're one of the few who believe that “Ako na muna” deserves an upgrade. 💸",
+              is_read: false
+            });
+
+        if (welcomeInsertError) {
+          console.error(
+            "WELCOME BADGE INSERT ERROR:",
+            welcomeInsertError
+          );
+        } else {
+          console.log(
+            "WELCOME BADGE NOTIFICATION CREATED"
+          );
+        }
+
+      }
+
+    } catch (welcomeError) {
+
+      console.error(
+        "WELCOME BADGE ERROR:",
+        welcomeError
+      );
+
+    }
+
+
     if (window.Capacitor?.isNativePlatform()) {
       await initializePushNotifications();
     } else {
@@ -1653,9 +1712,61 @@ async function handleRegister(event) {
           new Date().toISOString()
       };
 
+      /*
+       * Evaluate badges immediately for the newly created user.
+       * The normal login/session flow already does this, but a
+       * freshly created account reaches the app directly.
+       */
+      try {
+
+        const {
+          data: newUserBadgeEvaluation,
+          error: newUserBadgeEvaluationError
+        } = await supabaseClient.rpc(
+          "evaluate_user_badges"
+        );
+
+        if (newUserBadgeEvaluationError) {
+
+          console.error(
+            "NEW USER BADGE EVALUATION ERROR:",
+            newUserBadgeEvaluationError
+          );
+
+        } else {
+
+          console.log(
+            "NEW USER BADGE EVALUATION:",
+            newUserBadgeEvaluation
+          );
+
+        }
+
+      } catch (badgeEvaluationError) {
+
+        console.error(
+          "NEW USER BADGE EVALUATION FAILED:",
+          badgeEvaluationError
+        );
+
+      }
+
       showApp();
 
       await loadHome(null, true);
+
+      /*
+       * Show the Certified OweMe welcome badge immediately
+       * after the badge has been evaluated and the Home screen
+       * has rendered.
+       */
+      setTimeout(() => {
+
+        if (typeof shareInsightBadge === "function") {
+          shareInsightBadge("CERTIFIED_OWEME");
+        }
+
+      }, 300);
 
       toast(
         "Account created successfully!"
@@ -17271,10 +17382,12 @@ async function shareInsightBadgeMessage(
 }
 
 
-function shareInsightBadge(button) {
+function shareInsightBadge(buttonOrBadgeKey) {
 
   const badgeKey =
-    button?.dataset?.badgeKey;
+    typeof buttonOrBadgeKey === "string"
+      ? buttonOrBadgeKey
+      : buttonOrBadgeKey?.dataset?.badgeKey;
 
   const badge =
     getInsightBadgeData(badgeKey);
