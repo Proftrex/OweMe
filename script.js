@@ -17287,14 +17287,31 @@ async function shareInsightBadgeMessage(
 
     }
 
-    /* Capture the actual badge card */
-    const canvas =
-      await html2canvas(card, {
+    /* Capture badge card without action buttons */
+    const shareButton =
+      card.querySelector(".oweme-badge-modal-share");
+
+    const laterButton =
+      card.querySelector(".oweme-badge-modal-later");
+
+    /* Hide buttons only during image capture */
+    if (shareButton) shareButton.style.display = "none";
+    if (laterButton) laterButton.style.display = "none";
+
+    let canvas;
+
+    try {
+      canvas = await html2canvas(card, {
         backgroundColor: null,
         scale: 2,
         useCORS: true,
         logging: false
       });
+    } finally {
+      /* Restore buttons after capture */
+      if (shareButton) shareButton.style.display = "";
+      if (laterButton) laterButton.style.display = "";
+    }
 
     const blob =
       await new Promise(resolve =>
