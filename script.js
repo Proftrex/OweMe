@@ -13397,7 +13397,6 @@ async function openMembersModal() {
       class="primary-button"
       type="button"
       disabled
-      style="display:none;"
     >
       Send Invitation
     </button>
@@ -13421,6 +13420,11 @@ async function openMembersModal() {
 
   const sendButton =
     $("#sendGroupMemberInvitation");
+
+  if (sendButton) {
+    sendButton.style.display = "block";
+    sendButton.disabled = true;
+  }
 
   if (
     !searchInput ||
@@ -13668,7 +13672,7 @@ async function openMembersModal() {
         "none";
 
       sendButton.disabled = true;
-      sendButton.style.display = "none";
+      sendButton.style.display = "block";
 
       renderUserSuggestions(
         event.target.value
