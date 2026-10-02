@@ -330,3 +330,36 @@
     animation: none;
   }
 }
+
+/* Owie — mobile chat window */
+@media (max-width: 600px) {
+  #owieAssistant {
+    right: 10px !important;
+    left: 10px !important;
+    bottom: calc(var(--nav-height, 76px) + 10px) !important;
+    z-index: 70;
+  }
+
+  #owieAssistant > *:not(#owieLauncher) {
+    max-height: 78vh !important;
+  }
+
+  #owieClose {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    z-index: 100 !important;
+  }
+}
+
+/* Owie — shorter mobile chat window */
+@media (max-width: 600px) {
+  #owieAiPanel {
+    height: 68vh !important;
+    max-height: 68vh !important;
+  }
+}
+
