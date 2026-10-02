@@ -384,6 +384,77 @@
 
 
 
+  <style>
+    /* Owie is only available inside the authenticated app */
+    #owieAiPanel,
+    #owieAiFloat {
+      display: none;
+    }
+
+    body.oweme-authenticated #owieAiPanel,
+    body.oweme-authenticated #owieAiFloat {
+      display: flex;
+    }
+
+    #owieAiPanel {
+      flex-direction: column;
+    }
+  </style>
+
+  <script>
+    // Keep Owie available only after authentication.
+    (function syncOwieAuthVisibility() {
+      function updateOwieVisibility() {
+        const authView = document.getElementById("authView");
+        const mainApp = document.getElementById("mainApp");
+
+        const authenticated =
+          mainApp &&
+          !mainApp.classList.contains("hidden") &&
+          (!authView || authView.classList.contains("hidden"));
+
+        document.body.classList.toggle("oweme-authenticated", !!authenticated);
+
+        if (!authenticated) {
+          const panel = document.getElementById("owieAiPanel");
+          if (panel) {
+            panel.classList.remove("owie-ai-open");
+            panel.setAttribute("aria-hidden", "true");
+          }
+        }
+      }
+
+      const observer = new MutationObserver(updateOwieVisibility);
+
+      function startOwieAuthWatcher() {
+        const authView = document.getElementById("authView");
+        const mainApp = document.getElementById("mainApp");
+
+        if (authView) {
+          observer.observe(authView, {
+            attributes: true,
+            attributeFilter: ["class"]
+          });
+        }
+
+        if (mainApp) {
+          observer.observe(mainApp, {
+            attributes: true,
+            attributeFilter: ["class"]
+          });
+        }
+
+        updateOwieVisibility();
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", startOwieAuthWatcher);
+      } else {
+        startOwieAuthWatcher();
+      }
+    })();
+  </script>
+
   <!-- Owie AI Chat Panel -->
   <section
     class="owee-ai-panel"

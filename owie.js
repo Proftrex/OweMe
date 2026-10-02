@@ -104,13 +104,27 @@
 
     function isAppVisible() {
       const mainApp = document.getElementById("mainApp");
-      return !!mainApp && !mainApp.classList.contains("hidden");
+      const authView = document.getElementById("authView");
+
+      // Owie is only available inside the authenticated app.
+      if (!mainApp || mainApp.classList.contains("hidden")) {
+        return false;
+      }
+
+      // Never show Owie on the login / registration screen.
+      if (authView && !authView.classList.contains("hidden")) {
+        return false;
+      }
+
+      return true;
     }
 
     function syncVisibility() {
-      assistant.classList.toggle("hidden", !isAppVisible());
+      const visible = isAppVisible();
 
-      if (!isAppVisible()) {
+      assistant.classList.toggle("hidden", !visible);
+
+      if (!visible) {
         panel.classList.add("hidden");
         launcher.setAttribute("aria-expanded", "false");
       }
@@ -187,14 +201,27 @@
 
     syncVisibility();
 
+    const observer = new MutationObserver(syncVisibility);
+
     const mainApp = document.getElementById("mainApp");
+    const authView = document.getElementById("authView");
+
     if (mainApp) {
-      const observer = new MutationObserver(syncVisibility);
       observer.observe(mainApp, {
         attributes: true,
         attributeFilter: ["class"]
       });
     }
+
+    if (authView) {
+      observer.observe(authView, {
+        attributes: true,
+        attributeFilter: ["class"]
+      });
+    }
+
+    // Initial state check.
+    syncVisibility();
   }
 
   if (document.readyState === "loading") {
