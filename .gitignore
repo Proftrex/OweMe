@@ -6,3 +6,4 @@ android/app/build/
 android/oweme-release-key.jks
 android/keystore.properties
 android/oweme-upload-key.pem
+.env

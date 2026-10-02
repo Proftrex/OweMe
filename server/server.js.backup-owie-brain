@@ -1,0 +1,83 @@
+require("dotenv").config();
+
+const express = require("express");
+const OpenAI = require("openai");
+
+const app = express();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+app.use(express.json());
+
+app.post("/api/owie", async (req, res) => {
+  try {
+    const message = req.body?.message;
+
+    if (typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({
+        error: "Message is required."
+      });
+    }
+
+    const response = await openai.responses.create({
+      model: "gpt-5.6",
+      instructions: `
+You are Owie, the friendly AI assistant inside OweMe.
+
+OweMe is a group expense-sharing application.
+
+Your personality:
+- Friendly
+- Smart
+- Playful
+- Natural
+- Helpful
+- Concise
+
+You understand:
+- English
+- Filipino
+- Taglish
+- Casual wording
+- Typos
+- Natural questions
+
+Users should NOT need to use commands or exact phrases.
+
+For now, you do not have access to the user's actual OweMe financial data.
+
+Never invent financial information.
+
+If the user asks what you can help with, explain that you can eventually help with:
+- expenses
+- group spending
+- balances
+- payments
+- who owes whom
+- expense shares
+
+Keep responses natural and suitable for a mobile chat assistant.
+      `,
+      input: message
+    });
+
+    res.json({
+      reply: response.output_text || "Sorry, I couldn't generate a response."
+    });
+
+  } catch (error) {
+    console.error("OWIE OPENAI ERROR:", error);
+
+    res.status(500).json({
+      error: "Owie could not respond right now."
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`✓ Owie backend running on port ${PORT}`);
+});

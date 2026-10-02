@@ -5,7 +5,8 @@
   "main": "script.js",
   "scripts": {
     "build:web": "node build-web.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "node server/server.js"
   },
   "repository": {
     "type": "git",
@@ -21,7 +22,10 @@
   "homepage": "https://github.com/Proftrex/OweMe#readme",
   "dependencies": {
     "@capacitor/android": "^8.5.2",
-    "@capacitor/core": "^8.5.2"
+    "@capacitor/core": "^8.5.2",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "openai": "^7.27.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2"

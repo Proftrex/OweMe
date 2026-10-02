@@ -73,7 +73,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-const CACHE_NAME = 'oweme-shell-v12';
+const CACHE_NAME = 'oweme-shell-v14';
 const SUPABASE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 const APP_SHELL = [
   './',
@@ -140,7 +140,38 @@ self.addEventListener('fetch', (event) => {
 
   if (!APP_SHELL_PATHS.has(requestUrl.pathname)) return;
 
+  /*
+   * Always fetch the current application files.
+   * This prevents stale script.js/style.css from
+   * being served by the old app-shell cache.
+   */
+  if (
+    requestUrl.pathname.endsWith('/script.js') ||
+    requestUrl.pathname.endsWith('/style.css') ||
+    requestUrl.pathname.endsWith('/index.html')
+  ) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            return caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(request, response.clone());
+                return response;
+              });
+          }
+
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+
+    return;
+  }
+
   event.respondWith(
-    caches.match(request).then((cachedResponse) => cachedResponse || fetch(request))
+    caches.match(request).then(
+      (cachedResponse) => cachedResponse || fetch(request)
+    )
   );
 });

@@ -1865,6 +1865,14 @@ async function logout() {
 
 async function navigate(page) {
 
+  /* Minimize Owie before changing the app view */
+  const owiePanel = document.getElementById("owieAiPanel");
+
+  if (owiePanel) {
+    owiePanel.classList.remove("owie-ai-open");
+    owiePanel.setAttribute("aria-hidden", "true");
+  }
+
   state.currentPage = page;
 
   const content = $("#content");
@@ -17996,4 +18004,469 @@ window.closeInsightBadgeModal =
 
 window.shareInsightBadgeMessage =
   shareInsightBadgeMessage;
+
+
+
+/* =========================================================
+   OWIE AI — FLOATING CHAT CONTROLLER
+   ========================================================= */
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   OWIE AI — VISIBILITY CONTROLLER
+   ONE SOURCE OF TRUTH
+   ========================================================= */
+
+window.openOwieAI = function(event) {
+
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const panel = document.getElementById("owieAiPanel");
+
+  if (!panel) {
+    console.error("Owie AI panel not found.");
+    return;
+  }
+
+  panel.classList.add("owie-ai-open");
+  panel.setAttribute("aria-hidden", "false");
+
+  const input = document.getElementById("owieAiInput");
+
+  if (input) {
+    setTimeout(() => input.focus(), 50);
+  }
+
+  console.log("✓ Owie opened");
+};
+
+
+window.closeOwieAI = function(event) {
+
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const panel = document.getElementById("owieAiPanel");
+
+  if (!panel) {
+    return;
+  }
+
+  panel.classList.remove("owie-ai-open");
+  panel.setAttribute("aria-hidden", "true");
+
+  console.log("✓ Owie minimized");
+};
+
+
+
+
+
+/* =========================================================
+   OWIE AI — STANDALONE SEND HANDLER
+   ========================================================= */
+
+window.sendOwieMessage = async function () {
+
+  const input = document.getElementById("owieAiInput");
+  const messages = document.getElementById("owieAiMessages");
+
+  if (!input || !messages) {
+    console.error("Owie chat elements not found.");
+    return;
+  }
+
+  const text = input.value.trim();
+
+  if (!text) {
+    return;
+  }
+
+  /* ---------------------------------------------
+     USER MESSAGE
+     --------------------------------------------- */
+
+  const userMessage = document.createElement("div");
+  userMessage.className =
+    "owee-ai-message owee-ai-user-message";
+
+  const userBubble = document.createElement("div");
+  userBubble.className =
+    "owee-ai-bubble owee-ai-user-bubble";
+
+  userBubble.textContent = text;
+
+  userMessage.appendChild(userBubble);
+  messages.appendChild(userMessage);
+
+  input.value = "";
+  messages.scrollTop = messages.scrollHeight;
+
+
+  /* ---------------------------------------------
+     OWIE LOADING MESSAGE
+     --------------------------------------------- */
+
+  const owieMessage = document.createElement("div");
+  owieMessage.className = "owee-ai-message";
+
+  const avatar = document.createElement("img");
+  avatar.className = "owee-ai-message-avatar";
+  avatar.src = "assets/owie.png";
+  avatar.alt = "Owie";
+
+  const bubble = document.createElement("div");
+  bubble.className = "owee-ai-bubble";
+  bubble.textContent = "Let me check that for you... 👀";
+
+  owieMessage.appendChild(avatar);
+  owieMessage.appendChild(bubble);
+
+  messages.appendChild(owieMessage);
+  messages.scrollTop = messages.scrollHeight;
+
+
+  try {
+
+    /* ---------------------------------------------
+       GET ACTUAL OweMe DATA
+       --------------------------------------------- */
+
+    const context = await getOwieUserContext();
+
+
+    /* ---------------------------------------------
+       SEND QUESTION + DATA TO OWIE BACKEND
+       --------------------------------------------- */
+
+    const response = await fetch("/api/owie", {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+
+        message: text,
+
+        context: {
+          userId: context.userId,
+          username: context.username,
+          displayName: context.displayName,
+          groups: context.groups,
+          groupMembers: context.groupMembers,
+          profiles: context.profiles,
+          expenses: context.expenses,
+          participants: context.participants,
+          payments: context.payments
+        }
+
+      })
+
+    });
+
+
+    const result = await response.json();
+
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+        "Owie backend request failed."
+      );
+    }
+
+
+    bubble.textContent =
+      result.reply ||
+      "Hmm, I wasn't able to come up with an answer. 😅";
+
+
+  } catch (error) {
+
+    console.error("OWIE OPENAI ERROR:", error);
+
+    bubble.textContent =
+      "Hmm, I couldn't check your OweMe data right now. Please try again. 😅";
+
+  }
+
+
+  messages.scrollTop = messages.scrollHeight;
+
+  console.log("✓ Owie answered:", text);
+
+};
+
+/* =========================================================
+   OWIE AI — OweMe DATA ENGINE
+   ========================================================= */
+
+async function getOwieUserContext() {
+
+  const {
+    data: { user },
+    error: authError
+  } = await supabaseClient.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Please log in first.");
+  }
+
+  const userId = user.id;
+
+  /* ---------------------------------------------
+     GROUPS
+     --------------------------------------------- */
+
+  const { data: memberships, error: membershipError } =
+    await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        role,
+        status,
+        joined_at,
+        groups (
+          id,
+          group_name,
+          created_by,
+          created_at,
+          status
+        )
+      `)
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE");
+
+  if (membershipError) {
+    throw membershipError;
+  }
+
+  const groups = (memberships || [])
+    .filter(row =>
+      row.groups &&
+      String(row.groups.status || "").toUpperCase() === "ACTIVE"
+    )
+    .map(row => ({
+      id: row.groups.id,
+      name: row.groups.group_name,
+      role: row.role,
+      createdBy: row.groups.created_by,
+      status: row.groups.status
+    }));
+
+  const groupIds = groups.map(group => group.id);
+
+  /* ---------------------------------------------
+     GROUP MEMBERS
+     --------------------------------------------- */
+
+  let groupMembers = [];
+
+  if (groupIds.length) {
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("group_members")
+      .select(`
+        group_id,
+        user_id,
+        role,
+        status
+      `)
+      .in("group_id", groupIds)
+      .eq("status", "ACTIVE");
+
+    if (error) {
+      throw error;
+    }
+
+    groupMembers = data || [];
+  }
+
+  /* ---------------------------------------------
+     PROFILES
+     --------------------------------------------- */
+
+  const memberUserIds = [
+    ...new Set(
+      groupMembers.map(member => String(member.user_id))
+    )
+  ];
+
+  let profiles = [];
+
+  if (memberUserIds.length) {
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("profiles")
+      .select(`
+        id,
+        username,
+        display_name
+      `)
+      .in("id", memberUserIds);
+
+    if (error) {
+      throw error;
+    }
+
+    profiles = data || [];
+  }
+
+  const profileMap = {};
+
+  profiles.forEach(profile => {
+    profileMap[String(profile.id)] = profile;
+  });
+
+  groupMembers = groupMembers.map(member => {
+
+    const profile =
+      profileMap[String(member.user_id)] || {};
+
+    return {
+      ...member,
+      username: profile.username || "",
+      displayName: profile.display_name || ""
+    };
+  });
+
+  /* ---------------------------------------------
+     EXPENSES
+     --------------------------------------------- */
+
+  let expenses = [];
+
+  if (groupIds.length) {
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("expenses")
+      .select(`
+        id,
+        group_id,
+        description,
+        amount,
+        paid_by_user_id,
+        created_at
+      `)
+      .in("group_id", groupIds);
+
+    if (error) {
+      throw error;
+    }
+
+    expenses = data || [];
+  }
+
+  /* ---------------------------------------------
+     EXPENSE PARTICIPANTS
+     --------------------------------------------- */
+
+  const expenseIds =
+    expenses.map(expense => expense.id);
+
+  let participants = [];
+
+  if (expenseIds.length) {
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("expense_participants")
+      .select(`
+        expense_id,
+        user_id,
+        share_amount
+      `)
+      .in("expense_id", expenseIds);
+
+    if (error) {
+      throw error;
+    }
+
+    participants = (data || []).map(row => ({
+      ...row,
+      amount: Number(row.share_amount || 0)
+    }));
+  }
+
+  /* ---------------------------------------------
+     PAYMENT SUBMISSIONS
+     --------------------------------------------- */
+
+  let payments = [];
+
+  if (groupIds.length) {
+
+    const {
+      data,
+      error
+    } = await supabaseClient
+      .from("payment_submissions")
+      .select(`
+        id,
+        group_id,
+        payer_user_id,
+        recipient_user_id,
+        amount_paid,
+        status
+      `)
+      .in("group_id", groupIds);
+
+    if (error) {
+      throw error;
+    }
+
+    payments = (data || []).map(payment => ({
+      ...payment,
+      amount: Number(payment.amount_paid || 0)
+    }));
+  }
+
+  return {
+    userId,
+    username: state.user?.username || "",
+    displayName: state.user?.displayName || "",
+    groups,
+    groupMembers,
+    profiles,
+    expenses,
+    participants,
+    payments
+  };
+}
+
+
+
+
+
+
+
+
 
