@@ -11790,7 +11790,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
+#pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 90px 78px !important;
   align-items: center !important;
@@ -11803,12 +11803,12 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row + .pending-flat-row,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
+#pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
   border-top: 1px solid #E1EADF !important;
 }
 
 #pendingPayablesList .pending-flat-label,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
+#pendingPaymentsList .pending-flat-label, #groupPendingPaymentsList .pending-flat-label {
   grid-column: 1 !important;
   width: auto !important;
   min-width: 0 !important;
@@ -11822,7 +11822,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-amount,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
+#pendingPaymentsList .pending-flat-amount, #groupPendingPaymentsList .pending-flat-amount {
   grid-column: 2 !important;
   width: 90px !important;
   min-width: 90px !important;
@@ -11838,7 +11838,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-action,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
+#pendingPaymentsList .pending-flat-action, #groupPendingPaymentsList .pending-flat-action {
   grid-column: 3 !important;
   width: 78px !important;
   min-width: 78px !important;
@@ -11879,19 +11879,19 @@ button.settle-payable-button {
 
 @media (max-width: 600px) {
   #pendingPayablesList .pending-flat-row,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
+  #pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row {
     grid-template-columns: minmax(0, 1fr) 82px 72px !important;
     column-gap: 8px !important;
   }
 
   #pendingPayablesList .pending-flat-amount,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
+  #pendingPaymentsList .pending-flat-amount, #groupPendingPaymentsList .pending-flat-amount {
     width: 82px !important;
     min-width: 82px !important;
   }
 
   #pendingPayablesList .pending-flat-action,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
+  #pendingPaymentsList .pending-flat-action, #groupPendingPaymentsList .pending-flat-action {
     width: 72px !important;
     min-width: 72px !important;
     max-width: 72px !important;
@@ -12204,7 +12204,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
+#pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto auto !important;
   align-items: center !important;
@@ -12220,12 +12220,12 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-row + .pending-flat-row,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
+#pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row + .pending-flat-row {
   border-top: 0 !important;
 }
 
 #pendingPayablesList .pending-flat-label,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
+#pendingPaymentsList .pending-flat-label, #groupPendingPaymentsList .pending-flat-label {
   margin: 0 !important;
   color: #193a27 !important;
   font-size: 15px !important;
@@ -12233,7 +12233,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-amount,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
+#pendingPaymentsList .pending-flat-amount, #groupPendingPaymentsList .pending-flat-amount {
   margin: 0 !important;
   color: #39744b !important;
   font-size: 17px !important;
@@ -12242,7 +12242,7 @@ button.settle-payable-button {
 }
 
 #pendingPayablesList .pending-flat-action,
-#pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
+#pendingPaymentsList .pending-flat-action, #groupPendingPaymentsList .pending-flat-action {
   margin: 0 !important;
   min-width: 92px !important;
   height: 44px !important;
@@ -12273,23 +12273,23 @@ button.settle-payable-button {
   }
 
   #pendingPayablesList .pending-flat-row,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-row {
+  #pendingPaymentsList .pending-flat-row, #groupPendingPaymentsList .pending-flat-row {
     gap: 9px !important;
     padding: 12px 0 !important;
   }
 
   #pendingPayablesList .pending-flat-label,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-label {
+  #pendingPaymentsList .pending-flat-label, #groupPendingPaymentsList .pending-flat-label {
     font-size: 14px !important;
   }
 
   #pendingPayablesList .pending-flat-amount,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-amount {
+  #pendingPaymentsList .pending-flat-amount, #groupPendingPaymentsList .pending-flat-amount {
     font-size: 15px !important;
   }
 
   #pendingPayablesList .pending-flat-action,
-  #pendingPaymentsList, #groupPendingPaymentsList .pending-flat-action {
+  #pendingPaymentsList .pending-flat-action, #groupPendingPaymentsList .pending-flat-action {
     min-width: 82px !important;
     height: 42px !important;
     padding: 0 12px !important;
@@ -15760,3 +15760,73 @@ body.oweme-badge-modal-open {
   height: 20px !important;
 }
 
+
+
+
+/* =========================================================
+   FINAL FIX — PENDING PAYMENT REVIEW ROW
+========================================================= */
+
+#groupPendingPaymentsList .pending-flat-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+
+  min-height: 56px !important;
+  height: auto !important;
+
+  align-items: center !important;
+  gap: 12px !important;
+
+  margin: 0 !important;
+  padding: 12px 0 !important;
+
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+
+#groupPendingPaymentsList .pending-flat-label {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#groupPendingPaymentsList .pending-flat-amount {
+  min-width: max-content !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+
+#groupPendingPaymentsList .pending-review-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+
+  flex: 0 0 92px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  box-sizing: border-box !important;
+  border-radius: 999px !important;
+
+  white-space: nowrap !important;
+}
+
+#groupPendingPaymentsList {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}

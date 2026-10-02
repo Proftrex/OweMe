@@ -11959,7 +11959,7 @@ async function openSettlePayment(settlementId) {
                         class="settle-payment-radio"
                       >
 
-                      <div style="flex:1;">
+                      <div class="settle-payment-info">
 
                         <div>
                           <strong>Payment Method:</strong>
@@ -16010,162 +16010,18 @@ async function submitSettlementPayment(event, settlement) {
 
 
     /*
-     * Check whether this settlement already
-     * has a payment awaiting confirmation.
-     */
-      const { data: transactionPayments, error: transactionError } =
-        await supabaseClient
-          .from("payment_submissions")
-          .select("*")
-          .eq("group_id", settlement.groupId);
-
-      if (transactionError) {
-        throw transactionError;
-      }
-
-      const transactions =
-        (transactionPayments || []).map(payment => ({
-          type: "PAYMENT",
-          status: payment.status,
-          settlementId: payment.settlement_id,
-          fromUserId: payment.payer_user_id,
-          toUserId: payment.recipient_user_id,
-          paymentSubmissionId: payment.id,
-          amountPaid: Number(payment.amount_paid || 0)
-        }));
-
-
-    const existingPending =
-      transactions.find(
-        transaction =>
-
-          String(
-            transaction.type
-          ).toUpperCase() ===
-            "PAYMENT" &&
-
-          String(
-            transaction.status
-          ).toUpperCase() ===
-            "SUBMITTED" &&
-
-          String(
-            transaction.settlementId
-          ) ===
-            String(
-              settlement.settlementId
-            ) &&
-
-          String(
-            transaction.fromUserId
-          ) ===
-            String(
-              state.user.userId
-            )
-      );
-
-
-    /*
-     * --------------------------------------------------
-     * EXISTING PAYMENT
-     * --------------------------------------------------
-     *
-     * If a payment already exists, attach the
-     * payment proof instead of creating another
-     * payment submission.
-     */
-    if (existingPending) {
-
-      if (!proofFile) {
-
-        toast(
-          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
-        );
-
-        return;
-      }
-
-
-      setLoading(
-        true,
-        "Preparing payment proof..."
-      );
-
-
-      const proof =
-        await preparePaymentProof(
-          proofFile,
-          proofInput
-        );
-
-
-      setLoading(
-        true,
-        "Uploading payment proof..."
-      );
-
-
-      const proofFileUrl =
-        await uploadPaymentProofToSupabase(
-          proof,
-          settlement.groupId,
-          settlement.settlementId
-        );
-
-
-      setLoading(
-        true,
-        "Attaching payment proof..."
-      );
-
-
-      const { error: proofUpdateError } =
-        await supabaseClient
-          .from("payment_submissions")
-          .update({
-            proof_file_url: proofFileUrl
-          })
-          .eq("id", existingPending.paymentSubmissionId)
-          .eq("payer_user_id", state.user.userId);
-
-      if (proofUpdateError) {
-        throw proofUpdateError;
-      }
-
-
-      if (
-        window.owemeSettlementDrafts &&
-        window.owemeSettlementDrafts[
-          settlement.settlementId
-        ]
-      ) {
-
-        delete window.owemeSettlementDrafts[
-          settlement.settlementId
-        ];
-
-      }
-
-
-      closeModal();
-
-
-      await refreshCurrentGroup();
-
-
-      toast(
-        "Payment proof attached successfully."
-      );
-
-      return;
-    }
-
-
-    /*
      * --------------------------------------------------
      * NEW PAYMENT
      * --------------------------------------------------
+     *
+     * A settlement may have multiple payment submissions.
+     *
+     * Do NOT block a new submission just because an earlier
+     * payment is still SUBMITTED/PENDING. Each payment is
+     * stored as its own payment_submissions record.
      */
+
+
 
     let proofFileUrl = "";
 
