@@ -6407,7 +6407,9 @@ async function confirmCloseGroup() {
     const { error: updateError } = await supabaseClient
       .from("groups")
       .update({ status: "CLOSED" })
-      .eq("id", currentGroup.groupId);
+      .eq("id", currentGroup.groupId)
+      .eq("created_by", user.id)
+      .eq("status", "ACTIVE");
 
     if (updateError) {
       throw new Error(
