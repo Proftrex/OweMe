@@ -581,7 +581,7 @@ window.sendOwieMessage = async function () {
     );
 
     const response =
-      await fetch("/api/owie", {
+      await fetch("https://oweme-owie.onrender.com/api/owie", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

@@ -18153,7 +18153,7 @@ window.sendOwieMessage = async function () {
        SEND QUESTION + DATA TO OWIE BACKEND
        --------------------------------------------- */
 
-    const response = await fetch("/api/owie", {
+    const response = await fetch("https://oweme-owie.onrender.com/api/owie", {
 
       method: "POST",
 
