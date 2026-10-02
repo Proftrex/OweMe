@@ -371,7 +371,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=payme2"></script>
+  <script src="script.js?v=owie25"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -381,6 +381,268 @@
       });
     }
   </script>
+
+
+
+  <!-- Owie AI Chat Panel -->
+  <section
+    class="owee-ai-panel"
+    id="owieAiPanel"
+    aria-label="Owie AI Assistant"
+  >
+    <div class="owee-ai-header">
+
+      <img
+        src="assets/owie.png"
+        alt="Owie"
+      >
+
+      <div class="owee-ai-header-info">
+        <div class="owee-ai-header-name">Owie AI</div>
+        <div class="owee-ai-header-status">Your OweMe assistant</div>
+      </div>
+
+      <button
+        type="button"
+        class="owee-ai-close"
+        id="owieAiClose"
+        aria-label="Close Owie"
+        onclick="event.preventDefault(); event.stopPropagation(); const p=document.getElementById('owieAiPanel'); if(p){p.classList.remove('owie-ai-open');p.setAttribute('aria-hidden','true');}"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <div
+      class="owee-ai-messages"
+      id="owieAiMessages"
+    >
+      <div class="owee-ai-message">
+
+        <img
+          class="owee-ai-message-avatar"
+          src="assets/owie.png"
+          alt="Owie"
+        >
+
+        <div class="owee-ai-bubble">
+          Hi! I'm Owie 👋<br>
+          How can I help you with your OweMe groups?
+        </div>
+
+      </div>
+    </div>
+
+    <form
+      class="owee-ai-input-row"
+      id="owieAiForm"
+    >
+      <input
+        class="owee-ai-input"
+        id="owieAiInput"
+        type="text"
+        placeholder="Ask Owie anything..."
+        autocomplete="off"
+      >
+
+      <button
+        class="owee-ai-send"
+        type="button"
+        id="owieAiSend"
+        type="button"
+        aria-label="Send message"
+        onclick="event.preventDefault(); event.stopPropagation(); window.sendOwieMessage();"
+      >
+        ➤
+      </button>
+    </form>
+
+  </section>
+
+
+  <!-- Owie AI Floating Assistant -->
+  <button
+    type="button"
+    class="owee-ai-float"
+    id="owieAiFloat"
+    aria-label="Open Owie AI"
+    title="Ask Owie"
+    onclick="event.preventDefault(); event.stopPropagation(); const p=document.getElementById('owieAiPanel'); if(p){p.classList.add('owie-ai-open');p.setAttribute('aria-hidden','false');document.getElementById('owieAiInput')?.focus();}"
+  >
+    <img
+      src="assets/owie.png"
+      alt="Owie"
+    >
+  </button>
+
+
+  <script>
+  </script>
+
+
+<script>
+/* =========================================================
+   OWIE — SEND HANDLER
+   ========================================================= */
+
+window.sendOwieMessage = async function () {
+
+  const input = document.getElementById("owieAiInput");
+  const messages = document.getElementById("owieAiMessages");
+
+  if (!input || !messages) {
+    alert("Owie chat elements could not be found.");
+    return;
+  }
+
+  const text = input.value.trim();
+
+  if (!text) {
+    return;
+  }
+
+  /* -----------------------------
+     USER MESSAGE
+     ----------------------------- */
+
+  const userMessage = document.createElement("div");
+  userMessage.className =
+    "owee-ai-message owee-ai-user-message";
+
+  const userBubble = document.createElement("div");
+  userBubble.className =
+    "owee-ai-bubble owee-ai-user-bubble";
+
+  userBubble.textContent = text;
+
+  userMessage.appendChild(userBubble);
+  messages.appendChild(userMessage);
+
+  input.value = "";
+  messages.scrollTop = messages.scrollHeight;
+
+
+  /* -----------------------------
+     OWIE MESSAGE
+     ----------------------------- */
+
+  const owieMessage =
+    document.createElement("div");
+
+  owieMessage.className =
+    "owee-ai-message";
+
+  const avatar =
+    document.createElement("img");
+
+  avatar.className =
+    "owee-ai-message-avatar";
+
+  avatar.src = "assets/owie.png";
+  avatar.alt = "Owie";
+
+  const bubble =
+    document.createElement("div");
+
+  bubble.className =
+    "owee-ai-bubble";
+
+  bubble.innerHTML = `
+    <span class="owie-typing">
+      <span></span>
+      <span></span>
+      <span></span>
+    </span>
+  `;
+
+  owieMessage.appendChild(avatar);
+  owieMessage.appendChild(bubble);
+
+  messages.appendChild(owieMessage);
+  messages.scrollTop = messages.scrollHeight;
+
+
+  /* -----------------------------
+     ASK OWIE OPENAI BACKEND
+     ----------------------------- */
+
+  try {
+
+    const contextStart = performance.now();
+
+    const context =
+      await getOwieUserContext();
+
+    console.log(
+      "OWIE: context loaded in",
+      Math.round(performance.now() - contextStart),
+      "ms"
+    );
+
+    const response =
+      await fetch("/api/owie", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: text,
+          context: {
+            userId: context.userId,
+            username: context.username,
+            displayName: context.displayName,
+            groups: context.groups,
+            groupMembers: context.groupMembers,
+            profiles: context.profiles,
+            expenses: context.expenses,
+            participants: context.participants,
+            payments: context.payments
+          }
+        })
+      });
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+        "Owie backend request failed."
+      );
+    }
+
+    const reply =
+      result.reply ||
+      "Hmm, I couldn't come up with an answer. 😅";
+
+    bubble.innerHTML = reply
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>");
+
+  } catch (error) {
+
+    console.error(
+      "OWIE SEND ERROR:",
+      error
+    );
+
+    bubble.textContent =
+      "Hmm, I couldn't check your OweMe data right now. 😅";
+
+  }
+
+  messages.scrollTop =
+    messages.scrollHeight;
+};
+
+console.log(
+  "✓ Owie standalone sender connected to OpenAI backend"
+);
+</script>
 
 </body>
 </html>

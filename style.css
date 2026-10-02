@@ -15098,3 +15098,382 @@ body.oweme-badge-modal-open {
   z-index: -1 !important;
 }
 
+
+/* =========================================================
+   OWIE AI — FLOATING ASSISTANT
+   ========================================================= */
+
+.owee-ai-float {
+  position: fixed;
+  right: 18px;
+  bottom: 92px;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 8px 24px rgba(24, 92, 54, 0.20),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  z-index: 9000;
+  overflow: visible;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.owee-ai-float:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow:
+    0 12px 30px rgba(24, 92, 54, 0.25),
+    0 3px 10px rgba(0, 0, 0, 0.10);
+}
+
+.owee-ai-float:active {
+  transform: scale(0.94);
+}
+
+.owee-ai-float img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 50%;
+}
+
+/* Small AI indicator */
+.owee-ai-float::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #2f8f55;
+  border: 3px solid #ffffff;
+  box-sizing: border-box;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .owee-ai-float {
+    right: 16px;
+    bottom: 88px;
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* =========================================================
+   OWIE AI — CHAT PANEL
+   ========================================================= */
+
+.owee-ai-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 172px;
+  width: min(380px, calc(100vw - 36px));
+  height: min(560px, calc(100vh - 210px));
+  background: var(--card-bg, #ffffff);
+  border-radius: 22px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.18),
+    0 4px 16px rgba(24, 92, 54, 0.12);
+  z-index: 8999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(24, 92, 54, 0.08);
+}
+
+
+
+/* Owie is visible ONLY when explicitly opened */
+.owee-ai-panel.owee-ai-open {
+  display: flex !important;
+}
+
+.owee-ai-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f3f8f1;
+  border-bottom: 1px solid rgba(24, 92, 54, 0.08);
+}
+
+.owee-ai-header img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.owee-ai-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.owee-ai-header-name {
+  font-weight: 700;
+  color: #185c36;
+}
+
+.owee-ai-header-status {
+  font-size: 12px;
+  color: #6f8176;
+}
+
+.owee-ai-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #587064;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.owee-ai-close:hover {
+  background: rgba(24, 92, 54, 0.08);
+}
+
+.owee-ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.owee-ai-message {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.owee-ai-message-avatar {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.owee-ai-bubble {
+  max-width: 82%;
+  padding: 10px 13px;
+  border-radius: 15px;
+  background: #f1f6ef;
+  color: #294236;
+  line-height: 1.45;
+  font-size: 14px;
+}
+
+.owee-ai-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(24, 92, 54, 0.08);
+  background: #ffffff;
+}
+
+.owee-ai-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #d8e3da;
+  border-radius: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.owee-ai-input:focus {
+  border-color: #6a9c78;
+}
+
+.owee-ai-send {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 0;
+  border-radius: 12px;
+  background: #185c36;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+@media (max-width: 600px) {
+  .owee-ai-panel {
+    right: 12px;
+    bottom: 162px;
+    width: calc(100vw - 24px);
+    height: min(560px, calc(100vh - 190px));
+  }
+
+  .owee-ai-float {
+    right: 14px;
+  }
+}
+
+
+/* =========================================================
+   OWIE AI — USER MESSAGES
+   ========================================================= */
+
+.owee-ai-user-message {
+  justify-content: flex-end;
+}
+
+.owee-ai-user-bubble {
+  background: #185c36;
+  color: #ffffff;
+  border-radius: 15px 15px 4px 15px;
+}
+
+
+
+/* Owie AI — make the close button reliably clickable */
+.owee-ai-header {
+  position: relative;
+  z-index: 1;
+}
+
+.owee-ai-close {
+  position: relative !important;
+  z-index: 20 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  flex: 0 0 38px !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+.owee-ai-close::before,
+.owee-ai-close::after {
+  pointer-events: none !important;
+}
+
+
+/* Owie AI — guarantee close control is above all panel layers */
+.owee-ai-panel {
+  isolation: isolate;
+}
+
+.owee-ai-header {
+  position: relative !important;
+  z-index: 999 !important;
+  pointer-events: auto !important;
+}
+
+.owee-ai-close {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.owee-ai-header-info {
+  padding-right: 48px !important;
+}
+
+
+/* =========================================================
+   OWIE AI — FINAL LAYER FIX
+   Keep Owie above every existing app overlay.
+   ========================================================= */
+
+#owieAiPanel {
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
+}
+
+#owieAiPanel * {
+  pointer-events: auto;
+}
+
+#owieAiPanel .owee-ai-header {
+  position: relative !important;
+  z-index: 2147483001 !important;
+  pointer-events: auto !important;
+}
+
+#owieAiPanel #owieAiClose {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+}
+
+
+
+/* =========================================================
+   OWIE AI — SINGLE VISIBILITY STATE
+   ========================================================= */
+
+.owee-ai-panel {
+  display: none !important;
+}
+
+.owee-ai-panel.owie-ai-open {
+  display: flex !important;
+}
+
+/* Owie typing indicator */
+.owie-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.owie-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: owieTyping 1.2s infinite ease-in-out;
+}
+
+.owie-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.owie-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes owieTyping {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
