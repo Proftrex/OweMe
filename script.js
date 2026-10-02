@@ -6582,7 +6582,8 @@ async function confirmDeleteClosedGroup(groupId) {
 
     toast("Group deleted.");
 
-    await loadHistory();
+    window.owemeGroupsSection = "history";
+    await loadGroups();
 
   } catch (error) {
 
