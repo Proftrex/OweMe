@@ -1896,7 +1896,7 @@ async function navigate(page) {
     }
 
     if (page === "profile") {
-      renderProfile();
+      await renderProfile();
     }
 
   } catch (error) {
