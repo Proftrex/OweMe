@@ -15135,7 +15135,7 @@ async function confirmDeletePaymentDetails(
     const { error } = await supabaseClient
       .from("payment_details")
       .update({
-        status: "DELETED",
+        status: "INACTIVE",
         updated_at: new Date().toISOString()
       })
       .eq("id", paymentDetailId)
