@@ -15673,3 +15673,90 @@ body.oweme-badge-modal-open {
   }
 }
 
+
+
+
+
+
+
+/* =========================================================
+   SETTLE UP — COMPACT PAYMENT INFORMATION
+========================================================= */
+
+.settle-payment-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  line-height: 1.25 !important;
+}
+
+.settle-payment-info > div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.settle-payment-info .settle-account-number-row {
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.settle-payment-info .settle-account-number-row + .muted {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.settle-payment-info .settle-copy-account-button {
+  margin-left: auto !important;
+}
+
+.settle-payment-info .settle-payment-qr {
+  margin-top: 18px !important;
+}
+
+
+
+/* =========================================================
+   SETTLE UP — COMPACT ACCOUNT NUMBER ROW
+   Remove excess vertical space around Account Number only.
+========================================================= */
+
+.settle-payment-option .settle-account-number-row {
+  display: flex !important;
+  align-items: center !important;
+
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+
+  margin-top: 2px !important;
+  margin-bottom: 0 !important;
+
+  padding: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.settle-payment-option .settle-account-number {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.settle-payment-option .settle-copy-account-button {
+  margin-left: auto !important;
+  padding: 0 !important;
+
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+}
+
+.settle-payment-option .settle-copy-account-button svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
