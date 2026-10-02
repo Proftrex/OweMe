@@ -12991,55 +12991,57 @@ function preparePaymentProof(file, input = null) {
 
   if (file.size > 10 * 1024 * 1024) {
     return Promise.reject(
-      new Error("Payment QR code must be 10 MB or smaller.")
+      new Error("Payment proof must be 10 MB or smaller.")
     );
   }
 
   if (!file.type.startsWith("image/")) {
     return Promise.reject(
-      new Error("Payment QR code must be an image.")
-    );
-  }
-
-  const qrInput =
-    input ||
-    $("#paymentQrFile");
-
-  if (!qrInput) {
-    return Promise.reject(
-      new Error("Payment QR input is unavailable.")
+      new Error("Payment proof must be an image.")
     );
   }
 
   /*
-   * The QR cropper saves the prepared image directly
-   * into the file input dataset.
+   * Payment Proof is the payer's screenshot/photo
+   * showing that the payment was made.
+   *
+   * It is completely separate from the recipient's
+   * Payment QR Code. Do not require the QR cropper here.
    */
-  if (
-    qrInput.dataset.croppedQr &&
-    qrInput.dataset.qrCropped === "true"
-  ) {
 
-    return Promise.resolve({
-      base64Data:
-        qrInput.dataset.croppedQr,
+  return new Promise((resolve, reject) => {
 
-      fileName:
-        qrInput.dataset.croppedQrName ||
-        "payment-qr.png",
+    const reader = new FileReader();
 
-      mimeType:
-        qrInput.dataset.croppedQrMime ||
-        "image/png"
-    });
+    reader.onload = () => {
 
-  }
+      const dataUrl = String(reader.result || "");
 
-  return Promise.reject(
-    new Error(
-      "Please upload and adjust your QR code first."
-    )
-  );
+      if (!dataUrl) {
+        reject(
+          new Error("Unable to read the payment proof.")
+        );
+        return;
+      }
+
+      resolve({
+        base64Data: dataUrl,
+        fileName: file.name || "payment-proof.png",
+        mimeType: file.type || "image/png"
+      });
+
+    };
+
+    reader.onerror = () => {
+      reject(
+        new Error("Unable to read the payment proof.")
+      );
+    };
+
+    reader.readAsDataURL(file);
+
+  });
+
 }
 
 async function loadInvitations() {
@@ -15917,6 +15919,390 @@ function viewPaymentProof(proofFileUrl) {
 
 
 window.viewPaymentProof = viewPaymentProof;
+async function submitSettlementPayment(event, settlement) {
+
+  event.preventDefault();
+
+  if (
+    String(state.currentGroup?.group?.status).toUpperCase() ===
+    "CLOSED"
+  ) {
+    toast("This group is closed. New payments cannot be submitted.");
+    return;
+  }
+
+  try {
+
+    const selected =
+      document.querySelector(
+        'input[name="settlePaymentMethod"]:checked'
+      );
+
+    if (!selected) {
+
+      toast(
+        "Please select a payment method."
+      );
+
+      return;
+    }
+
+    const paymentDetailId =
+      selected.value;
+
+    const amountInput =
+      $("#settleAmountPaid");
+
+    const amountPaid =
+      Number(
+        amountInput.value
+      );
+
+    const notesInput =
+      $("#settlePaymentNotes");
+
+    const notes =
+      notesInput
+        ? notesInput.value.trim()
+        : "";
+
+    const proofInput =
+      $("#settlePaymentProof");
+
+    const proofFile =
+      proofInput &&
+      proofInput.files &&
+      proofInput.files.length
+        ? proofInput.files[0]
+        : null;
+
+
+    if (
+      !Number.isFinite(amountPaid) ||
+      amountPaid <= 0
+    ) {
+
+      toast(
+        "Please enter a valid amount paid."
+      );
+
+      return;
+    }
+
+
+    if (
+      amountPaid >
+      Number(settlement.amount) + 0.01
+    ) {
+
+      toast(
+        "Amount paid cannot exceed the amount due."
+      );
+
+      return;
+    }
+
+
+    setLoading(
+      true,
+      "Checking payment..."
+    );
+
+
+    /*
+     * Check whether this settlement already
+     * has a payment awaiting confirmation.
+     */
+      const { data: transactionPayments, error: transactionError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .select("*")
+          .eq("group_id", settlement.groupId);
+
+      if (transactionError) {
+        throw transactionError;
+      }
+
+      const transactions =
+        (transactionPayments || []).map(payment => ({
+          type: "PAYMENT",
+          status: payment.status,
+          settlementId: payment.settlement_id,
+          fromUserId: payment.payer_user_id,
+          toUserId: payment.recipient_user_id,
+          paymentSubmissionId: payment.id,
+          amountPaid: Number(payment.amount_paid || 0)
+        }));
+
+
+    const existingPending =
+      transactions.find(
+        transaction =>
+
+          String(
+            transaction.type
+          ).toUpperCase() ===
+            "PAYMENT" &&
+
+          String(
+            transaction.status
+          ).toUpperCase() ===
+            "SUBMITTED" &&
+
+          String(
+            transaction.settlementId
+          ) ===
+            String(
+              settlement.settlementId
+            ) &&
+
+          String(
+            transaction.fromUserId
+          ) ===
+            String(
+              state.user.userId
+            )
+      );
+
+
+    /*
+     * --------------------------------------------------
+     * EXISTING PAYMENT
+     * --------------------------------------------------
+     *
+     * If a payment already exists, attach the
+     * payment proof instead of creating another
+     * payment submission.
+     */
+    if (existingPending) {
+
+      if (!proofFile) {
+
+        toast(
+          "You already have a payment awaiting confirmation for this settlement. Please attach the payment proof."
+        );
+
+        return;
+      }
+
+
+      setLoading(
+        true,
+        "Preparing payment proof..."
+      );
+
+
+      const proof =
+        await preparePaymentProof(
+          proofFile,
+          proofInput
+        );
+
+
+      setLoading(
+        true,
+        "Uploading payment proof..."
+      );
+
+
+      const proofFileUrl =
+        await uploadPaymentProofToSupabase(
+          proof,
+          settlement.groupId,
+          settlement.settlementId
+        );
+
+
+      setLoading(
+        true,
+        "Attaching payment proof..."
+      );
+
+
+      const { error: proofUpdateError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .update({
+            proof_file_url: proofFileUrl
+          })
+          .eq("id", existingPending.paymentSubmissionId)
+          .eq("payer_user_id", state.user.userId);
+
+      if (proofUpdateError) {
+        throw proofUpdateError;
+      }
+
+
+      if (
+        window.owemeSettlementDrafts &&
+        window.owemeSettlementDrafts[
+          settlement.settlementId
+        ]
+      ) {
+
+        delete window.owemeSettlementDrafts[
+          settlement.settlementId
+        ];
+
+      }
+
+
+      closeModal();
+
+
+      await refreshCurrentGroup();
+
+
+      toast(
+        "Payment proof attached successfully."
+      );
+
+      return;
+    }
+
+
+    /*
+     * --------------------------------------------------
+     * NEW PAYMENT
+     * --------------------------------------------------
+     */
+
+    let proofFileUrl = "";
+
+    if (proofFile) {
+      setLoading(
+        true,
+        "Preparing payment proof..."
+      );
+
+      const proof =
+        await preparePaymentProof(
+          proofFile,
+          proofInput
+        );
+
+      setLoading(
+        true,
+        "Uploading payment proof..."
+      );
+
+      proofFileUrl =
+        await uploadPaymentProofToSupabase(
+          proof,
+          settlement.groupId,
+          settlement.settlementId
+        );
+    }
+
+
+    /*
+     * --------------------------------------------------
+     * SUBMIT PAYMENT
+     * --------------------------------------------------
+     */
+
+    setLoading(
+      true,
+      "Submitting payment..."
+    );
+
+
+    const { error: submissionError } =
+      await supabaseClient
+        .from("payment_submissions")
+        .insert({
+          settlement_id: settlement.settlementId,
+          group_id: settlement.groupId,
+          payer_user_id: state.user.userId,
+          recipient_user_id: settlement.toUserId,
+          payment_option:
+            selected.closest("label")?.querySelector(
+              "strong"
+            )?.textContent?.trim() ||
+            selected.dataset?.paymentOption ||
+            selected.value,
+          payment_detail_id: paymentDetailId,
+          amount_due: Number(settlement.amount),
+          amount_paid: amountPaid,
+          proof_file_url: proofFileUrl || null,
+          notes: notes || "",
+          status: "SUBMITTED"
+        });
+
+    if (submissionError) {
+      throw submissionError;
+    }
+
+    /*
+     * The settlement returned by the balance calculation is
+     * already the source record for this payment. Do not create
+     * a second settlement row here.
+     */
+
+
+    if (
+      window.owemeSettlementDrafts &&
+      window.owemeSettlementDrafts[
+        settlement.settlementId
+      ]
+    ) {
+
+      delete window.owemeSettlementDrafts[
+        settlement.settlementId
+      ];
+
+    }
+
+
+    /*
+     * IMPORTANT:
+     * Refresh the entire group after the payment
+     * has been successfully saved.
+     *
+     * This reloads:
+     * - balances
+     * - settlements
+     * - transactions
+     *
+     * so the new payment appears immediately
+     * in the Transactions section.
+     */
+
+    closeModal();
+
+
+    await refreshCurrentGroup();
+
+
+    toast(
+      "Payment submitted for confirmation."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "SUBMIT PAYMENT ERROR:",
+      error
+    );
+
+
+    toast(
+      error &&
+      error.message
+        ? error.message
+        : "Something went wrong. Please try again."
+    );
+
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
+
 window.markSettlementPaid = markSettlementPaid;
 
 /* ===== NOTIFICATION BADGE ===== */
