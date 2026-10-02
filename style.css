@@ -14838,3 +14838,263 @@ body.oweme-badge-modal-open {
 
 }
 
+
+/* =========================================================
+   PAYMENT QR CROPPER
+   Fixed square crop + drag + zoom
+   ========================================================= */
+
+.qr-crop-modal {
+  position: relative;
+  width: min(92vw, 430px);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+}
+
+.qr-crop-viewport {
+  position: relative;
+  width: min(82vw, 320px);
+  height: min(82vw, 320px);
+  margin: 18px auto;
+  overflow: hidden;
+  background: #111;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.qr-crop-viewport:active {
+  cursor: grabbing;
+}
+
+#qrCropImage {
+  position: absolute;
+  max-width: none;
+  max-height: none;
+  user-select: none;
+  pointer-events: none;
+  transform-origin: center center;
+}
+
+.qr-crop-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.qr-crop-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.38);
+}
+
+.qr-crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.qr-crop-controls label {
+  width: 100%;
+}
+
+#qrCropZoom {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.qr-crop-modal .primary-button,
+.qr-crop-modal .secondary-button {
+  min-width: 120px;
+}
+
+@media (max-width: 480px) {
+
+  .qr-crop-modal {
+    width: calc(100vw - 24px);
+    padding: 18px;
+  }
+
+  .qr-crop-viewport {
+    width: min(84vw, 320px);
+    height: min(84vw, 320px);
+  }
+
+}
+
+
+/* =========================================================
+   PAYMENT QR CROPPER — INTERACTIVE DRAG + ZOOM
+   ========================================================= */
+
+.qr-crop-viewport {
+  position: relative;
+  width: min(82vw, 320px);
+  height: min(82vw, 320px);
+  margin: 18px auto;
+  overflow: hidden;
+  background: #111;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.qr-crop-viewport:active {
+  cursor: grabbing;
+}
+
+.qr-crop-viewport img {
+  position: absolute;
+  display: block;
+  max-width: none !important;
+  max-height: none !important;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: center center;
+}
+
+.qr-crop-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.qr-crop-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.35);
+}
+
+.qr-crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.qr-crop-controls label {
+  width: 100%;
+}
+
+.qr-crop-controls input[type="range"] {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.qr-crop-modal {
+  width: min(92vw, 430px);
+}
+
+
+/* =========================================================
+   PAYMENT QR CROPPER — ALWAYS ABOVE THE PAYMENT MODAL
+   ========================================================= */
+
+.qr-crop-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+
+  padding: 20px !important;
+  box-sizing: border-box !important;
+
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+.qr-crop-dialog {
+  position: relative !important;
+  z-index: 100000 !important;
+
+  width: min(92vw, 430px) !important;
+  max-height: 92vh !important;
+  overflow-y: auto !important;
+
+  padding: 22px !important;
+  box-sizing: border-box !important;
+
+  border-radius: 20px !important;
+  background: var(--card-bg, #fff) !important;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.qr-crop-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+}
+
+
+/* =========================================================
+   PAYMENT QR CROPPER — ALWAYS ABOVE THE PAYMENT MODAL
+   ========================================================= */
+
+.qr-crop-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+
+  padding: 20px !important;
+  box-sizing: border-box !important;
+
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+.qr-crop-dialog {
+  position: relative !important;
+  z-index: 100000 !important;
+
+  width: min(92vw, 430px) !important;
+  max-height: 92vh !important;
+  overflow-y: auto !important;
+
+  padding: 22px !important;
+  box-sizing: border-box !important;
+
+  border-radius: 20px !important;
+  background: var(--card-bg, #fff) !important;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.35) !important;
+}
+
+.qr-crop-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+}
+

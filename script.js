@@ -12380,11 +12380,33 @@ function renderPaymentQrCropper() {
 
   if (!state) return;
 
-  closeModal();
+  /*
+   * IMPORTANT:
+   * Do NOT use openModal() here.
+   *
+   * The Add Payment Details form is already inside
+   * the main modal. Using openModal() would replace it.
+   *
+   * Instead, create a separate overlay on top of it.
+   */
 
-  openModal(`
+  const existingCropper =
+    document.querySelector(".qr-crop-modal");
 
-    <div class="qr-crop-modal">
+  if (existingCropper) {
+    existingCropper.remove();
+  }
+
+  const modal =
+    document.createElement("div");
+
+  modal.className = "qr-crop-modal";
+
+  modal.innerHTML = `
+
+    <div class="qr-crop-backdrop"></div>
+
+    <div class="qr-crop-dialog">
 
       <h2>Adjust QR Code</h2>
 
@@ -12396,6 +12418,7 @@ function renderPaymentQrCropper() {
         id="qrCropViewport"
         class="qr-crop-viewport"
       >
+
         <img
           id="qrCropImage"
           src="${String(state.image.src).replace(/"/g, "&quot;")}"
@@ -12412,26 +12435,21 @@ function renderPaymentQrCropper() {
 
         <label>
           Zoom
+
           <input
             id="qrCropZoom"
             type="range"
             min="1"
             max="3"
             step="0.01"
-            value="1"
+            value="${Number(state.zoom || 1)}"
           >
+
         </label>
 
       </div>
 
-      <div
-        style="
-          display:flex;
-          justify-content:flex-end;
-          gap:10px;
-          margin-top:18px;
-        "
-      >
+      <div class="qr-crop-actions">
 
         <button
           type="button"
@@ -12453,15 +12471,29 @@ function renderPaymentQrCropper() {
 
     </div>
 
-  `);
+  `;
 
-  const viewport = $("#qrCropViewport");
-  const image = $("#qrCropImage");
-  const zoom = $("#qrCropZoom");
-  const cancel = $("#qrCropCancel");
-  const use = $("#qrCropUse");
+  document.body.appendChild(modal);
 
-  if (!viewport || !image) return;
+  const viewport =
+    modal.querySelector("#qrCropViewport");
+
+  const image =
+    modal.querySelector("#qrCropImage");
+
+  const zoom =
+    modal.querySelector("#qrCropZoom");
+
+  const cancel =
+    modal.querySelector("#qrCropCancel");
+
+  const use =
+    modal.querySelector("#qrCropUse");
+
+  if (!viewport || !image || !zoom || !cancel || !use) {
+    modal.remove();
+    return;
+  }
 
   function updateImage() {
 
@@ -12470,6 +12502,8 @@ function renderPaymentQrCropper() {
         viewport.clientWidth,
         viewport.clientHeight
       );
+
+    if (!cropSize) return;
 
     const baseScale =
       Math.max(
@@ -12510,8 +12544,11 @@ function renderPaymentQrCropper() {
         Math.min(maxY, state.y)
       );
 
-    image.style.width = `${width}px`;
-    image.style.height = `${height}px`;
+    image.style.width =
+      `${width}px`;
+
+    image.style.height =
+      `${height}px`;
 
     image.style.left =
       `calc(50% + ${state.x}px)`;
@@ -12526,15 +12563,21 @@ function renderPaymentQrCropper() {
 
   requestAnimationFrame(updateImage);
 
-  zoom.addEventListener("input", () => {
+  zoom.addEventListener(
+    "input",
+    () => {
 
-    state.zoom =
-      Number(zoom.value || 1);
+      state.zoom =
+        Number(zoom.value || 1);
 
-    updateImage();
+      updateImage();
 
-  });
+    }
+  );
 
+  /*
+   * Drag support
+   */
   viewport.addEventListener(
     "pointerdown",
     event => {
@@ -12543,11 +12586,17 @@ function renderPaymentQrCropper() {
 
       state.dragging = true;
 
-      state.startX = event.clientX;
-      state.startY = event.clientY;
+      state.startX =
+        event.clientX;
 
-      state.startImageX = state.x;
-      state.startImageY = state.y;
+      state.startY =
+        event.clientY;
+
+      state.startImageX =
+        state.x;
+
+      state.startImageY =
+        state.y;
 
       viewport.setPointerCapture(
         event.pointerId
@@ -12575,33 +12624,50 @@ function renderPaymentQrCropper() {
     }
   );
 
+  function stopDragging() {
+    state.dragging = false;
+  }
+
   viewport.addEventListener(
     "pointerup",
-    () => {
-      state.dragging = false;
-    }
+    stopDragging
   );
 
   viewport.addEventListener(
     "pointercancel",
-    () => {
-      state.dragging = false;
-    }
+    stopDragging
   );
 
+  /*
+   * Cancel:
+   * Keep the Add Payment Details form open.
+   */
   cancel.addEventListener(
     "click",
     () => {
 
-      state.input.value = "";
+      if (state.input) {
+        state.input.value = "";
+
+        delete state.input.dataset.croppedQr;
+        delete state.input.dataset.croppedQrName;
+        delete state.input.dataset.croppedQrMime;
+        delete state.input.dataset.qrCropped;
+      }
 
       owemeQrCropState = null;
 
-      closeModal();
+      modal.remove();
 
     }
   );
 
+  /*
+   * Use QR Code:
+   * Save the cropped image into the existing
+   * payment QR input dataset, then return to
+   * the Add Payment Details form.
+   */
   use.addEventListener(
     "click",
     async () => {
@@ -12614,11 +12680,6 @@ function renderPaymentQrCropper() {
         const cropped =
           await createCroppedPaymentQr();
 
-        /*
-         * Store the cropped image separately.
-         * The original file input is kept populated so
-         * existing save/update flows continue to work.
-         */
         state.input.dataset.croppedQr =
           cropped.base64Data;
 
@@ -12631,11 +12692,49 @@ function renderPaymentQrCropper() {
         state.input.dataset.qrCropped =
           "true";
 
-        closeModal();
+        /*
+         * Also keep the prepared QR globally so the Save
+         * handler can still access it even if the form
+         * input gets recreated or refreshed.
+         */
+        window.__owemePaymentQr = {
+          base64Data: cropped.base64Data,
+          fileName: cropped.fileName,
+          mimeType: cropped.mimeType
+        };
 
-        toast("QR code adjusted.");
+        /*
+         * Store the prepared QR directly on the payment
+         * input as well. This keeps the cropped QR attached
+         * to the Add Payment Details form that opened it.
+         */
+        if (state.input) {
+          state.input.dataset.croppedQr =
+            cropped.base64Data;
+
+          state.input.dataset.croppedQrName =
+            cropped.fileName ||
+            "payment-qr.png";
+
+          state.input.dataset.croppedQrMime =
+            cropped.mimeType ||
+            "image/png";
+
+          state.input.dataset.qrCropped =
+            "true";
+        }
+
+        /*
+         * Remove ONLY the QR cropper.
+         *
+         * Do NOT call closeModal().
+         * The Add Payment Details form must remain open.
+         */
+        modal.remove();
 
         owemeQrCropState = null;
+
+        toast("QR code adjusted. Click Save Payment Details.");
 
       } catch (error) {
 
@@ -12658,7 +12757,6 @@ function renderPaymentQrCropper() {
   );
 
 }
-
 
 function createCroppedPaymentQr() {
 
@@ -12830,7 +12928,12 @@ function createCroppedPaymentQr() {
 
 
 
-/* Open the QR cropper immediately after selecting an image. */
+/* =========================================================
+   PAYMENT QR FILE SELECTION
+   Delegated listener because Payment Details is dynamically
+   rendered inside the modal.
+   ========================================================= */
+
 document.addEventListener(
   "change",
   event => {
@@ -12850,7 +12953,12 @@ document.addEventListener(
         ? input.files[0]
         : null;
 
-    if (!file) return;
+    if (!file) {
+      toast("No QR image selected.");
+      return;
+    }
+
+    toast("QR image selected: " + file.name);
 
     openPaymentQrCropper(
       file,
@@ -12861,339 +12969,8 @@ document.addEventListener(
 );
 
 
-function openPaymentQrCropper(file) {
-  return new Promise((resolve, reject) => {
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-
-      const image = new Image();
-
-      image.onload = () => {
-
-        let scale = 1;
-        let offsetX = 0;
-        let offsetY = 0;
-
-        const cropSize = 280;
-
-        const modal = document.createElement("div");
-
-        modal.className = "oweme-qr-cropper";
-
-        modal.innerHTML = `
-          <div class="oweme-qr-cropper-backdrop"></div>
-
-          <div class="oweme-qr-cropper-modal">
-
-            <h2>Adjust QR Code</h2>
-
-            <p class="muted">
-              Drag the image until only the QR code is inside the square.
-            </p>
-
-            <div class="oweme-qr-crop-area">
-              <canvas
-                class="oweme-qr-crop-canvas"
-                width="${cropSize}"
-                height="${cropSize}"
-              ></canvas>
-            </div>
-
-            <label class="oweme-qr-zoom">
-              Zoom
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.01"
-                value="1"
-                id="owemeQrZoom"
-              >
-            </label>
-
-            <div class="oweme-qr-crop-actions">
-
-              <button
-                type="button"
-                class="secondary-button"
-                id="owemeQrCancel"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                class="primary-button"
-                id="owemeQrUse"
-              >
-                Use QR Code
-              </button>
-
-            </div>
-
-          </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        const canvas =
-          modal.querySelector(".oweme-qr-crop-canvas");
-
-        const ctx = canvas.getContext("2d");
-
-        const zoom =
-          modal.querySelector("#owemeQrZoom");
-
-        let dragging = false;
-        let startX = 0;
-        let startY = 0;
-
-        function draw() {
-
-          ctx.clearRect(
-            0,
-            0,
-            cropSize,
-            cropSize
-          );
-
-          const imageRatio =
-            image.naturalWidth /
-            image.naturalHeight;
-
-          let drawWidth;
-          let drawHeight;
-
-          if (imageRatio >= 1) {
-            drawHeight =
-              cropSize * scale;
-
-            drawWidth =
-              drawHeight * imageRatio;
-
-          } else {
-
-            drawWidth =
-              cropSize * scale;
-
-            drawHeight =
-              drawWidth / imageRatio;
-          }
-
-          const x =
-            (cropSize - drawWidth) / 2 +
-            offsetX;
-
-          const y =
-            (cropSize - drawHeight) / 2 +
-            offsetY;
-
-          ctx.drawImage(
-            image,
-            x,
-            y,
-            drawWidth,
-            drawHeight
-          );
-        }
-
-        draw();
-
-        zoom.addEventListener("input", () => {
-
-          scale =
-            Number(zoom.value);
-
-          draw();
-
-        });
-
-        canvas.addEventListener(
-          "pointerdown",
-          event => {
-
-            dragging = true;
-
-            startX =
-              event.clientX - offsetX;
-
-            startY =
-              event.clientY - offsetY;
-
-            canvas.setPointerCapture(
-              event.pointerId
-            );
-          }
-        );
-
-        canvas.addEventListener(
-          "pointermove",
-          event => {
-
-            if (!dragging) {
-              return;
-            }
-
-            offsetX =
-              event.clientX - startX;
-
-            offsetY =
-              event.clientY - startY;
-
-            draw();
-          }
-        );
-
-        canvas.addEventListener(
-          "pointerup",
-          () => {
-            dragging = false;
-          }
-        );
-
-        canvas.addEventListener(
-          "pointercancel",
-          () => {
-            dragging = false;
-          }
-        );
-
-        modal.querySelector(
-          "#owemeQrCancel"
-        ).addEventListener("click", () => {
-
-          modal.remove();
-
-          reject(
-            new Error(
-              "QR code selection cancelled."
-            )
-          );
-
-        });
-
-        modal.querySelector(
-          "#owemeQrUse"
-        ).addEventListener("click", () => {
-
-          const output =
-            document.createElement("canvas");
-
-          output.width = 1200;
-          output.height = 1200;
-
-          const outputCtx =
-            output.getContext("2d");
-
-          outputCtx.drawImage(
-            canvas,
-            0,
-            0,
-            1200,
-            1200
-          );
-
-          output.toBlob(
-            blob => {
-
-              if (!blob) {
-
-                modal.remove();
-
-                reject(
-                  new Error(
-                    "Unable to prepare QR code."
-                  )
-                );
-
-                return;
-              }
-
-              const blobReader =
-                new FileReader();
-
-              blobReader.onload = () => {
-
-                const result =
-                  String(
-                    blobReader.result || ""
-                  );
-
-                const commaIndex =
-                  result.indexOf(",");
-
-                modal.remove();
-
-                if (commaIndex === -1) {
-
-                  reject(
-                    new Error(
-                      "Unable to read prepared QR code."
-                    )
-                  );
-
-                  return;
-                }
-
-                resolve({
-                  base64Data:
-                    result.substring(
-                      commaIndex + 1
-                    ),
-
-                  fileName:
-                    "payment-qr.png",
-
-                  mimeType:
-                    "image/png"
-                });
-
-              };
-
-              blobReader.readAsDataURL(blob);
-
-            },
-            "image/png"
-          );
-
-        });
-
-      };
-
-      image.onerror = () => {
-
-        reject(
-          new Error(
-            "Unable to read payment QR code."
-          )
-        );
-
-      };
-
-      image.src =
-        String(reader.result || "");
-
-    };
-
-    reader.onerror = () => {
-
-      reject(
-        new Error(
-          "Unable to read payment QR code."
-        )
-      );
-
-    };
-
-    reader.readAsDataURL(file);
-
-  });
-}
-
-
-function preparePaymentProof(file) {
+function preparePaymentProof(file, input = null) {
 
   if (!file) {
     return Promise.reject(
@@ -13213,7 +12990,45 @@ function preparePaymentProof(file) {
     );
   }
 
-  return openPaymentQrCropper(file);
+  const qrInput =
+    input ||
+    $("#paymentQrFile");
+
+  if (!qrInput) {
+    return Promise.reject(
+      new Error("Payment QR input is unavailable.")
+    );
+  }
+
+  /*
+   * The QR cropper saves the prepared image directly
+   * into the file input dataset.
+   */
+  if (
+    qrInput.dataset.croppedQr &&
+    qrInput.dataset.qrCropped === "true"
+  ) {
+
+    return Promise.resolve({
+      base64Data:
+        qrInput.dataset.croppedQr,
+
+      fileName:
+        qrInput.dataset.croppedQrName ||
+        "payment-qr.png",
+
+      mimeType:
+        qrInput.dataset.croppedQrMime ||
+        "image/png"
+    });
+
+  }
+
+  return Promise.reject(
+    new Error(
+      "Please upload and adjust your QR code first."
+    )
+  );
 }
 
 async function loadInvitations() {
@@ -15031,11 +14846,214 @@ async function editPaymentDetails(paymentDetailId) {
 }
 
 
-async function updatePaymentDetails(event, paymentDetailId) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Updating payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult = await uploadPaymentProofToSupabase(
-        qr,
-        state.user.userId,
-        crypto.randomUUID()
-      ); qrFileUrl = uploadResult || ""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file path was returned.");} const payload={paymentDetailId,paymentOption,accountNumber,accountName,isPreferred}; if(qrFileUrl)payload.qrFileUrl=qrFileUrl; const { error: updateError } = await supabaseClient
+
+/* =========================================================
+   PAYMENT QR / PAYMENT PROOF SUPABASE UPLOAD
+   ========================================================= */
+
+async function uploadPaymentProofToSupabase(
+  preparedFile,
+  userId,
+  uniqueId
+) {
+
+  if (
+    !preparedFile ||
+    !preparedFile.base64Data
+  ) {
+    throw new Error(
+      "No prepared payment QR image was provided."
+    );
+  }
+
+  if (!userId) {
+    throw new Error(
+      "User ID is unavailable."
+    );
+  }
+
+  const base64Data =
+    String(preparedFile.base64Data);
+
+  const mimeType =
+    preparedFile.mimeType ||
+    "image/png";
+
+  const fileName =
+    preparedFile.fileName ||
+    "payment-qr.png";
+
+  /*
+   * Convert the base64 data URL produced by
+   * the QR cropper into binary data.
+   */
+  const commaIndex =
+    base64Data.indexOf(",");
+
+  const rawBase64 =
+    commaIndex >= 0
+      ? base64Data.slice(commaIndex + 1)
+      : base64Data;
+
+  let binary;
+
+  try {
+
+    binary =
+      atob(rawBase64);
+
+  } catch (error) {
+
+    throw new Error(
+      "The prepared QR image is invalid."
+    );
+
+  }
+
+  const bytes =
+    new Uint8Array(
+      binary.length
+    );
+
+  for (
+    let i = 0;
+    i < binary.length;
+    i++
+  ) {
+
+    bytes[i] =
+      binary.charCodeAt(i);
+
+  }
+
+  /*
+   * Always use a safe PNG extension for cropped QR images.
+   * The cropper currently produces PNG data.
+   */
+  const extension =
+    mimeType === "image/jpeg"
+      ? "jpg"
+      : mimeType === "image/webp"
+        ? "webp"
+        : "png";
+
+  const safeId =
+    uniqueId ||
+    crypto.randomUUID();
+
+  const safeFileName =
+    String(fileName)
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  const storagePath =
+    `${userId}/${safeId}-${safeFileName.endsWith("." + extension)
+      ? safeFileName
+      : safeFileName + "." + extension}`;
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .storage
+      .from("payment-proofs")
+      .upload(
+        storagePath,
+        bytes,
+        {
+          contentType: mimeType,
+          upsert: false
+        }
+      );
+
+  if (error) {
+    console.error(
+      "PAYMENT QR UPLOAD ERROR:",
+      error
+    );
+
+    throw error;
+  }
+
+  /*
+   * Return the STORAGE PATH, not a temporary signed URL.
+   * payment_details.qr_file_url stores this path.
+   */
+  return storagePath;
+
+}
+
+
+async function updatePaymentDetails(event, paymentDetailId) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Updating payment details..."); let qrFileUrl=""; if(
+        paymentOption !== "Cash" &&
+        (
+          qrFile ||
+          window.__owemePaymentQr?.base64Data
+        )
+      ){
+        setLoading(true,"Preparing QR code...");
+
+        let qr;
+
+        if (
+          window.__owemePaymentQr?.base64Data
+        ) {
+
+          qr = {
+            base64Data:
+              window.__owemePaymentQr.base64Data,
+
+            fileName:
+              window.__owemePaymentQr.fileName ||
+              "payment-qr.png",
+
+            mimeType:
+              window.__owemePaymentQr.mimeType ||
+              "image/png"
+          };
+
+        } else if (
+          qrInput.dataset.croppedQr &&
+          qrInput.dataset.qrCropped === "true"
+        ) {
+
+          qr = {
+            base64Data:
+              qrInput.dataset.croppedQr,
+
+            fileName:
+              qrInput.dataset.croppedQrName ||
+              "payment-qr.png",
+
+            mimeType:
+              qrInput.dataset.croppedQrMime ||
+              "image/png"
+          };
+
+        } else {
+
+          throw new Error(
+            "Please upload and adjust your QR code first."
+          );
+
+        }
+
+        setLoading(true,"Uploading QR code...");
+
+        const uploadResult =
+          await uploadPaymentProofToSupabase(
+            qr,
+            state.user.userId,
+            crypto.randomUUID()
+          );
+
+        qrFileUrl =
+          uploadResult || "";
+
+        if(!qrFileUrl)
+          throw new Error(
+            "QR code uploaded, but no file path was returned."
+          );
+      } const payload={paymentDetailId,paymentOption,accountNumber,accountName,isPreferred}; if(qrFileUrl)payload.qrFileUrl=qrFileUrl; const { error: updateError } = await supabaseClient
         .from("payment_details")
         .update({
           payment_option: payload.paymentOption,
@@ -15147,25 +15165,181 @@ async function confirmDeletePaymentDetails(
 
 }
 
-async function savePaymentDetails(event) { event.preventDefault(); const paymentOption=$("#paymentOption").value.trim(); const accountNumber=$("#paymentAccountNumber").value.trim(); const accountName=$("#paymentAccountName").value.trim(); const isPreferred=$("#paymentIsPreferred").checked; const qrInput=$("#paymentQrFile"); const qrFile=qrInput&&qrInput.files&&qrInput.files.length?qrInput.files[0]:null; if(!paymentOption){toast("Please select a payment option.");return;} if(paymentOption!=="Cash"&&(!accountNumber||!accountName)){toast("Please enter the account number and account name.");return;} try{setLoading(true,"Saving payment details..."); let qrFileUrl=""; if(paymentOption!=="Cash"&&qrFile){setLoading(true,"Preparing QR code..."); const qr=await preparePaymentProof(qrFile); setLoading(true,"Uploading QR code..."); const uploadResult = await uploadPaymentProofToSupabase(
-        qr,
-        state.user.userId,
-        crypto.randomUUID()
-      ); qrFileUrl = uploadResult || ""; if(!qrFileUrl)throw new Error("QR code uploaded, but no file path was returned.");} const { error: saveError } = await supabaseClient
+async function savePaymentDetails(event) {
+
+  event.preventDefault();
+
+  const paymentOption =
+    $("#paymentOption").value.trim();
+
+  const accountNumber =
+    $("#paymentAccountNumber").value.trim();
+
+  const accountName =
+    $("#paymentAccountName").value.trim();
+
+  const isPreferred =
+    $("#paymentIsPreferred").checked;
+
+  if (!paymentOption) {
+    toast("Please select a payment option.");
+    return;
+  }
+
+  if (
+    paymentOption !== "Cash" &&
+    (!accountNumber || !accountName)
+  ) {
+    toast(
+      "Please enter the account number and account name."
+    );
+    return;
+  }
+
+  try {
+
+    setLoading(
+      true,
+      "Saving payment details..."
+    );
+
+    let qrFileUrl = "";
+
+    /*
+     * QR code is optional.
+     *
+     * The existing QR cropper stores the prepared image
+     * in window.__owemePaymentQr when the user clicks
+     * "Use QR Code".
+     *
+     * If no QR was selected, simply continue without one.
+     */
+    const croppedQr =
+      window.__owemePaymentQr || null;
+
+    if (
+      croppedQr &&
+      croppedQr.base64Data
+    ) {
+
+      setLoading(
+        true,
+        "Uploading QR code..."
+      );
+
+      const uploadResult =
+        await uploadPaymentProofToSupabase(
+          croppedQr,
+          state.user.userId,
+          crypto.randomUUID()
+        );
+
+      qrFileUrl =
+        uploadResult || "";
+
+      if (!qrFileUrl) {
+
+        throw new Error(
+          "QR code uploaded, but no file path was returned."
+        );
+
+      }
+
+    }
+
+    /*
+     * Save the payment details only AFTER
+     * the QR upload has completed successfully.
+     */
+    const {
+      error: saveError
+    } =
+      await supabaseClient
         .from("payment_details")
         .insert({
-          user_id: state.user.userId,
-          payment_option: paymentOption,
-          account_number: accountNumber,
-          account_name: accountName,
-          qr_file_url: qrFileUrl || null,
-          is_preferred: isPreferred,
-          status: "ACTIVE"
+          user_id:
+            state.user.userId,
+
+          payment_option:
+            paymentOption,
+
+          account_number:
+            accountNumber,
+
+          account_name:
+            accountName,
+
+          qr_file_url:
+            qrFileUrl || null,
+
+          is_preferred:
+            isPreferred,
+
+          status:
+            "ACTIVE"
         });
 
-      if (saveError) {
-        throw saveError;
-      } closeModal(); await renderSavedPaymentDetails(); toast("Payment details saved.");}catch(error){console.error("SAVE PAYMENT DETAILS ERROR:",error);toast(error&&error.message?error.message:"Something went wrong. Please try again.");}finally{setLoading(false);}}
+    if (saveError) {
+      throw saveError;
+    }
+
+    /*
+     * Clear the temporary QR after
+     * everything has successfully saved.
+     */
+    window.__owemePaymentQr = null;
+
+    const qrInput =
+      $("#paymentQrFile");
+
+    if (qrInput) {
+
+      delete qrInput.dataset.croppedQr;
+      delete qrInput.dataset.croppedQrName;
+      delete qrInput.dataset.croppedQrMime;
+      delete qrInput.dataset.qrCropped;
+
+    }
+
+    /*
+     * Close the form immediately after the database save succeeds.
+     * Refresh the saved-payment list separately so a rendering issue
+     * cannot leave the modal stuck open.
+     */
+    closeModal();
+
+    toast(
+      "Payment details saved."
+    );
+
+    try {
+      await renderSavedPaymentDetails();
+    } catch (refreshError) {
+      console.error(
+        "REFRESH PAYMENT DETAILS ERROR:",
+        refreshError
+      );
+    }
+
+  } catch (error) {
+
+    console.error(
+      "SAVE PAYMENT DETAILS ERROR:",
+      error
+    );
+
+    toast(
+      error?.message ||
+      "Something went wrong. Please try again."
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}
 
 async function updateProfile(event) {
 
