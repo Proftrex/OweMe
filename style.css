@@ -15477,3 +15477,146 @@ body.oweme-badge-modal-open {
   }
 }
 
+
+/* =========================================================
+   MODAL SCROLL FIX
+   Keeps long modals fully accessible on mobile/PWA.
+========================================================= */
+
+.modal-card {
+  max-height: calc(100dvh - 36px) !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+#modalContent {
+  box-sizing: border-box;
+  padding-bottom: 32px;
+}
+
+@media (max-width: 700px) {
+  .modal-card {
+    max-height: calc(100dvh - 36px) !important;
+  }
+
+  #modalContent {
+    padding-bottom: 40px;
+  }
+}
+
+
+/* =========================================================
+   PENDING PAYMENTS — FINAL READABLE LAYOUT
+   Fixes the pending list being squeezed/overlapped
+========================================================= */
+
+/* The list containers themselves must NOT become grids */
+#pendingPayablesList,
+#pendingPaymentsList,
+#groupPendingPaymentsList {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Each payment is its own grid row */
+#pendingPayablesList .pending-flat-row,
+#pendingPaymentsList .pending-flat-row,
+#groupPendingPaymentsList .pending-flat-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-height: 56px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 12px 0 !important;
+  overflow: visible !important;
+}
+
+/* Payment description */
+#pendingPayablesList .pending-flat-label,
+#pendingPaymentsList .pending-flat-label,
+#groupPendingPaymentsList .pending-flat-label {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Amount */
+#pendingPayablesList .pending-flat-amount,
+#pendingPaymentsList .pending-flat-amount,
+#groupPendingPaymentsList .pending-flat-amount {
+  grid-column: 2 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  justify-self: end !important;
+}
+
+/* =========================================================
+   PENDING PAYMENT ACTION BUTTONS — CLEAN FINAL RULE
+   Settle and Review use the same dimensions.
+========================================================= */
+
+#pendingPayablesList .pending-flat-action,
+#groupPendingPaymentsList .pending-review-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+
+  flex: 0 0 92px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border-radius: 999px !important;
+  box-sizing: border-box !important;
+
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* Settle */
+#pendingPayablesList .pending-settle-action {
+  background: #193a27 !important;
+  border: 1px solid #193a27 !important;
+  color: #ffffff !important;
+}
+
+/* Review */
+#groupPendingPaymentsList .pending-review-action {
+  background: #e6f0e0 !important;
+  border: 1px solid #e6f0e0 !important;
+  color: #39744b !important;
+}
+
+/* Pending Payment Reviews — card */
+#groupPendingPaymentsList {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 0 24px !important;
+  padding: 8px 18px !important;
+
+  background: #ffffff !important;
+  border: 1px solid #e1e9dd !important;
+  border-radius: 22px !important;
+  box-shadow: 0 4px 14px rgba(39, 66, 45, 0.05) !important;
+
+  overflow: visible !important;
+}
