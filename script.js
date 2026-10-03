@@ -652,6 +652,116 @@ async function getBalancesFromSupabase(groupId) {
 }
 
 
+/*
+ * Calculate the optional late charge for a settlement.
+ *
+ * Grace period:
+ *   First 3 days after the due date = no charge.
+ *
+ * Late charge:
+ *   Day 4 onward = 1% base charge
+ *   + 0.167% for every additional overdue day.
+ */
+function calculateLateCharge(
+  amount,
+  dueDate,
+  referenceDate = new Date()
+) {
+  const principal = Math.max(
+    0,
+    Number(amount || 0)
+  );
+
+  if (!principal || !dueDate) {
+    return {
+      daysOverdue: 0,
+      chargeRate: 0,
+      lateCharge: 0,
+      totalWithLateCharge: principal
+    };
+  }
+
+  const due = new Date(`${dueDate}T00:00:00`);
+
+  if (Number.isNaN(due.getTime())) {
+    return {
+      daysOverdue: 0,
+      chargeRate: 0,
+      lateCharge: 0,
+      totalWithLateCharge: principal
+    };
+  }
+
+  const today = new Date(referenceDate);
+  today.setHours(0, 0, 0, 0);
+
+  /*
+   * The 3-day grace period is BEFORE the due date.
+   *
+   * Example:
+   * Due date: September 20
+   * Grace period: September 17-19
+   * First late-charge day: September 20
+   *
+   * September 20 = 1%
+   * September 21 = 1% + 0.167%
+   * September 22 = 1% + 0.334%
+   */
+
+  const millisecondsPerDay =
+    24 * 60 * 60 * 1000;
+
+  const daysSinceDue = Math.floor(
+    (
+      today.getTime() -
+      due.getTime()
+    ) /
+    millisecondsPerDay
+  );
+
+  if (daysSinceDue < 0) {
+    return {
+      daysOverdue: 0,
+      chargeRate: 0,
+      lateCharge: 0,
+      totalWithLateCharge: principal
+    };
+  }
+
+  const daysOverdue =
+    daysSinceDue + 1;
+
+  const chargeRate =
+    0.01 +
+    (
+      (daysOverdue - 1) *
+      0.00167
+    );
+
+  const lateCharge =
+    Math.round(
+      principal *
+      chargeRate *
+      100
+    ) / 100;
+
+  const totalWithLateCharge =
+    Math.round(
+      (
+        principal +
+        lateCharge
+      ) *
+      100
+    ) / 100;
+
+  return {
+    daysOverdue,
+    chargeRate,
+    lateCharge,
+    totalWithLateCharge
+  };
+}
+
 async function getSettlementsFromSupabase(groupId) {
 
   const { data: expenses, error: expenseError } =
@@ -911,6 +1021,64 @@ async function getSettlementsFromSupabase(groupId) {
         settlement.amount <= 0
           ? "PAID"
           : "UNPAID";
+
+    });
+
+  }
+
+  /*
+   * Load payment terms for the settlements.
+   *
+   * These values come from the settlements table and are
+   * attached before the settlement list is returned.
+   */
+  if (settlementIds.length) {
+
+    const {
+      data: settlementTerms,
+      error: settlementTermsError
+    } = await supabaseClient
+      .from("settlements")
+      .select(`
+        id,
+        created_at,
+        due_date,
+        late_charge_enabled
+      `)
+      .in("id", settlementIds);
+
+    if (settlementTermsError) {
+      throw settlementTermsError;
+    }
+
+    const settlementTermsMap = {};
+
+    (settlementTerms || []).forEach(term => {
+
+      settlementTermsMap[String(term.id)] = {
+        createdAt: term.created_at || null,
+        dueDate: term.due_date || null,
+        lateChargeEnabled:
+          term.late_charge_enabled !== false
+      };
+
+    });
+
+    settlements.forEach(settlement => {
+
+      const terms =
+        settlementTermsMap[
+          String(settlement.settlementId)
+        ];
+
+      settlement.createdAt =
+        terms?.createdAt || null;
+
+      settlement.dueDate =
+        terms?.dueDate || null;
+
+      settlement.lateChargeEnabled =
+        terms?.lateChargeEnabled !== false;
 
     });
 
@@ -6967,7 +7135,7 @@ function renderGroup() {
       class="group-tab-panel"
     >
 
-     
+
 
 
     <div class="balance-sections">
@@ -11788,6 +11956,16 @@ async function openSettlePayment(settlementId) {
       return;
     }
 
+    console.log(
+      "OWEME SETTLEMENT TERMS:",
+      {
+        settlementId: settlement.settlementId,
+        dueDate: settlement.dueDate,
+        lateChargeEnabled: settlement.lateChargeEnabled,
+        amount: settlement.amount
+      }
+    );
+
     /*
      * Calculate the current outstanding balance.
      * settlement.amount is the original settlement amount;
@@ -11956,6 +12134,203 @@ async function openSettlePayment(settlementId) {
           )}
 
         </div>
+
+      </div>
+
+
+      <div
+        id="settlePaymentCalculator"
+        class="card"
+        style="
+          margin-top:16px;
+          padding:16px;
+        "
+      >
+
+        <div
+          style="
+            font-size:16px;
+            font-weight:700;
+          "
+        >
+          Late Payment Calculator
+        </div>
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            margin-top:12px;
+          "
+        >
+          <span class="muted">
+            Amount
+          </span>
+
+          <strong id="settleCalculatorAmount">
+            ₱${Number(draftAmount || 0).toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}
+          </strong>
+        </div>
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            margin-top:8px;
+          "
+        >
+          <span class="muted">
+            Late charge
+          </span>
+
+          <strong id="settleCalculatorLateCharge">
+            ₱0.00
+          </strong>
+        </div>
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            margin-top:8px;
+          "
+        >
+          <span class="muted">
+            Days overdue
+          </span>
+
+          <strong id="settleCalculatorDaysOverdue">
+            0 days
+          </strong>
+        </div>
+
+        <div
+          id="settleCalculatorExplanation"
+          style="
+            margin-top:14px;
+            padding:12px 14px;
+            border-radius:12px;
+            background:rgba(31,75,52,.06);
+          "
+        >
+          <div
+            style="
+              font-size:14px;
+              font-weight:700;
+              margin-bottom:6px;
+            "
+          >
+            How is this computed?
+          </div>
+
+          <div
+            id="settleCalculatorExplanationText"
+            style="
+              font-size:13px;
+              line-height:1.6;
+              color:#6f8175;
+            "
+          >
+            Calculating...
+          </div>
+
+              </div>
+  
+
+
+        <div
+          style="
+            height:1px;
+            background:rgba(31,75,52,.12);
+            margin:12px 0;
+          "
+        ></div>
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+          "
+        >
+          <span>
+            Total to Pay
+          </span>
+
+          <strong
+            id="settleCalculatorTotal"
+            style="font-size:18px;"
+          >
+            ₱${Number(draftAmount || 0).toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}
+          </strong>
+        </div>
+
+        ${
+          settlement.lateChargeEnabled
+            ? `
+              <label
+                style="
+                  display:flex;
+                  align-items:center;
+                  gap:8px;
+                  margin-top:14px;
+                  cursor:pointer;
+                "
+              >
+
+                <input
+                  type="radio"
+                  name="lateChargeChoice"
+                  value="no_late_charge"
+                  checked
+                >
+
+                <span>
+                  Pay without late charge
+                </span>
+
+              </label>
+
+              <label
+                id="settleLateChargeOption"
+                style="
+                  display:none;
+                  align-items:center;
+                  gap:8px;
+                  margin-top:8px;
+                  cursor:pointer;
+                "
+              >
+
+                <input
+                  type="radio"
+                  name="lateChargeChoice"
+                  value="late_charge"
+                >
+
+                <span>
+                  Pay with late charge
+                </span>
+
+              </label>
+            `
+            : ""
+        }
 
       </div>
 
@@ -12216,6 +12591,345 @@ async function openSettlePayment(settlementId) {
       const notesInput =
         $("#settlePaymentNotes");
 
+      const calculatorAmount =
+        $("#settleCalculatorAmount");
+
+      const calculatorLateCharge =
+        $("#settleCalculatorLateCharge");
+
+      const calculatorDaysOverdue =
+        $("#settleCalculatorDaysOverdue");
+
+      const calculatorTotal =
+        $("#settleCalculatorTotal");
+
+      const calculatorExplanation =
+        $("#settleCalculatorExplanationText");
+
+      const lateChargeOption =
+        $("#settleLateChargeOption");
+
+
+      function updateSettlementCalculator() {
+
+        const amount =
+          Math.max(
+            0,
+            Number(amountInput.value || 0)
+          );
+
+        const lateChargeChoice =
+          document.querySelector(
+            'input[name="lateChargeChoice"]:checked'
+          );
+
+        const wantsLateCharge =
+          lateChargeChoice?.value === "late_charge";
+
+        /*
+         * Always calculate the currently applicable late charge
+         * for the calculator preview.
+         */
+        const lateChargePreview =
+          settlement.lateChargeEnabled &&
+          settlement.dueDate
+            ? calculateLateCharge(
+                amount,
+                settlement.dueDate
+              )
+            : {
+                lateCharge: 0,
+                daysOverdue: 0,
+                chargeRate: 0
+              };
+
+        const applicableLateCharge =
+          Number(
+            lateChargePreview.lateCharge || 0
+          );
+
+        /*
+         * Only include the late charge in Total to Pay
+         * when the user selects "Pay with late charge".
+         */
+        const lateCharge =
+          wantsLateCharge
+            ? applicableLateCharge
+            : 0;
+
+        const total =
+          Math.round(
+            (amount + lateCharge) * 100
+          ) / 100;
+
+        if (calculatorAmount) {
+          calculatorAmount.textContent =
+            `₱${amount.toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}`;
+        }
+
+        if (calculatorLateCharge) {
+          calculatorLateCharge.textContent =
+            `₱${applicableLateCharge.toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}`;
+        }
+
+        if (calculatorDaysOverdue) {
+          const daysOverdue =
+            Number(
+              lateChargePreview.daysOverdue || 0
+            );
+
+          calculatorDaysOverdue.textContent =
+            `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"}`;
+        }
+
+        if (calculatorTotal) {
+          calculatorTotal.textContent =
+            `₱${total.toLocaleString(
+              "en-PH",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }
+            )}`;
+        }
+
+        if (calculatorExplanation) {
+
+          const preview =
+            settlement.lateChargeEnabled &&
+            settlement.dueDate
+              ? calculateLateCharge(
+                  amount,
+                  settlement.dueDate
+                )
+              : {
+                  daysOverdue: 0,
+                  chargeRate: 0,
+                  lateCharge: 0
+                };
+
+          const recordedDate =
+            settlement.createdAt
+              ? new Date(
+                  settlement.createdAt
+                ).toLocaleDateString(
+                  "en-US",
+                  {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  }
+                )
+              : "—";
+
+          const dueDate =
+            settlement.dueDate
+              ? new Date(
+                  `${settlement.dueDate}T00:00:00`
+                )
+              : null;
+
+          const graceStart =
+            dueDate
+              ? new Date(dueDate)
+              : null;
+
+          const graceEnd =
+            dueDate
+              ? new Date(dueDate)
+              : null;
+
+          if (graceStart) {
+            graceStart.setDate(
+              graceStart.getDate() - 3
+            );
+          }
+
+          if (graceEnd) {
+            graceEnd.setDate(
+              graceEnd.getDate() - 1
+            );
+          }
+
+          const formatDate = date =>
+            date
+              ? date.toLocaleDateString(
+                  "en-US",
+                  {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                  }
+                )
+              : "—";
+
+          const gracePeriod =
+            graceStart && graceEnd
+              ? `${formatDate(graceStart)} - ${formatDate(graceEnd)}`
+              : "—";
+
+          const ratePercent =
+            (
+              Number(
+                preview.chargeRate || 0
+              ) * 100
+            )
+              .toFixed(3)
+              .replace(/0+$/, "")
+              .replace(/\.$/, "");
+
+          calculatorExplanation.innerHTML = `
+            <div style="
+              display:grid;
+              gap:9px;
+            ">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  Amount
+                </strong>
+
+                <span>
+                  ₱${amount.toLocaleString(
+                    "en-PH",
+                    {
+                      minimumFractionDigits:2,
+                      maximumFractionDigits:2
+                    }
+                  )}
+                </span>
+              </div>
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  Recorded
+                </strong>
+
+                <span>
+                  ${recordedDate}
+                </span>
+              </div>
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  Grace period
+                </strong>
+
+                <span>
+                  ${gracePeriod}
+                </span>
+              </div>
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  Late charge starts
+                </strong>
+
+                <span>
+                  ${formatDate(dueDate)}
+                </span>
+              </div>
+
+              <div style="
+                height:1px;
+                background:rgba(31,75,52,.12);
+                margin:8px 0 2px;
+              "></div>
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  First late-charge day
+                </strong>
+
+                <span>
+                  1%
+                </span>
+              </div>
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+              ">
+                <strong style="color:#1f4b34;">
+                  Following overdue days
+                </strong>
+
+                <span>
+                  +0.167% / day
+                </span>
+              </div>
+
+            </div>
+          `;
+
+        }
+
+        /*
+         * Keep the late-charge choice available.
+         *
+         * Even when the current late charge is ₱0.00
+         * (for example, during the grace period), the user
+         * should still be able to switch between the two
+         * payment choices.
+         */
+        if (lateChargeOption) {
+          lateChargeOption.style.display = "flex";
+        }
+
+      }
+
+      /*
+       * Keep the payment calculator responsive when the
+       * late-charge option is changed.
+       */
+      document
+        .querySelectorAll(
+          'input[name="lateChargeChoice"]'
+        )
+        .forEach(radio => {
+
+          radio.addEventListener(
+            "change",
+            updateSettlementCalculator
+          );
+
+        });
+
+      updateSettlementCalculator();
+
 
       /*
        * Save the amount immediately whenever
@@ -12240,8 +12954,24 @@ async function openSettlePayment(settlementId) {
 
           };
 
+          updateSettlementCalculator();
+
         }
       );
+
+
+      document
+        .querySelectorAll(
+          'input[name="lateChargeChoice"]'
+        )
+        .forEach(input => {
+
+          input.addEventListener(
+            "change",
+            updateSettlementCalculator
+          );
+
+        });
 
 
       /*
