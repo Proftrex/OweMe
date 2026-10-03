@@ -15906,3 +15906,344 @@ body.oweme-badge-modal-open {
     0 0 0 3px rgba(229, 243, 234, 0.65) !important;
 }
 
+
+/* Compact late-charge controls inside the settlement calculator */
+#settlePaymentCalculator label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+#settlePaymentCalculator input[type="radio"][name="lateChargeChoice"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  width: 18px !important;
+  height: 18px !important;
+
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  flex: 0 0 18px !important;
+
+  border: 2px solid #1f4b34 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+  box-sizing: border-box !important;
+
+  position: relative !important;
+  transform: none !important;
+  scale: 1 !important;
+}
+
+#settlePaymentCalculator input[type="radio"][name="lateChargeChoice"]:checked {
+  background: #1f4b34 !important;
+  border-color: #1f4b34 !important;
+}
+
+#settlePaymentCalculator input[type="radio"][name="lateChargeChoice"]:checked::after {
+  content: "" !important;
+
+  position: absolute !important;
+
+  width: 6px !important;
+  height: 6px !important;
+
+  min-width: 6px !important;
+  min-height: 6px !important;
+
+  top: 4px !important;
+  left: 4px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+
+  box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   OweMe Settlement Calculator — Compact Late Charge Toggle
+========================================================= */
+
+/* Override the global input sizing ONLY for these two radios */
+#modalContent input[type="radio"][name="lateChargeChoice"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  flex: 0 0 20px !important;
+
+  border: 2px solid #1f4b34 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+  box-shadow: none !important;
+
+  box-sizing: border-box !important;
+}
+
+/* Selected radio */
+#modalContent input[type="radio"][name="lateChargeChoice"]:checked {
+  background: #1f4b34 !important;
+  border-color: #1f4b34 !important;
+}
+
+/* Small white center */
+#modalContent input[type="radio"][name="lateChargeChoice"]:checked::after {
+  content: "" !important;
+
+  display: block !important;
+
+  width: 6px !important;
+  height: 6px !important;
+
+  margin: 5px !important;
+
+  border-radius: 50% !important;
+  background: #ffffff !important;
+}
+
+/* Keep the label compact */
+#modalContent label:has(input[name="lateChargeChoice"]) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  width: auto !important;
+  min-height: 20px !important;
+
+  padding: 0 !important;
+  margin-top: 14px !important;
+}
+
+/* Prevent the label text from stretching the radio */
+#modalContent label:has(input[name="lateChargeChoice"]) span {
+  flex: 0 1 auto !important;
+}
+
+
+/* Make settlement late-charge choices fully clickable */
+#modalContent label:has(input[name="lateChargeChoice"]) {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+#modalContent label:has(input[name="lateChargeChoice"]) span {
+  cursor: pointer !important;
+}
+
+#modalContent input[name="lateChargeChoice"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+
+/* Fix late-charge radio buttons */
+#modalContent input[name="lateChargeChoice"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  width: 20px !important;
+  height: 20px !important;
+
+  min-width: 20px !important;
+  min-height: 20px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 3px solid #1f4b34 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  position: relative !important;
+  flex: 0 0 20px !important;
+
+  box-sizing: border-box !important;
+
+  vertical-align: middle !important;
+}
+
+#modalContent input[name="lateChargeChoice"]:checked {
+  background: #1f4b34 !important;
+  border-color: #1f4b34 !important;
+}
+
+#modalContent input[name="lateChargeChoice"]:checked::after {
+  content: "" !important;
+
+  width: 7px !important;
+  height: 7px !important;
+
+  background: #ffffff !important;
+  border-radius: 50% !important;
+
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+
+  transform: translate(-50%, -50%) !important;
+
+  display: block !important;
+}
+
+#modalContent label:has(input[name="lateChargeChoice"]) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* Make Payment Method radios match the late-charge radios exactly */
+#modalContent input.settle-payment-radio {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 3px solid #1f4b34 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+  box-shadow: none !important;
+
+  display: block !important;
+  flex: 0 0 40px !important;
+
+  box-sizing: border-box !important;
+
+  cursor: pointer !important;
+
+  /* Keep the control itself perfectly circular */
+  outline: none !important;
+}
+
+/* Checked state — same green circle + white center */
+#modalContent input.settle-payment-radio:checked {
+  border-color: #1f4b34 !important;
+
+  background:
+    radial-gradient(
+      circle,
+      #ffffff 0 7px,
+      #1f4b34 8px 100%
+    ) !important;
+}
+
+/* Remove any browser/focus decoration */
+#modalContent input.settle-payment-radio:focus,
+#modalContent input.settle-payment-radio:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Keep the payment card contents vertically aligned */
+#modalContent .settle-payment-option {
+  align-items: center !important;
+}
+
+#modalContent .settle-payment-option .settle-payment-info {
+  flex: 1 !important;
+}
+
+
+/* Make Payment Method radios match the late-charge radios exactly */
+#modalContent input.settle-payment-radio {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 3px solid #1f4b34 !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  position: relative !important;
+  flex: 0 0 20px !important;
+  box-sizing: border-box !important;
+
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#modalContent input.settle-payment-radio:checked {
+  background: #1f4b34 !important;
+  border-color: #1f4b34 !important;
+}
+
+#modalContent input.settle-payment-radio:checked::after {
+  content: "" !important;
+
+  width: 7px !important;
+  height: 7px !important;
+
+  background: #ffffff !important;
+  border-radius: 50% !important;
+
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+
+  transform: translate(-50%, -50%) !important;
+  display: block !important;
+}
+
+#modalContent input.settle-payment-radio:focus,
+#modalContent input.settle-payment-radio:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#modalContent .settle-payment-option {
+  align-items: center !important;
+}
+
+#modalContent .settle-payment-option .settle-payment-info {
+  flex: 1 !important;
+}
+
