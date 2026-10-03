@@ -15894,3 +15894,15 @@ body.oweme-badge-modal-open {
   margin: 0 auto;
 }
 
+
+/* =========================================================
+   OWIE — SOFT LIGHT-GREEN CHAT BORDER
+========================================================= */
+
+#owieAiPanel {
+  border: 2px solid #cfe5d9 !important;
+  box-shadow:
+    0 12px 35px rgba(50, 84, 67, 0.16),
+    0 0 0 3px rgba(229, 243, 234, 0.65) !important;
+}
+
