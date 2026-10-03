@@ -6310,9 +6310,15 @@ async function openExpenseDetails(expenseId) {
     ${
       participants.length
         ? `
-          <div class="balance-detail-list">
-            ${participants.map(participant => `
-              <div class="balance-detail-row">
+          <div class="card" style="padding:0; overflow:hidden;">
+            ${participants.map((participant, index) => `
+              <div
+                class="balance-detail-row"
+                style="
+                  padding:12px 20px;
+                  ${index > 0 ? "border-top:1px solid #e5ebe6;" : ""}
+                "
+              >
                 <div>
                   <div class="user-name">
                     ${escapeHtml(participant.displayName || "Unknown")}
@@ -10552,6 +10558,7 @@ async function openPaymentTransaction(paymentSubmissionId) {
         id,
         group_id,
         payment_option,
+        payment_detail_id,
         amount_due,
         amount_paid,
         proof_file_url,
@@ -10605,6 +10612,28 @@ async function openPaymentTransaction(paymentSubmissionId) {
       recipientProfile?.display_name ||
       recipientProfile?.username ||
       "Unknown";
+
+
+    // Resolve the actual payment provider/bank
+    // from the selected payment detail.
+    let actualPaymentMethod =
+      String(payment.payment_option || "").trim();
+
+    if (payment.payment_detail_id) {
+      const {
+        data: paymentDetail,
+        error: paymentDetailError
+      } = await supabaseClient
+        .from("payment_details")
+        .select("payment_option")
+        .eq("id", payment.payment_detail_id)
+        .maybeSingle();
+
+      if (!paymentDetailError && paymentDetail?.payment_option) {
+        actualPaymentMethod =
+          String(paymentDetail.payment_option).trim();
+      }
+    }
 
     let proofHtml = "";
 
@@ -10720,7 +10749,7 @@ async function openPaymentTransaction(paymentSubmissionId) {
               margin-top:4px;
             "
           >
-            ${escapeHtml(payment.payment_option || "—")}
+            ${escapeHtml(actualPaymentMethod || "—")}
           </div>
 
           <div
@@ -16072,11 +16101,7 @@ async function submitSettlementPayment(event, settlement) {
           payer_user_id: state.user.userId,
           recipient_user_id: settlement.toUserId,
           payment_option:
-            selected.closest("label")?.querySelector(
-              "strong"
-            )?.textContent?.trim() ||
-            selected.dataset?.paymentOption ||
-            selected.value,
+            selected.dataset?.paymentOption || "",
           payment_detail_id: paymentDetailId,
           amount_due: Number(settlement.amount),
           amount_paid: amountPaid,
