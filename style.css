@@ -15861,3 +15861,36 @@ body.oweme-badge-modal-open {
   border-width: 2px !important;
 }
 
+
+/* Real badge artwork */
+.oweme-real-badge-image {
+  display: block;
+  width: 180px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+
+/* =====================================================
+   REAL OweMe BADGE ARTWORK
+   ===================================================== */
+
+.oweme-real-badge-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8px 0 18px;
+}
+
+.oweme-real-badge-image {
+  display: block;
+  width: min(100%, 420px);
+  height: auto;
+  max-height: 65vh;
+  object-fit: contain;
+  margin: 0 auto;
+}
+

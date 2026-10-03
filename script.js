@@ -18306,33 +18306,20 @@ function shareInsightBadge(buttonOrBadgeKey) {
         ×
       </button>
 
-      <div class="oweme-badge-modal-eyebrow">
-        BADGE UNLOCKED
-      </div>
-
-      <div
-        class="oweme-badge-modal-title"
-        id="insightBadgeCongratulationsTitle"
-      >
-        Congratulations! 🎉
-      </div>
-
-      <div class="oweme-badge-modal-icon">
-        ${badge.icon}
-      </div>
-
-      <div class="oweme-badge-modal-earned">
-        “${badge.name}”
-      </div>
-
-      <div class="oweme-badge-modal-message">
-        ${badge.message}
-      </div>
-
-      <div class="oweme-badge-modal-divider"></div>
-
-      <div class="oweme-badge-modal-description">
-        ${badge.description}
+      <div class="oweme-real-badge-container">
+        <img
+          src="${
+            {
+              GALANTE: "assets/badges/laging-taya.png",
+              KORIPOT: "assets/badges/makunat.png",
+              GOOD_PAYER: "assets/badges/good-payer.png",
+              LATE_PAYER: "assets/badges/puro-bukas.png",
+              CERTIFIED_OWEME: "assets/badges/certified-oweme.png"
+            }[badgeKey] || ""
+          }"
+          alt="${escapeHtml(badge.name)} Badge"
+          class="oweme-real-badge-image"
+        >
       </div>
 
       <button
