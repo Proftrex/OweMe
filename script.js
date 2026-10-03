@@ -12775,16 +12775,29 @@ async function openSettlePayment(settlementId) {
 
           const recordedDate =
             settlement.createdAt
-              ? new Date(
-                  settlement.createdAt
-                ).toLocaleDateString(
-                  "en-US",
-                  {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric"
-                  }
-                )
+              ? (() => {
+                  const date = new Date(
+                    settlement.createdAt
+                  );
+
+                  const day =
+                    String(
+                      date.getDate()
+                    ).padStart(2, "0");
+
+                  const month =
+                    date.toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short"
+                      }
+                    );
+
+                  const year =
+                    date.getFullYear();
+
+                  return `${day}${month}${year}`;
+                })()
               : "—";
 
           const dueDate =
@@ -12818,14 +12831,25 @@ async function openSettlePayment(settlementId) {
 
           const formatDate = date =>
             date
-              ? date.toLocaleDateString(
-                  "en-US",
-                  {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric"
-                  }
-                )
+              ? (() => {
+                  const day =
+                    String(
+                      date.getDate()
+                    ).padStart(2, "0");
+
+                  const month =
+                    date.toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short"
+                      }
+                    );
+
+                  const year =
+                    date.getFullYear();
+
+                  return `${day}${month}${year}`;
+                })()
               : "—";
 
           const gracePeriod =
