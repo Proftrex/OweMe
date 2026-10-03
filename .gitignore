@@ -7,3 +7,6 @@ android/oweme-release-key.jks
 android/keystore.properties
 android/oweme-upload-key.pem
 .env
+
+# Local backup files
+*.before-late-charge
