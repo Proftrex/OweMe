@@ -498,7 +498,7 @@
         >
 
         <div class="owee-ai-bubble">
-          Hi! I'm Owie 👋. How can I assist you today?<br>
+          Hi! Owie pala 👋. What's up?<br>
         </div>
 
       </div>
@@ -538,7 +538,7 @@
     id="owieAiFloat"
     aria-label="Open Owie AI"
     title="Ask Owie"
-    onclick="event.preventDefault(); event.stopPropagation(); const p=document.getElementById('owieAiPanel'); if(p){p.classList.add('owie-ai-open');p.setAttribute('aria-hidden','false');document.getElementById('owieAiInput')?.focus();}"
+    onclick="event.preventDefault(); event.stopPropagation(); const p=document.getElementById('owieAiPanel'); if(p){const isOpen=p.classList.contains('owie-ai-open'); if(isOpen){p.classList.remove('owie-ai-open');p.setAttribute('aria-hidden','true');}else{p.classList.add('owie-ai-open');p.setAttribute('aria-hidden','false');document.getElementById('owieAiInput')?.focus();}}"
   >
     <img
       src="assets/owie.png"
