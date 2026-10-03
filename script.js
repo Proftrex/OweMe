@@ -12244,8 +12244,20 @@ async function openSettlePayment(settlementId) {
           </div>
 
               </div>
-  
 
+        <div
+          style="
+            margin-top:10px;
+            font-size:11px;
+            line-height:1.5;
+            color:#7a857e;
+            font-style:italic;
+          "
+        >
+          This calculator simply shows how many days have passed since the due date.
+          It’s not an obligation or a penalty—but adding a little extra can be a
+          thoughtful way to show your appreciation for the person who covered for you. 💚
+        </div>
 
         <div
           style="
@@ -12603,6 +12615,9 @@ async function openSettlePayment(settlementId) {
       const calculatorTotal =
         $("#settleCalculatorTotal");
 
+      const amountPaidInput =
+        $("#settleAmountPaid");
+
       const calculatorExplanation =
         $("#settleCalculatorExplanationText");
 
@@ -12610,12 +12625,23 @@ async function openSettlePayment(settlementId) {
         $("#settleLateChargeOption");
 
 
-      function updateSettlementCalculator() {
+      function updateSettlementCalculator(
+        syncAmountPaid = false
+      ) {
 
-        const amount =
+        /*
+         * IMPORTANT:
+         * The calculator is based on the original amount due.
+         *
+         * Amount Paid is a separate, editable field.
+         * It must never become the calculation base because
+         * doing so would cause the late charge to compound
+         * every time the user toggles the option.
+         */
+        const baseAmount =
           Math.max(
             0,
-            Number(amountInput.value || 0)
+            Number(draftAmount || 0)
           );
 
         const lateChargeChoice =
@@ -12627,14 +12653,14 @@ async function openSettlePayment(settlementId) {
           lateChargeChoice?.value === "late_charge";
 
         /*
-         * Always calculate the currently applicable late charge
-         * for the calculator preview.
+         * Calculate the late charge ONLY from the original
+         * amount due.
          */
         const lateChargePreview =
           settlement.lateChargeEnabled &&
           settlement.dueDate
             ? calculateLateCharge(
-                amount,
+                baseAmount,
                 settlement.dueDate
               )
             : {
@@ -12649,22 +12675,55 @@ async function openSettlePayment(settlementId) {
           );
 
         /*
-         * Only include the late charge in Total to Pay
-         * when the user selects "Pay with late charge".
+         * The calculator's total is always based on:
+         *
+         * Amount Due + optional late charge
          */
-        const lateCharge =
-          wantsLateCharge
-            ? applicableLateCharge
-            : 0;
-
-        const total =
+        const calculatedTotal =
           Math.round(
-            (amount + lateCharge) * 100
+            (
+              baseAmount +
+              (
+                wantsLateCharge
+                  ? applicableLateCharge
+                  : 0
+              )
+            ) * 100
           ) / 100;
 
+        /*
+         * Only synchronize Amount Paid when the user
+         * actually toggles the late-charge option.
+         *
+         * This means manual edits remain editable and
+         * are never overwritten during normal typing.
+         */
+        if (
+          syncAmountPaid &&
+          amountInput
+        ) {
+          amountInput.value =
+            calculatedTotal.toFixed(2);
+
+          window.owemeSettlementDrafts[
+            settlementId
+          ] = {
+            ...(
+              window.owemeSettlementDrafts[
+                settlementId
+              ] || {}
+            ),
+            amount:
+              amountInput.value
+          };
+        }
+
+        /*
+         * Calculator display
+         */
         if (calculatorAmount) {
           calculatorAmount.textContent =
-            `₱${amount.toLocaleString(
+            `₱${baseAmount.toLocaleString(
               "en-PH",
               {
                 minimumFractionDigits: 2,
@@ -12691,12 +12750,16 @@ async function openSettlePayment(settlementId) {
             );
 
           calculatorDaysOverdue.textContent =
-            `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"}`;
+            `${daysOverdue} ${
+              daysOverdue === 1
+                ? "day"
+                : "days"
+            }`;
         }
 
         if (calculatorTotal) {
           calculatorTotal.textContent =
-            `₱${total.toLocaleString(
+            `₱${calculatedTotal.toLocaleString(
               "en-PH",
               {
                 minimumFractionDigits: 2,
@@ -12708,17 +12771,7 @@ async function openSettlePayment(settlementId) {
         if (calculatorExplanation) {
 
           const preview =
-            settlement.lateChargeEnabled &&
-            settlement.dueDate
-              ? calculateLateCharge(
-                  amount,
-                  settlement.dueDate
-                )
-              : {
-                  daysOverdue: 0,
-                  chargeRate: 0,
-                  lateCharge: 0
-                };
+            lateChargePreview;
 
           const recordedDate =
             settlement.createdAt
@@ -12728,7 +12781,7 @@ async function openSettlePayment(settlementId) {
                   "en-US",
                   {
                     year: "numeric",
-                    month: "long",
+                    month: "short",
                     day: "numeric"
                   }
                 )
@@ -12769,7 +12822,7 @@ async function openSettlePayment(settlementId) {
                   "en-US",
                   {
                     year: "numeric",
-                    month: "long",
+                    month: "short",
                     day: "numeric"
                   }
                 )
@@ -12806,7 +12859,7 @@ async function openSettlePayment(settlementId) {
                 </strong>
 
                 <span>
-                  ₱${amount.toLocaleString(
+                  ₱${baseAmount.toLocaleString(
                     "en-PH",
                     {
                       minimumFractionDigits:2,
@@ -12894,26 +12947,18 @@ async function openSettlePayment(settlementId) {
 
             </div>
           `;
-
         }
 
-        /*
-         * Keep the late-charge choice available.
-         *
-         * Even when the current late charge is ₱0.00
-         * (for example, during the grace period), the user
-         * should still be able to switch between the two
-         * payment choices.
-         */
         if (lateChargeOption) {
           lateChargeOption.style.display = "flex";
         }
-
       }
 
       /*
-       * Keep the payment calculator responsive when the
-       * late-charge option is changed.
+       * The late-charge radio buttons should update the
+       * Amount Paid field only when the user toggles them.
+       *
+       * There must be only ONE change listener.
        */
       document
         .querySelectorAll(
@@ -12923,17 +12968,26 @@ async function openSettlePayment(settlementId) {
 
           radio.addEventListener(
             "change",
-            updateSettlementCalculator
+            () => {
+              updateSettlementCalculator(true);
+            }
           );
 
         });
 
-      updateSettlementCalculator();
-
+      /*
+       * Initial calculator render.
+       *
+       * Do NOT overwrite Amount Paid on initial load.
+       */
+      updateSettlementCalculator(false);
 
       /*
-       * Save the amount immediately whenever
-       * the user changes it.
+       * Amount Paid remains fully editable.
+       *
+       * Typing here updates the saved draft only.
+       * It does NOT feed back into the late-charge
+       * calculation, preventing compounding.
        */
       amountInput.addEventListener(
         "input",
@@ -12954,24 +13008,8 @@ async function openSettlePayment(settlementId) {
 
           };
 
-          updateSettlementCalculator();
-
         }
       );
-
-
-      document
-        .querySelectorAll(
-          'input[name="lateChargeChoice"]'
-        )
-        .forEach(input => {
-
-          input.addEventListener(
-            "change",
-            updateSettlementCalculator
-          );
-
-        });
 
 
       /*
