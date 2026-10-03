@@ -2477,7 +2477,7 @@ async function loadHome(initialGroups = null, force = false) {
                 </div>
 
                 <div class="insights-badge-description">
-                  Joined or created 5 groups without covering a group expense.
+                  Joined 5 groups without covering a group expense.
                 </div>
               </div>
 
@@ -17966,20 +17966,16 @@ function closeInsightBadgeModal() {
 
 let owemeBadgeShareInProgress = false;
 
-async function shareInsightBadgeMessage(
-  badgeKey
-) {
+async function shareInsightBadgeMessage(badgeKey) {
 
-  if (owemeBadgeShareInProgress) {
+  console.log("✓ Share Badge clicked:", badgeKey);
+
+  const badge = getInsightBadgeData(badgeKey);
+
+  if (!badge) {
+    toast("Badge information could not be found.");
     return;
   }
-
-  owemeBadgeShareInProgress = true;
-
-  const badge =
-    getInsightBadgeData(badgeKey);
-
-  if (!badge) return;
 
   const card =
     document.querySelector(
@@ -17991,12 +17987,48 @@ async function shareInsightBadgeMessage(
     return;
   }
 
+  let shareButton = null;
+  let laterButton = null;
+
   try {
 
-    /* Load html2canvas only when needed */
+    /* ---------------------------------------------
+       LOAD HTML2CANVAS
+       --------------------------------------------- */
+
     if (!window.html2canvas) {
 
       await new Promise((resolve, reject) => {
+
+        const existing =
+          document.querySelector(
+            'script[data-oweme-html2canvas="true"]'
+          );
+
+        if (existing) {
+
+          if (existing.dataset.loaded === "true") {
+            resolve();
+            return;
+          }
+
+          existing.addEventListener(
+            "load",
+            () => {
+              existing.dataset.loaded = "true";
+              resolve();
+            },
+            { once: true }
+          );
+
+          existing.addEventListener(
+            "error",
+            reject,
+            { once: true }
+          );
+
+          return;
+        }
 
         const script =
           document.createElement("script");
@@ -18004,8 +18036,20 @@ async function shareInsightBadgeMessage(
         script.src =
           "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
 
-        script.onload = resolve;
-        script.onerror = reject;
+        script.async = true;
+        script.dataset.owemeHtml2canvas = "true";
+
+        script.onload = () => {
+          script.dataset.loaded = "true";
+          resolve();
+        };
+
+        script.onerror = () =>
+          reject(
+            new Error(
+              "Unable to load badge image renderer."
+            )
+          );
 
         document.head.appendChild(script);
 
@@ -18013,74 +18057,154 @@ async function shareInsightBadgeMessage(
 
     }
 
-    /* Capture badge card without action buttons */
-    const shareButton =
-      card.querySelector(".oweme-badge-modal-share");
+    if (!window.html2canvas) {
+      throw new Error(
+        "Badge image renderer is unavailable."
+      );
+    }
 
-    const laterButton =
-      card.querySelector(".oweme-badge-modal-later");
+    shareButton =
+      card.querySelector(
+        ".oweme-badge-modal-share"
+      );
 
-    /* Hide buttons only during image capture */
-    if (shareButton) shareButton.style.display = "none";
-    if (laterButton) laterButton.style.display = "none";
+    laterButton =
+      card.querySelector(
+        ".oweme-badge-modal-later"
+      );
 
-    let canvas;
+    /* ---------------------------------------------
+       HIDE BUTTONS FROM THE GENERATED IMAGE
+       --------------------------------------------- */
 
-    try {
-      canvas = await html2canvas(card, {
-        backgroundColor: null,
-        scale: 2,
+    if (shareButton) {
+      shareButton.style.display = "none";
+    }
+
+    if (laterButton) {
+      laterButton.style.display = "none";
+    }
+
+    /*
+     * Allow the browser to repaint before capture.
+     */
+    await new Promise(resolve =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(resolve)
+      )
+    );
+
+    /* ---------------------------------------------
+       CREATE BADGE IMAGE
+       --------------------------------------------- */
+
+    const canvas =
+      await window.html2canvas(card, {
+        backgroundColor: "#ffffff",
+        scale: Math.min(
+          window.devicePixelRatio || 2,
+          2
+        ),
         useCORS: true,
+        allowTaint: false,
         logging: false
       });
-    } finally {
-      /* Restore buttons after capture */
-      if (shareButton) shareButton.style.display = "";
-      if (laterButton) laterButton.style.display = "";
-    }
 
     const blob =
-      await new Promise(resolve =>
-        canvas.toBlob(
-          resolve,
-          "image/png"
-        )
-      );
+      await new Promise((resolve, reject) => {
 
-    if (!blob) {
-      throw new Error(
-        "Could not create badge image."
-      );
-    }
+        canvas.toBlob(
+          blob => {
+
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(
+                new Error(
+                  "Could not create badge image."
+                )
+              );
+            }
+
+          },
+          "image/png",
+          1
+        );
+
+      });
+
+    const fileName =
+      `OweMe-${badge.name.replace(
+        /[^a-z0-9]+/gi,
+        "-"
+      )}-Badge.png`;
 
     const file =
       new File(
         [blob],
-        `OweMe-${badge.name.replace(/[^a-z0-9]+/gi, "-")}-Badge.png`,
+        fileName,
         {
           type: "image/png"
         }
       );
 
-    /* Share the actual image */
+    /* ---------------------------------------------
+       PRIMARY: COPY ACTUAL IMAGE TO CLIPBOARD
+       --------------------------------------------- */
+
+    if (
+      navigator.clipboard &&
+      typeof ClipboardItem !== "undefined" &&
+      typeof navigator.clipboard.write === "function"
+    ) {
+
+      const clipboardItem =
+        new ClipboardItem({
+          "image/png": blob
+        });
+
+      await navigator.clipboard.write([
+        clipboardItem
+      ]);
+
+      toast("Badge image copied!");
+
+      console.log(
+        "✓ Actual badge image copied to clipboard."
+      );
+
+      return;
+    }
+
+    /* ---------------------------------------------
+       SECONDARY: NATIVE SHARE WITH IMAGE
+       --------------------------------------------- */
+
     if (
       navigator.share &&
-      (!navigator.canShare ||
-        navigator.canShare({
-          files: [file]
-        }))
+      navigator.canShare &&
+      navigator.canShare({
+        files: [file]
+      })
     ) {
 
       await navigator.share({
         title:
           `OweMe — ${badge.name} Badge`,
+        text:
+          badge.shareText ||
+          badge.message ||
+          "",
         files: [file]
       });
 
       return;
     }
 
-    /* Browser fallback */
+    /* ---------------------------------------------
+       FINAL FALLBACK: DOWNLOAD IMAGE
+       --------------------------------------------- */
+
     const imageUrl =
       URL.createObjectURL(blob);
 
@@ -18088,8 +18212,7 @@ async function shareInsightBadgeMessage(
       document.createElement("a");
 
     link.href = imageUrl;
-    link.download =
-      `OweMe-${badge.name.replace(/[^a-z0-9]+/gi, "-")}-Badge.png`;
+    link.download = fileName;
 
     document.body.appendChild(link);
     link.click();
@@ -18097,7 +18220,7 @@ async function shareInsightBadgeMessage(
 
     setTimeout(() => {
       URL.revokeObjectURL(imageUrl);
-    }, 1000);
+    }, 1500);
 
     toast("Badge image created.");
 
@@ -18108,20 +18231,25 @@ async function shareInsightBadgeMessage(
     }
 
     console.error(
-      "SHARE BADGE ERROR:",
+      "SHARE BADGE IMAGE ERROR:",
       error
     );
 
     toast(
-      "Unable to create badge image."
+      "Unable to copy the badge image. Please try again."
     );
 
   } finally {
 
-    owemeBadgeShareInProgress = false;
+    if (shareButton) {
+      shareButton.style.display = "";
+    }
+
+    if (laterButton) {
+      laterButton.style.display = "";
+    }
 
   }
-
 }
 
 
@@ -18210,7 +18338,9 @@ function shareInsightBadge(buttonOrBadgeKey) {
       <button
         type="button"
         class="oweme-badge-modal-share"
-        onclick="shareInsightBadgeMessage('${badgeKey}')"
+        data-badge-key="${escapeHtml(badgeKey)}"
+        aria-label="Share Badge"
+        onclick="shareInsightBadgeMessage(this.dataset.badgeKey)"
       >
 
         <svg
@@ -18249,6 +18379,42 @@ function shareInsightBadge(buttonOrBadgeKey) {
   document.body.appendChild(
     modal
   );
+
+  /*
+   * Bind Share Badge directly after the modal
+   * is inserted into the DOM.
+   *
+   * This avoids relying on inline onclick handlers,
+   * which can fail inside the PWA/iOS environment.
+   */
+  const shareBadgeButton =
+    modal.querySelector(
+      ".oweme-badge-modal-share"
+    );
+
+  if (shareBadgeButton) {
+
+    shareBadgeButton.addEventListener(
+      "click",
+      async function(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const key =
+          this.dataset.badgeKey;
+
+        if (!key) {
+          toast("Badge information is missing.");
+          return;
+        }
+
+        await shareInsightBadgeMessage(key);
+
+      }
+    );
+
+  }
 
   document.body.classList.add(
     "oweme-badge-modal-open"
