@@ -4598,7 +4598,7 @@ async function renderArchivedGroupsTab(container) {
           <div>Your Payables: ${formatMoney(group.payables || 0)}</div>
           <div>Your Receivables: ${formatMoney(group.receivables || 0)}</div>
         </div>
-        <button type="button" data-unarchive-group="${escapeHtml(group.groupId)}" style="margin-top:12px;">
+        <button type="button" data-unarchive-group="${escapeHtml(group.groupId)}" style="margin-top:12px;background:var(--green-soft);color:var(--primary-dark);">
           Unarchive
         </button>
       </div>
@@ -5359,6 +5359,7 @@ function renderGroupCard(group, showArchiveButton = true) {
             type="button"
             data-archive-group="${escapeHtml(group.groupId)}"
             onclick="event.stopPropagation(); archiveGroup('${escapeHtml(group.groupId)}')"
+            style="background:var(--green-soft);color:var(--primary-dark);"
           >
             Archive
           </button>
