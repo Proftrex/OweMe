@@ -19786,7 +19786,10 @@ window.sendOwieMessage = async function () {
           profiles: context.profiles,
           expenses: context.expenses,
           participants: context.participants,
-          payments: context.payments
+          payments: context.payments,
+          settlementTerms: context.settlementTerms,
+          owieSettlements: context.owieSettlements,
+          expenseObligations: context.expenseObligations
         }
 
       })
@@ -19989,7 +19992,8 @@ async function getOwieUserContext() {
         paid_by_user_id,
         created_at
       `)
-      .in("group_id", groupIds);
+      .in("group_id", groupIds)
+      .eq("status", "ACTIVE");
 
     if (error) {
       throw error;
@@ -20064,6 +20068,215 @@ async function getOwieUserContext() {
     }));
   }
 
+  /* ---------------------------------------------
+     OWIE SETTLEMENT TERMS (READ ONLY)
+     --------------------------------------------- */
+
+  let settlementTerms = [];
+
+  if (groupIds.length) {
+    const { data, error } = await supabaseClient
+      .from("settlements")
+      .select(`
+        id,
+        group_id,
+        from_user_id,
+        to_user_id,
+        amount,
+        status,
+        created_at,
+        paid_at,
+        due_date,
+        late_charge_enabled
+      `)
+      .in("group_id", groupIds);
+
+    if (error) {
+      throw error;
+    }
+
+    settlementTerms = (data || []).map(settlement => ({
+      settlementId: settlement.id,
+      groupId: settlement.group_id,
+      fromUserId: settlement.from_user_id,
+      toUserId: settlement.to_user_id,
+      originalAmount: Number(settlement.amount || 0),
+      status: settlement.status || "UNPAID",
+      createdAt: settlement.created_at || null,
+      paidAt: settlement.paid_at || null,
+      dueDate: settlement.due_date || null,
+      lateChargeEnabled: settlement.late_charge_enabled !== false
+    }));
+
+    const settlementIds = settlementTerms.map(row => row.settlementId);
+
+    if (settlementIds.length) {
+      const { data: settlementPayments, error: paymentError } =
+        await supabaseClient
+          .from("payment_submissions")
+          .select("settlement_id, amount_paid, status")
+          .in("settlement_id", settlementIds)
+          .in("status", ["SUBMITTED", "CONFIRMED"]);
+
+      if (paymentError) {
+        throw paymentError;
+      }
+
+      const paidBySettlement = {};
+
+      (settlementPayments || []).forEach(payment => {
+        const id = String(payment.settlement_id);
+
+        paidBySettlement[id] =
+          Number(paidBySettlement[id] || 0) +
+          Number(payment.amount_paid || 0);
+      });
+
+      settlementTerms = settlementTerms.map(settlement => {
+        const appliedPayments = Number(
+          paidBySettlement[String(settlement.settlementId)] || 0
+        );
+
+        const amountApplied = Math.min(
+          settlement.originalAmount,
+          appliedPayments
+        );
+
+        const outstandingAmount = Math.max(
+          0,
+          Math.round(
+            (settlement.originalAmount - amountApplied) * 100
+          ) / 100
+        );
+
+        return {
+          ...settlement,
+          appliedPayments,
+          outstandingAmount,
+          status: outstandingAmount <= 0
+            ? "PAID"
+            : settlement.status
+        };
+      });
+    }
+  }
+
+  /* ---------------------------------------------
+     OWIE NET SETTLEMENTS (READ ONLY)
+     Mirrors the current settlement display logic.
+     --------------------------------------------- */
+
+  const owieSettlementPairs = {};
+
+  settlementTerms.forEach(settlement => {
+    const fromId = String(settlement.fromUserId || "");
+    const toId = String(settlement.toUserId || "");
+    if (!fromId || !toId || fromId === toId) return;
+
+    const users = [fromId, toId].sort();
+    const key = users.join("|");
+
+    if (!owieSettlementPairs[key]) {
+      owieSettlementPairs[key] = {
+        first: users[0],
+        second: users[1],
+        firstOwes: 0,
+        secondOwes: 0,
+        settlementIds: [],
+        groupIds: []
+      };
+    }
+
+    const pair = owieSettlementPairs[key];
+    const amount = Math.max(0, Number(settlement.outstandingAmount || 0));
+
+    if (fromId === pair.first) pair.firstOwes += amount;
+    else pair.secondOwes += amount;
+
+    pair.settlementIds.push(settlement.settlementId);
+    if (settlement.groupId && !pair.groupIds.includes(settlement.groupId)) {
+      pair.groupIds.push(settlement.groupId);
+    }
+  });
+
+  const owieSettlements = [];
+
+  Object.values(owieSettlementPairs).forEach(pair => {
+    const difference = Math.round(
+      Math.abs(pair.firstOwes - pair.secondOwes) * 100
+    ) / 100;
+    if (difference <= 0) return;
+
+    const firstOwes = pair.firstOwes > pair.secondOwes;
+
+    owieSettlements.push({
+      fromUserId: firstOwes ? pair.first : pair.second,
+      toUserId: firstOwes ? pair.second : pair.first,
+      displayAmount: difference,
+      isNetted: pair.firstOwes > 0 && pair.secondOwes > 0,
+      settlementIds: pair.settlementIds,
+      groupIds: pair.groupIds
+    });
+  });
+
+  /* ---------------------------------------------
+     OWIE EXPENSE OBLIGATIONS (READ ONLY)
+     These are expense-derived amounts before settlement
+     payment deductions and reciprocal netting.
+     --------------------------------------------- */
+
+  const expenseObligations = [];
+  const obligationMap = {};
+
+  expenses.forEach(expense => {
+    const payerId = String(expense.paid_by_user_id || "");
+
+    participants
+      .filter(participant =>
+        String(participant.expense_id) === String(expense.id)
+      )
+      .forEach(participant => {
+        const participantId = String(participant.user_id || "");
+        const shareAmount = Number(participant.amount || 0);
+
+        if (
+          !payerId ||
+          !participantId ||
+          participantId === payerId ||
+          !Number.isFinite(shareAmount) ||
+          shareAmount <= 0
+        ) {
+          return;
+        }
+
+        const key = [
+          String(expense.group_id),
+          participantId,
+          payerId
+        ].join("|");
+
+        if (!obligationMap[key]) {
+          obligationMap[key] = {
+            groupId: expense.group_id,
+            fromUserId: participantId,
+            toUserId: payerId,
+            amount: 0,
+            expenseCount: 0
+          };
+        }
+
+        obligationMap[key].amount = Math.round(
+          (obligationMap[key].amount + shareAmount) * 100
+        ) / 100;
+
+        obligationMap[key].expenseCount += 1;
+      });
+  });
+
+  expenseObligations.push(
+    ...Object.values(obligationMap)
+  );
+
   return {
     userId,
     username: state.user?.username || "",
@@ -20073,7 +20286,10 @@ async function getOwieUserContext() {
     profiles,
     expenses,
     participants,
-    payments
+    payments,
+    settlementTerms,
+    owieSettlements,
+    expenseObligations
   };
 }
 
