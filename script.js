@@ -21,6 +21,7 @@ console.log("Supabase connected:", !!supabaseClient);
 const state = {
   user: null,
   groups: [],
+  archivedGroupIds: [],
   invitations: [],
   groupsLoadedAt: 0,
   currentGroup: null,
@@ -2282,7 +2283,7 @@ async function loadHome(initialGroups = null, force = false) {
           state.groups.length
 
             ? state.groups
-                .map(renderGroupCard)
+                .map(group => renderGroupCard(group, false))
                 .join("")
 
             : `
@@ -3966,26 +3967,39 @@ async function loadGroups() {
 
   await loadGroupsData();
 
-  window.owemeGroupsSection = "mine";
-  window.owemeGroupSubtab = "mine";
+  if (!["mine", "history", "archive"].includes(window.owemeGroupsSection)) {
+    window.owemeGroupsSection = "mine";
+  }
+
+  if (!["mine", "other"].includes(window.owemeGroupSubtab)) {
+    window.owemeGroupSubtab = "mine";
+  }
 
   const renderGroupsContent = () => {
 
+    const archivedIds = new Set(
+      (state.archivedGroupIds || []).map(String)
+    );
+
+    const visibleGroups = state.groups.filter(
+      group => !archivedIds.has(String(group.groupId))
+    );
+
     const groups =
       window.owemeGroupSubtab === "mine"
-        ? state.groups.filter(
+        ? visibleGroups.filter(
             group =>
               String(group.createdBy) ===
               String(state.user.userId)
           )
-        : state.groups.filter(
+        : visibleGroups.filter(
             group =>
               String(group.createdBy) !==
               String(state.user.userId)
           );
 
     return groups.length
-      ? groups.map(renderGroupCard).join("")
+      ? groups.map(group => renderGroupCard(group, true)).join("")
       : `
         <div class="card empty">
           ${
@@ -4016,6 +4030,15 @@ async function loadGroups() {
         onclick="switchGroupsSectionTab('history')"
       >
         My Past Groups
+      </button>
+
+      <button
+        type="button"
+        class="groups-tab ${window.owemeGroupsSection === "archive" ? "active" : ""}"
+        data-section-tab="archive"
+        onclick="switchGroupsSectionTab('archive')"
+      >
+        Archive
       </button>
 
     </div>
@@ -4050,12 +4073,30 @@ async function loadGroups() {
     ${renderSubTabs()}
 
     <div id="groupsTabContent">
-      ${renderGroupsContent()}
+      ${window.owemeGroupsSection === "archive"
+        ? `<div class="card empty">Loading archived groups...</div>`
+        : window.owemeGroupsSection === "history"
+          ? `<div class="card empty">Loading past groups...</div>`
+          : renderGroupsContent()}
     </div>
 
   `;
 
+  const subTabsContainer =
+    document.querySelector(".groups-sub-tabs");
+
+  if (subTabsContainer) {
+    subTabsContainer.hidden = false;
+  }
+
   bindGroupCards();
+
+  const initialContainer = document.querySelector("#groupsTabContent");
+  if (initialContainer && window.owemeGroupsSection === "archive") {
+    await renderArchivedGroupsTab(initialContainer);
+  } else if (initialContainer && window.owemeGroupsSection === "history") {
+    await renderGroupsHistoryTab(initialContainer);
+  }
 
 }
 
@@ -4063,8 +4104,8 @@ async function loadGroups() {
 async function switchGroupsSectionTab(section) {
 
   window.owemeGroupsSection =
-    section === "history"
-      ? "history"
+    section === "history" || section === "archive"
+      ? section
       : "mine";
 
   window.owemeGroupSubtab = "mine";
@@ -4101,8 +4142,17 @@ async function switchGroupsSectionTab(section) {
 
   if (!container) return;
 
+  const subTabsContainer =
+    document.querySelector(".groups-sub-tabs");
+
+  if (subTabsContainer) {
+    subTabsContainer.hidden = false;
+  }
+
   if (window.owemeGroupsSection === "history") {
     await renderGroupsHistoryTab(container);
+  } else if (window.owemeGroupsSection === "archive") {
+    await renderArchivedGroupsTab(container);
   } else {
     await renderGroupsOwnTab(container);
   }
@@ -4157,14 +4207,22 @@ async function switchGroupsSubTab(subtab) {
 
 async function renderGroupsOwnTab(container) {
 
+  const archivedIds = new Set(
+    (state.archivedGroupIds || []).map(String)
+  );
+
+  const visibleGroups = state.groups.filter(
+    group => !archivedIds.has(String(group.groupId))
+  );
+
   const groups =
     window.owemeGroupSubtab === "mine"
-      ? state.groups.filter(
+      ? visibleGroups.filter(
           group =>
             String(group.createdBy) ===
             String(state.user.userId)
         )
-      : state.groups.filter(
+      : visibleGroups.filter(
           group =>
             String(group.createdBy) !==
             String(state.user.userId)
@@ -4172,7 +4230,7 @@ async function renderGroupsOwnTab(container) {
 
   container.innerHTML =
     groups.length
-      ? groups.map(renderGroupCard).join("")
+      ? groups.map(group => renderGroupCard(group, true)).join("")
       : `
         <div class="card empty">
           ${
@@ -4442,6 +4500,121 @@ async function renderGroupsHistoryTab(container) {
 
 }
 
+
+
+async function archiveGroup(groupId) {
+  const userId = state.user?.userId;
+  if (!userId || !groupId) return;
+
+  const { error } = await supabaseClient
+    .from("group_archives")
+    .insert({
+      group_id: groupId,
+      user_id: userId
+    });
+
+  if (error) {
+    console.error("ARCHIVE GROUP ERROR:", error);
+    alert("Unable to archive this group. Please try again.");
+    return;
+  }
+
+  state.archivedGroupIds = [
+    ...new Set([
+      ...(state.archivedGroupIds || []).map(String),
+      String(groupId)
+    ])
+  ];
+
+  window.owemeGroupsSection = "mine";
+  await loadGroups();
+}
+
+async function unarchiveGroup(groupId) {
+  const userId = state.user?.userId;
+  if (!userId || !groupId) return;
+
+  const { error } = await supabaseClient
+    .from("group_archives")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("UNARCHIVE GROUP ERROR:", error);
+    alert("Unable to unarchive this group. Please try again.");
+    return;
+  }
+
+  state.archivedGroupIds = (state.archivedGroupIds || [])
+    .filter(id => String(id) !== String(groupId));
+
+  await loadGroupsData(true);
+  window.owemeGroupsSection = "archive";
+  await loadGroups();
+}
+
+async function renderArchivedGroupsTab(container) {
+  const archivedIds = new Set(
+    (state.archivedGroupIds || []).map(String)
+  );
+
+  const archivedGroups = state.groups.filter(group =>
+    archivedIds.has(String(group.groupId))
+  );
+
+  const groups =
+    window.owemeGroupSubtab === "mine"
+      ? archivedGroups.filter(
+          group => String(group.createdBy) === String(state.user.userId)
+        )
+      : archivedGroups.filter(
+          group => String(group.createdBy) !== String(state.user.userId)
+        );
+
+  if (!groups.length) {
+    container.innerHTML = `
+      <div class="card empty">
+        ${
+          window.owemeGroupSubtab === "mine"
+            ? "You haven't archived any groups you created."
+            : "You haven't archived any groups created by other people."
+        }
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = groups.map(group => `
+    <div class="card group-card" data-group-id="${escapeHtml(group.groupId)}">
+      <div style="flex:1;">
+        <h3>${escapeHtml(group.groupName)}</h3>
+        <p>${Number(group.memberCount || 0)} members · Archived</p>
+        <div style="margin-top:8px;">
+          <div><strong>Amount Spent</strong> ${formatMoney(group.amountSpent || 0)}</div>
+          <div style="margin-top:4px;"><strong>Amount You Spent</strong> ${formatMoney(group.amountYouSpent || 0)}</div>
+        </div>
+        <div style="margin-top:10px;font-size:13px;line-height:1.7;color:var(--muted);">
+          <div>Your Payables: ${formatMoney(group.payables || 0)}</div>
+          <div>Your Receivables: ${formatMoney(group.receivables || 0)}</div>
+        </div>
+        <button type="button" data-unarchive-group="${escapeHtml(group.groupId)}" style="margin-top:12px;">
+          Unarchive
+        </button>
+      </div>
+    </div>
+  `).join("");
+
+  container.querySelectorAll("[data-unarchive-group]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      unarchiveGroup(button.dataset.unarchiveGroup);
+    });
+  });
+
+  bindGroupCards();
+}
+
 async function loadGroupsData(force = false) {
 
   const cacheAge =
@@ -4473,6 +4646,26 @@ async function loadGroupsData(force = false) {
     );
   }
 
+  /* =====================================================
+     LOAD CURRENT USER'S ARCHIVED GROUP IDS
+     ===================================================== */
+
+  const {
+    data: archivedGroups,
+    error: archiveError
+  } = await supabaseClient
+    .from("group_archives")
+    .select("group_id")
+    .eq("user_id", user.id);
+
+  if (archiveError) {
+    throw new Error(
+      "Unable to load archived groups: " + archiveError.message
+    );
+  }
+
+  state.archivedGroupIds = (archivedGroups || [])
+    .map(row => String(row.group_id));
 
   /* =====================================================
      2. GET GROUP MEMBERSHIPS
@@ -5112,7 +5305,7 @@ function switchHomeSectionTab(tab) {
 }
 
 
-function renderGroupCard(group) {
+function renderGroupCard(group, showArchiveButton = true) {
 
   return `
     <div
@@ -5160,7 +5353,17 @@ function renderGroupCard(group) {
         </div>
       </div>
 
-
+      ${showArchiveButton ? `
+        <div style="margin-top:12px;">
+          <button
+            type="button"
+            data-archive-group="${escapeHtml(group.groupId)}"
+            onclick="event.stopPropagation(); archiveGroup('${escapeHtml(group.groupId)}')"
+          >
+            Archive
+          </button>
+        </div>
+      ` : ""}
 
     </div>
   `;
