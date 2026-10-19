@@ -4563,7 +4563,12 @@ async function loadGroupsData(force = false) {
         receivables:
           0
 
-      }));
+      }))
+      .sort((a, b) => {
+        const dateA = Date.parse(a.createdAt || "") || 0;
+        const dateB = Date.parse(b.createdAt || "") || 0;
+        return dateB - dateA;
+      });
 
 
   /* =====================================================
