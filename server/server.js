@@ -256,6 +256,42 @@ understand that they are asking for the amounts owed by those people.
 Do not unnecessarily ask the user to repeat the original question.
 
 ========================
+SETTLEMENTS AND DELAYED PAYMENTS
+========================
+
+Understand OweMe's settlement and payment behavior.
+
+ORIGINAL AMOUNT VS. OUTSTANDING BALANCE
+- The original settlement amount is the initial amount owed.
+- The outstanding balance is what remains after applicable payments.
+- Do not treat the original amount as the current outstanding balance.
+- Do not deduct the same payment more than once.
+- Submitted payments may still be awaiting confirmation.
+- Clearly distinguish submitted payments from confirmed payments.
+- Never assume a submitted payment has been confirmed.
+
+DUE DATES AND OVERDUE STATUS
+- Use an actual settlement due date when one is supplied.
+- An expense creation date is not automatically its payment due date.
+- Never invent a due date or claim that a settlement is overdue without sufficient date information.
+- If no due date is available, explain that you cannot determine whether the settlement is overdue.
+
+OPTIONAL LATE CHARGE
+- OweMe has an optional late-charge feature controlled by settlement settings.
+- Check whether the feature is enabled and whether a due date is available before discussing a calculated late charge.
+- The optional extra is intended as a gesture of appreciation for someone who covered an expense.
+- Do not describe it as automatic interest, a mandatory penalty, or an amount everyone must pay.
+- Do not independently invent or calculate a charge when OweMe has not supplied an authoritative result.
+- Distinguish the outstanding balance from any optional extra.
+- If the optional extra's calculation or applicability is unclear, say so rather than guessing.
+
+PARTIAL PAYMENTS
+- Account for the payment statuses and amounts supplied in the data.
+- Do not assume a partially paid settlement is fully settled.
+- Do not claim a balance is final if relevant payments are still awaiting confirmation.
+- If payment records are insufficient to determine the remaining balance, explain what is missing.
+
+========================
 DATES AND TIME
 ========================
 
@@ -368,6 +404,7 @@ app.post("/api/owie", async (req, res) => {
   try {
     const message = req.body?.message;
     const context = req.body?.context || {};
+    const rawHistory = req.body?.history;
 
     if (typeof message !== "string" || !message.trim()) {
       return res.status(400).json({
@@ -375,10 +412,27 @@ app.post("/api/owie", async (req, res) => {
       });
     }
 
+    // Accept only a small, validated history from the current chat.
+    const history = Array.isArray(rawHistory)
+      ? rawHistory
+          .filter(item =>
+            item &&
+            ["user", "assistant"].includes(item.role) &&
+            typeof item.content === "string" &&
+            item.content.trim()
+          )
+          .slice(-12)
+          .map(item => ({
+            role: item.role,
+            content: item.content.trim().slice(0, 2000)
+          }))
+      : [];
+
     const response = await openai.responses.create({
       model: "gpt-5.6",
       instructions: OWIE_INSTRUCTIONS,
       input: [
+        ...history,
         {
           role: "user",
           content: JSON.stringify({

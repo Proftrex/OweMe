@@ -19664,6 +19664,26 @@ window.closeOwieAI = function(event) {
 
 
 /* =========================================================
+   OWIE AI — SESSION CONVERSATION HISTORY
+   ========================================================= */
+
+window.owieConversationHistory =
+  window.owieConversationHistory || [];
+
+function addOwieConversationMessage(role, content) {
+  if (!content || !String(content).trim()) return;
+
+  window.owieConversationHistory.push({
+    role,
+    content: String(content).trim().slice(0, 2000)
+  });
+
+  // Keep the latest 12 messages in this page session.
+  window.owieConversationHistory =
+    window.owieConversationHistory.slice(-12);
+}
+
+/* =========================================================
    OWIE AI — STANDALONE SEND HANDLER
    ========================================================= */
 
@@ -19696,6 +19716,8 @@ window.sendOwieMessage = async function () {
     "owee-ai-bubble owee-ai-user-bubble";
 
   userBubble.textContent = text;
+
+  addOwieConversationMessage("user", text);
 
   userMessage.appendChild(userBubble);
   messages.appendChild(userMessage);
@@ -19752,6 +19774,9 @@ window.sendOwieMessage = async function () {
 
         message: text,
 
+        history: window.owieConversationHistory
+          .slice(0, -1),
+
         context: {
           userId: context.userId,
           username: context.username,
@@ -19780,9 +19805,12 @@ window.sendOwieMessage = async function () {
     }
 
 
-    bubble.textContent =
+    const owieReply =
       result.reply ||
       "Hmm, I wasn't able to come up with an answer. 😅";
+
+    bubble.textContent = owieReply;
+    addOwieConversationMessage("assistant", owieReply);
 
 
   } catch (error) {
