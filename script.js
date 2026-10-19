@@ -1009,11 +1009,15 @@ async function getSettlementsFromSupabase(groupId) {
           ] || 0
         );
 
+      // Never apply more than the original obligation.
+      const amountApplied =
+        Math.min(originalAmount, paidAmount);
+
       settlement.amount =
         Math.max(
           0,
           Math.round(
-            (originalAmount - paidAmount) * 100
+            (originalAmount - amountApplied) * 100
           ) / 100
         );
 
@@ -4865,16 +4869,23 @@ async function loadGroupsData(force = false) {
         const key =
           `${String(obligation.fromUserId)}|${String(obligation.toUserId)}`;
 
+        const originalObligation =
+          Number(obligation.amount || 0);
+
         const paidAmount =
           Number(paidByDirection[key] || 0);
+
+        // Apply payments only up to the amount owed.
+        const amountApplied =
+          Math.min(originalObligation, paidAmount);
 
         obligation.amount =
           Math.max(
             0,
             Math.round(
               (
-                Number(obligation.amount || 0) -
-                paidAmount
+                originalObligation -
+                amountApplied
               ) * 100
             ) / 100
           );
@@ -6925,6 +6936,167 @@ async function closeCurrentGroup() {
 }
 
 
+
+function openRenameGroupModal() {
+  const group = state.currentGroup?.group;
+
+  if (!group) {
+    toast("Unable to find the current group.");
+    return;
+  }
+
+  if (String(group.status).toUpperCase() !== "ACTIVE") {
+    toast("Only active groups can be renamed.");
+    return;
+  }
+
+  if (String(group.createdBy) !== String(state.user?.userId)) {
+    toast("Only the group creator can rename this group.");
+    return;
+  }
+
+  openModal(`
+    <div class="close-group-confirmation">
+      <h2>Rename group</h2>
+
+      <form id="renameGroupForm">
+        <label for="renameGroupName">Group name</label>
+        <input
+          id="renameGroupName"
+          name="groupName"
+          type="text"
+          maxlength="80"
+          value="${escapeHtml(group.groupName || "")}"
+          required
+          autocomplete="off"
+          placeholder="Enter group name"
+        >
+
+        <div class="close-group-confirmation-actions" style="margin-top: 20px;">
+          <button
+            type="button"
+            class="secondary-button"
+            onclick="closeModal()"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="primary-button"
+          >
+            Save changes
+          </button>
+        </div>
+      </form>
+    </div>
+  `);
+
+  $("#renameGroupForm").addEventListener(
+    "submit",
+    renameCurrentGroup
+  );
+
+  $("#renameGroupName").focus();
+  $("#renameGroupName").select();
+}
+
+
+async function renameCurrentGroup(event) {
+  event.preventDefault();
+
+  const group = state.currentGroup?.group;
+  const input = $("#renameGroupName");
+  const groupName = input?.value.trim();
+
+  if (!group) {
+    toast("Unable to find the current group.");
+    return;
+  }
+
+  if (!groupName) {
+    toast("Please enter a group name.");
+    input?.focus();
+    return;
+  }
+
+  if (groupName.length > 80) {
+    toast("Group names must be 80 characters or fewer.");
+    input?.focus();
+    return;
+  }
+
+  if (String(group.status).toUpperCase() !== "ACTIVE") {
+    toast("Only active groups can be renamed.");
+    return;
+  }
+
+  setLoading(true, "Renaming group...");
+
+  try {
+    const {
+      data: { user },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    if (
+      String(group.createdBy) !== String(user.id) ||
+      String(group.createdBy) !== String(state.user?.userId)
+    ) {
+      throw new Error("Only the group creator can rename this group.");
+    }
+
+    const { data: updatedGroup, error: updateError } =
+      await supabaseClient
+        .from("groups")
+        .update({ group_name: groupName })
+        .eq("id", group.groupId)
+        .eq("created_by", user.id)
+        .eq("status", "ACTIVE")
+        .select("id, group_name")
+        .maybeSingle();
+
+    if (updateError) {
+      throw new Error(
+        updateError.message || "Unable to rename the group."
+      );
+    }
+
+    if (!updatedGroup) {
+      throw new Error(
+        "The group wasn't updated. Check your permissions and try again."
+      );
+    }
+
+    group.groupName = updatedGroup.group_name;
+
+    const listedGroup = (state.groups || []).find(
+      item => String(item.groupId) === String(group.groupId)
+    );
+
+    if (listedGroup) {
+      listedGroup.groupName = updatedGroup.group_name;
+    }
+
+    $("#pageTitle").textContent = updatedGroup.group_name;
+
+    closeModal();
+    renderGroup();
+
+    toast("Group name updated.");
+  } catch (error) {
+    console.error("RENAME GROUP ERROR:", error);
+    toast(error?.message || "Unable to rename the group.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+
 function renderGroup() {
 
   const group =
@@ -7007,9 +7179,15 @@ function renderGroup() {
 
     <div class="group-header">
 
-      <h2>
-        ${escapeHtml(group.groupName)}
-      </h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <h2 style="margin:0;">${escapeHtml(group.groupName)}</h2>
+        ${
+          String(group.status).toUpperCase() === "ACTIVE" &&
+          String(group.createdBy) === String(state.user.userId)
+            ? `<button type="button" onclick="openRenameGroupModal()" aria-label="Edit group name" title="Edit group name" style="border:0;background:transparent;cursor:pointer;padding:6px;color:inherit;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg></button>`
+            : ""
+        }
+      </div>
 
       <p>
         ${members.length}
@@ -16805,19 +16983,6 @@ async function submitSettlementPayment(event, settlement) {
 
       toast(
         "Please enter a valid amount paid."
-      );
-
-      return;
-    }
-
-
-    if (
-      amountPaid >
-      Number(settlement.amount) + 0.01
-    ) {
-
-      toast(
-        "Amount paid cannot exceed the amount due."
       );
 
       return;
