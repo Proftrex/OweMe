@@ -51,12 +51,17 @@
 
             <label>
               Password
-              <input
+              <span class="password-field">
+                <input
                 id="loginPassword"
                 type="password"
                 autocomplete="current-password"
                 required
               >
+                <button type="button" class="password-toggle" data-password-target="loginPassword" aria-label="Show password" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
             </label>
 
             <p style="text-align:right;margin-top:-8px;margin-bottom:14px;">
@@ -97,7 +102,8 @@
 
             <label>
               New password
-              <input
+              <span class="password-field">
+                <input
                 id="resetPassword"
                 type="password"
                 autocomplete="new-password"
@@ -105,17 +111,26 @@
                 minlength="8"
                 placeholder="At least 8 characters"
               >
+                <button type="button" class="password-toggle" data-password-target="resetPassword" aria-label="Show password" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
             </label>
 
             <label>
               Confirm new password
-              <input
+              <span class="password-field">
+                <input
                 id="resetPasswordConfirm"
                 type="password"
                 autocomplete="new-password"
                 required
                 minlength="8"
               >
+                <button type="button" class="password-toggle" data-password-target="resetPasswordConfirm" aria-label="Show password" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
             </label>
 
             <button
@@ -185,7 +200,8 @@
 
             <label>
               Password
-              <input
+              <span class="password-field">
+                <input
                 id="registerPassword"
                 type="password"
                 autocomplete="new-password"
@@ -193,16 +209,25 @@
                 minlength="8"
                 placeholder="At least 8 characters"
               >
+                <button type="button" class="password-toggle" data-password-target="registerPassword" aria-label="Show password" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
             </label>
 
             <label>
               Confirm password
-              <input
+              <span class="password-field">
+                <input
                 id="registerPasswordConfirm"
                 type="password"
                 autocomplete="new-password"
                 required
               >
+                <button type="button" class="password-toggle" data-password-target="registerPasswordConfirm" aria-label="Show password" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
             </label>
             
             <button class="primary-button" type="submit">

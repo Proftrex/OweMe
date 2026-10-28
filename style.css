@@ -16247,3 +16247,70 @@ body.oweme-badge-modal-open {
   flex: 1 !important;
 }
 
+
+/* Password visibility toggle */
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #68766d);
+  cursor: pointer;
+  z-index: 1;
+}
+
+.password-toggle svg {
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary, #27834a);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Fix password eye alignment in auth forms */
+.auth-card .password-field {
+  position: relative !important;
+  display: block !important;
+  width: 100%;
+}
+
+.auth-card .password-field > input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 48px !important;
+}
+
+.auth-card .password-field > .password-toggle {
+  position: absolute !important;
+  top: 50% !important;
+  right: 10px !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  z-index: 2;
+}
