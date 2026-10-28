@@ -2136,10 +2136,13 @@ async function loadHome(initialGroups = null, force = false) {
      * One request provides the group balances.
      */
 
+    const archivedIds = new Set((state.archivedGroupIds || []).map(String));
+    const activeHomeGroups = state.groups.filter(group => !archivedIds.has(String(group.groupId)));
+
     let totalBalance = 0;
 
 
-    state.groups.forEach(group => {
+    activeHomeGroups.forEach(group => {
 
       totalBalance +=
         Number(
@@ -2156,7 +2159,7 @@ async function loadHome(initialGroups = null, force = false) {
 
     const totalReceivables =
       Number(
-        state.groups
+        activeHomeGroups
           .reduce(
             (total, group) =>
               total +
@@ -2168,7 +2171,7 @@ async function loadHome(initialGroups = null, force = false) {
 
     const totalPayables =
       Number(
-        state.groups
+        activeHomeGroups
           .reduce(
             (total, group) =>
               total +
@@ -2280,9 +2283,9 @@ async function loadHome(initialGroups = null, force = false) {
       <div id="homeSectionActive" class="home-section-panel">
 
         ${
-          state.groups.length
+          activeHomeGroups.length
 
-            ? state.groups
+            ? activeHomeGroups
                 .map(group => renderGroupCard(group, false))
                 .join("")
 
@@ -18003,6 +18006,7 @@ function openCustomNudge() {
       <button
         type="button"
         class="secondary-button"
+        style="padding:10px 16px;min-height:44px;font-size:14px;font-weight:700;"
         onclick="openNudgeConfirmation('${escapeHtml(draft.settlementId)}')"
       >
         Back
@@ -18011,6 +18015,7 @@ function openCustomNudge() {
       <button
         type="button"
         class="small-button nudge-button"
+        style="padding:10px 16px;min-height:44px;font-size:14px;font-weight:700;"
         onclick="sendCustomNudge()"
       >
         Preview
@@ -18075,7 +18080,7 @@ function showNudgePreview(message) {
         type="button"
         class="secondary-button"
         onclick="openNudgeConfirmation('${escapeHtml(draft.settlementId)}')"
-      >
+       style="padding:10px 16px;min-height:44px;font-size:14px;font-weight:700;">
         Change Nudge
       </button>
 
@@ -18083,12 +18088,90 @@ function showNudgePreview(message) {
         type="button"
         class="small-button nudge-button"
         id="confirmNudgeButton"
-        onclick="sendNudge('${escapeHtml(draft.settlementId)}')"
-      >
-        Send Nudge
+        onclick="openNudgeDeliveryOptions('${escapeHtml(draft.settlementId)}')"
+       style="padding:10px 16px;min-height:44px;font-size:14px;font-weight:700;">
+        Choose How to Send
       </button>
     </div>
   `);
+}
+
+
+
+function openNudgeDeliveryOptions(settlementId) {
+  const draft = window.currentNudgeDraft;
+
+  if (!draft || String(draft.settlementId) !== String(settlementId) || !draft.message) {
+    toast("Nudge message is no longer available.");
+    return;
+  }
+
+  openModal(`
+    <h2>Choose How to Send</h2>
+    <p class="muted">Select where you want to share your reminder.</p>
+
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+      <button type="button" class="primary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="sendNudge('${escapeHtml(settlementId)}')">
+        OweMe Notification
+      </button>
+      <button type="button" class="secondary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="shareNudgeExternally('telegram')">
+        Telegram
+      </button>
+      <button type="button" class="secondary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="shareNudgeExternally('messenger')">
+        Messenger
+      </button>
+      <button type="button" class="secondary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="shareNudgeExternally('viber')">
+        Viber
+      </button>
+      <button type="button" class="secondary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="shareNudgeExternally('copy')">
+        Copy Message
+      </button>
+      <button type="button" class="secondary-button" style="width:100%;padding:10px 16px;min-height:44px;" onclick="showNudgePreview(window.currentNudgeDraft.message)">
+        Back
+      </button>
+    </div>
+  `);
+}
+
+
+
+async function shareNudgeExternally(channel) {
+  const draft = window.currentNudgeDraft;
+  const message = draft?.message?.trim();
+
+  if (!message) {
+    toast("Nudge message is no longer available.");
+    return;
+  }
+
+  if (channel === "copy") {
+    try {
+      await navigator.clipboard.writeText(message);
+      toast("Nudge message copied. Paste it into your messaging app.");
+    } catch (error) {
+      toast("Unable to copy automatically. Please copy the message from the preview.");
+    }
+    return;
+  }
+
+  const encodedMessage = encodeURIComponent(message);
+  let url = "";
+
+  if (channel === "telegram") {
+    url = `https://t.me/share/url?url=&text=${encodedMessage}`;
+  } else if (channel === "messenger") {
+    window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+    toast("Messenger opened. Paste your reminder into the conversation. Use Copy Message if needed.");
+    return;
+  } else if (channel === "viber") {
+    url = `viber://forward?text=${encodedMessage}`;
+  } else {
+    toast("Unsupported messaging app.");
+    return;
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
+  toast("Messaging app opened if available. Review and send the message there.");
 }
 
 
